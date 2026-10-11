@@ -169,17 +169,23 @@ public static class AppServer
         // 아이라 종료 마지막: 아이라가 켠 N.I.N.A.면 PHD2와 함께 닫는다 (촬영 중이면 두기). 사용자가 켜 둔 N.I.N.A.는 그대로
         // 아이라 종료: 닫을 프로그램 목록(아이라가 N.I.N.A.를 켰고 촬영 중이 아닐 때만) → 화면이 하나씩 닫으며 체크 (2026-10-10)
         // 준비 작업이 돌고 있으면 닫지 않는다 — 종료 화면이 먼저 /prepare/stop-for-quit로 멈춘다 (CX-20-02)
-        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow) =>
-            Results.Ok(new { apps = programs.LaunchedNina && !shoot.Active && !PrepareBusy(flow) ? programs.Targets() : [] }));
-        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, CancellationToken ct) =>
-            Results.Ok(new { closed = programs.LaunchedNina && !shoot.Active && !PrepareBusy(flow) && await programs.CloseOneAsync(id, ct) }));
+        // 작업이 아직 돌고 있으면 빈 목록이 아니라 held(이유) — 화면이 "닫을 것 없음"으로 알고 바로 꺼지지 않게 (CX-21-02)
+        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home) =>
+            PrepareBusy(flow, home) is { } held
+                ? Results.Ok(new { apps = Array.Empty<ProgramCloser.Target>(), held })
+                : Results.Ok(new { apps = programs.LaunchedNina && !shoot.Active ? programs.Targets() : [], held = (string?)null }));
+        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, CancellationToken ct) =>
+            Results.Ok(new { closed = programs.LaunchedNina && !shoot.Active && PrepareBusy(flow, home) is null && await programs.CloseOneAsync(id, ct) }));
         // 아이라 종료 전: 진행 중인 준비 작업과 계속 도는 가이딩을 멈추고 확인 (CX-20-02). 촬영 중이면 그대로 — 촬영은 N.I.N.A.가 이어 간다
-        api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Shoot.ShootSession shoot) =>
+        // 홈 버튼으로 시작한 홈 이동도 멈추고 확인한다 (CX-21-02)
+        api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Shoot.ShootSession shoot) =>
         {
-            if (shoot.Active) return Results.Ok(new { stopped = true, shooting = true });
+            if (shoot.Active) return Results.Ok(new { stopped = true, shooting = true, problem = (string?)null });
             foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
-                if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false });
-            return Results.Ok(new { stopped = true, shooting = false });
+                if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false, problem = (string?)null });
+            if (!await home.StopForQuitAsync())
+                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"적도의 홈 이동을 멈췄는지 확인하지 못했습니다. 적도의가 멈춰 있는지 직접 확인해 주세요." });
+            return Results.Ok(new { stopped = true, shooting = false, problem = (string?)null });
         });
         // 화면의 단계 이동·버튼 기록 (같은 로그 파일에 "화면"으로)
         api.MapPost("/log", (ClientLog input) =>
@@ -593,6 +599,11 @@ public static class AppServer
     }
 
     /// <summary>준비 작업이 진행 중인가 (종료 때 프로그램을 닫기 전에 본다)</summary>
-    private static bool PrepareBusy(Prepare.Flow.PrepareFlow flow) =>
-        new[] { flow.Rig, flow.Target, flow.Wrap }.Any(r => r.ActiveTaskTitle is not null);
+    /// <summary>종료가 프로그램을 닫으면 안 되는 이유 (준비 작업·홈 이동이 돌고 있음). 없으면 null</summary>
+    private static string? PrepareBusy(Prepare.Flow.PrepareFlow flow, Prepare.MountHome home)
+    {
+        if (new[] { flow.Rig, flow.Target, flow.Wrap }.Select(r => r.ActiveTaskTitle).FirstOrDefault(t => t is not null) is { } task)
+            return $"{task} 작업이 아직 진행 중이라 프로그램을 닫지 않았습니다.";
+        return home.Homing ? "적도의가 아직 홈으로 가는 중이라 프로그램을 닫지 않았습니다." : null;
+    }
 }

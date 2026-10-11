@@ -203,32 +203,48 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
 
     /// <summary>
     /// 종료 전: 연결 중이면 멈추고, 이번에 연결을 시도한 장비를 끊고 끊긴 것을 확인한다 (전원 허브는 맨 나중).
-    /// 연결 중이 아니었으면 아무것도 하지 않는다. 끊지 못한 장비가 있으면 그 이름들
+    /// 연결 중이 아니었고 답을 기다리는 연결 요청도 없으면 아무것도 하지 않는다. 끊지 못한(또는 확인하지 못한) 장비가 있으면 그 이름들 —
+    /// 그 장비들은 이번에 시도한 장비 목록에 남겨 다시 눌렀을 때 또 지켜본다 (CX-21-01)
     /// </summary>
     public async Task<IReadOnlyList<string>> AbortAsync(CancellationToken ct)
     {
         Task done;
         List<string> kinds;
-        bool inFlight;
         lock (_gate)
         {
-            if (_runCts is null) return [];
-            inFlight = state.InFlight.Count > 0;
-            _runCts.Cancel();
+            if (_runCts is null && state.InFlight.Count == 0) return [];
+            _runCts?.Cancel();
             done = _runDone?.Task ?? Task.CompletedTask;
-            kinds = [.. _touched];
-            _touched.Clear();
+            kinds = [.. _touched.Union(state.InFlight.Keys)];
         }
         try { await done.WaitAsync(TimeSpan.FromSeconds(5), ct); } catch (TimeoutException) { }
-        if (options.Value.Simulate) return [];
+        if (options.Value.Simulate)
+        {
+            lock (_gate) { _touched.Clear(); state.InFlight.Clear(); }
+            return [];
+        }
+
+        // 1. 보낸 연결 요청의 답을 기다린다 (요청 한도 60초 + 여유) — 답이 오기 전에는 N.I.N.A.가 언제든 연결을 끝낼 수 있어 "조용함"이 증거가 못 된다
+        KeyValuePair<string, Task>[] pending;
+        lock (_gate) pending = [.. state.InFlight];
+        if (pending.Length > 0)
+        {
+            log.LogInformation("연결 멈춤: 답을 기다리는 연결 요청 {Kinds}", string.Join(", ", pending.Select(p => p.Key)));
+            try { await Task.WhenAll(pending.Select(p => p.Value.ContinueWith(_ => { }, TaskScheduler.Default))).WaitAsync(TimeSpan.FromSeconds(65), ct); }
+            catch (TimeoutException) { }
+        }
+        var unanswered = new List<string>();
+        lock (_gate)
+            foreach (var (kind, request) in pending)
+                if (request.IsCompleted) { if (state.InFlight.GetValueOrDefault(kind) == request) state.InFlight.Remove(kind); }
+                else unanswered.Add(kind);
 
         // 모든 장비를 함께 1초마다 보며 붙어 있으면 끊는다 (허브는 다른 장비가 다 끊긴 뒤에). 모두 끊긴 채로 몇 번 연속이면 끝.
         // 하던 연결이 늦게 붙으면 다시 끊는다 (최대 30초) — 장비마다 차례로 지켜보면 17초 걸렸음 (2026-10-09 시험).
-        // CX-20-01: N.I.N.A.에 보낸 연결 요청이 아직 답이 없었으면(취소해도 N.I.N.A.는 끝까지 함) 3초가 아니라 10초 동안 조용해야 끝,
-        // 상태를 읽지 못한 것은 끊긴 것으로 치지 않는다 — 끝까지 모르면 "확인 못 함"으로 돌려준다
+        // 상태를 읽지 못한 것은 끊긴 것으로 치지 않는다 — 끝까지 모르면 "확인 못 함"으로 돌려준다 (CX-20-01)
         var order = Slots.Select(s => s.Kind).Reverse().Where(kinds.Contains).ToList();
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        var needQuiet = inFlight ? 10 : 3;
+        const int needQuiet = 3;
         var quiet = 0;
         var still = new List<string>();
         var unknown = new List<string>();
@@ -251,10 +267,14 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             }
             await Task.Delay(1000, ct);
         }
-        lock (_gate) state.InFlight.Clear();
-        foreach (var kind in order.Except(still).Except(unknown)) live.Forget(kind);
+        // 끊긴 것을 확인한 장비만 목록에서 뺀다. 답이 없던 요청은 지금 끊겨 보여도 확인한 것이 아니다
+        var unsure = unknown.Union(unanswered).ToList();
+        var confirmed = order.Except(still).Except(unsure).ToList();
+        lock (_gate) _touched.RemoveAll(confirmed.Contains);
+        foreach (var kind in confirmed) live.Forget(kind);
         return still.Select(k => FindSlot(k)?.Role ?? k)
             .Concat(unknown.Select(k => $"{FindSlot(k)?.Role ?? k}(상태를 읽지 못함)"))
+            .Concat(unanswered.Except(still).Except(unknown).Select(k => $"{FindSlot(k)?.Role ?? k}(연결 요청이 끝나지 않음)"))
             .ToList();
     }
 
@@ -464,9 +484,11 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                         ? Make(d, CheckStatus.Warn, $"N.I.N.A.가 {d.Slot.Role}{Reul(d.Slot.Role)} 찾지 못해 {d.Slot.Role} 없이 진행합니다", miss)
                         : Make(d, CheckStatus.Fail, $"N.I.N.A.가 {d.Slot.Role}{Reul(d.Slot.Role)} 찾지 못했습니다", miss);
                 }
-                lock (_gate) state.InFlight.Add(kind);
-                try { connected = await nina.ConnectAsync(kind, d.Id, ct) && await nina.IsConnectedAsync(kind, ct); }
-                finally { if (!ct.IsCancellationRequested) lock (_gate) state.InFlight.Remove(kind); } // 취소됐으면 남겨 둔다 — 종료가 늦은 연결을 더 오래 지켜보게
+                // 요청은 취소 토큰 없이 (연결 요청 한도 60초는 그대로) — 멈추면 기다리기만 그만두고, 답은 종료(AbortAsync)가 기다린다
+                var request = nina.ConnectAsync(kind, d.Id, CancellationToken.None);
+                lock (_gate) state.InFlight[kind] = request;
+                try { connected = await request.WaitAsync(ct) && await nina.IsConnectedAsync(kind, ct); }
+                finally { if (request.IsCompleted) lock (_gate) if (state.InFlight.GetValueOrDefault(kind) == request) state.InFlight.Remove(kind); }
                 _timing?.Step("N.I.N.A. 연결");
             }
             // 허브가 USB로만 붙고 전원(DC)이 안 들어오면(10/09: USB만으로도 연결됨) 뒤 장비를 N.I.N.A.에 맡기지 않는다 —
@@ -755,6 +777,9 @@ public sealed class EquipmentRun
     public CancellationTokenSource? Cts { get; set; }
     public TaskCompletionSource? Done { get; set; }
     public List<string> Touched { get; } = [];
-    /// <summary>N.I.N.A.에 연결 요청을 보내고 아직 답을 받지 못한 장비 — 취소해도 N.I.N.A.는 그 연결을 끝까지 할 수 있다 (CX-20-01)</summary>
-    public HashSet<string> InFlight { get; } = [];
+    /// <summary>
+    /// N.I.N.A.에 보낸 연결 요청 중 아직 답이 없는 것 (장비 → 그 요청). 연결을 멈춰도 요청 자체는 취소하지 않는다 — N.I.N.A.는 그 연결을 끝까지 하므로,
+    /// 답이 온 것(= N.I.N.A.가 연결을 끝냄)을 종료가 기다린 뒤 끊는다 (CX-20-01, CX-21-01)
+    /// </summary>
+    public Dictionary<string, Task> InFlight { get; } = [];
 }

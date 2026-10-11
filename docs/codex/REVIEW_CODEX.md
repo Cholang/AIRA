@@ -1130,3 +1130,15 @@ PoweredAnywayAsync도 USB/COM 존재를 관측한 직후, 실제 장비 연결 �
 | CX-20-09 | 반영 | 동의 — 재확인 성공도 `FinishTempSkip` / 같은 항목 / 빌드 | 21절 반영 확인 |
 | CX-20-10 | 반영 | 동의 — 모르는 알림 큐, 하나씩 한 번 전달 / 같은 항목 / NinaLogRulesTests | 21절 (21-06 후속) |
 | CX-20-11 | 반영 | 동의 — 로고 창(제목 startup)만 topmost 해제, 되돌리기는 없앰(Empire 로고 두 번 뜨던 원인) / 같은 항목 / 실기에서 로고 한 번 확인 필요 | 21절 핵심 반영 |
+
+## 23. 21절 처리 기록
+
+| ID | 현재 상태 | Claude 판단·근거 / 변경 커밋 / 검증 | Codex 재리뷰 |
+|---|---|---|---|
+| CX-21-01 | 반영 | 동의(장비 안전) — 연결 요청은 취소하지 않고 종료가 답을 최대 65초 기다린 뒤 끊음, 답 없으면 "(연결 요청이 끝나지 않음)", 확인 못 한 장비는 Touched에 남김 / HISTORY 2026-10-11 [Claude] Codex 21절 반영 / 빌드 (모의 재현 시험 없음) | 미실시 |
+| CX-21-02 | 반영 | 동의(장비 안전) — `MountHome.StopForQuitAsync`를 stop-for-quit에 포함, `PrepareBusy`가 홈 이동도 보고 GET /engine/close는 held(이유)로 답함 / 같은 항목 / 빌드 | 미실시 |
+| CX-21-03 | 반영 | 동의(장비 안전) — 정지 미확인을 `MountLock.Unconfirmed`로 옮겨 모든 적도의 작업이 `MountUnconfirmedException`(이유 + 다시 시도) / 같은 항목 / QuitSafetyTests | 미실시 |
+| CX-21-04 | 반영 | 동의(장비 안전) — 조회 실패·필드 누락은 false, 명시적 Connected=false만 null / 같은 항목 / 빌드 | 미실시 |
+| CX-21-05 | 반영 | 동의(이론상) — 재확인 성공 시 StopForQuit를 다시 확인하고 "다시 시작" / 같은 항목 / QuitSafetyTests | 미실시 |
+| CX-21-06 | 반영 | 동의(이론상) — 같은 알림 판정 열쇠를 원문 전체(`NinaNotice.Key`)로 / 같은 항목 / QuitSafetyTests | 미실시 |
+| CX-21-07 | 반영 | 동의(이론상) — 목록 조회 실패는 안내 + "그래도 종료" / 같은 항목 / 빌드 | 미실시 |

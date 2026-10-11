@@ -28,9 +28,13 @@ public sealed class FileLogProvider : ILoggerProvider
     public ILogger CreateLogger(string category) => _loggers.GetOrAdd(category, c => new FileLogger(c));
     public void Dispose() { }
 
+    /// <summary>끄면 아무것도 쓰지 않는다 — 단위 테스트가 실제 기록 파일에 가짜 알림을 남기지 않게 (2026-10-11, 테스트 모듈 초기화에서 끔)</summary>
+    public static bool Enabled { get; set; } = true;
+
     /// <summary>한 줄 쓰기 (다른 곳에서도 — 화면 기록 등)</summary>
     public static void Write(string level, string source, string message)
     {
+        if (!Enabled) return;
         var line = $"{DateTime.Now:HH:mm:ss.fff} {level,-5} {source}: {message.Replace("\r", "").Replace("\n", " ⏎ ")}";
         try
         {

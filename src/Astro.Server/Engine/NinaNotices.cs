@@ -10,7 +10,11 @@ namespace Astro.Server.Engine;
 /// Advanced API는 알림을 주지 않는다 → N.I.N.A. 로그 파일(%LOCALAPPDATA%\NINA\Logs, 같은 내용이 원인까지 남음)을 따라 읽어
 /// 오류·경고를 진단 카드 형식(무슨 일 / 왜 / 이렇게, 원본은 접어서 — DESIGN.md 4장)으로 바꾼다.
 /// </summary>
-public sealed record NinaNotice(long Id, DateTimeOffset At, string Category, string Title, IReadOnlyList<string> Why, string Fix, string Raw, int Count);
+public sealed record NinaNotice(long Id, DateTimeOffset At, string Category, string Title, IReadOnlyList<string> Why, string Fix, string Raw, int Count)
+{
+    /// <summary>같은 알림인지 가르는 열쇠 (보통 제목, 해석 못 한 알림은 원문 전체 — CX-21-06: 화면용 짧은 제목이 같아도 원문이 다르면 따로)</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public string Key { get; init; } = "";
+}
 
 public sealed class NinaNotices
 {
@@ -55,9 +59,9 @@ public sealed class NinaNotices
             for (var i = 0; i < _unknown.Count; i++)
                 if (!_unknown[i].Sent && _unknown[i].At >= since) _unknown[i] = _unknown[i] with { Sent = true };
         }
-        // 원문마다 따로 (제목이 같으면 1분 안의 것이 횟수로 묶이므로 원문 앞부분을 제목에 붙인다)
+        // 원문마다 따로 — 제목은 원문 앞부분(화면용), 같은 알림인지는 원문 전체로 (CX-21-06)
         foreach (var u in due)
-            Add("nina", $"N.I.N.A. 알림: {Short(u.Raw)}", [], "아래 원문이 N.I.N.A.가 띄운 알림입니다. 계속 되풀이되면 N.I.N.A. 창에서 자세히 확인해 주세요.", u.Raw, u.At);
+            Add("nina", $"N.I.N.A. 알림: {Short(u.Raw)}", [], "아래 원문이 N.I.N.A.가 띄운 알림입니다. 계속 되풀이되면 N.I.N.A. 창에서 자세히 확인해 주세요.", u.Raw, u.At, key: "raw:" + u.Raw);
         return due.Count > 0;
     }
 
@@ -71,12 +75,13 @@ public sealed class NinaNotices
     /// 같은 알림이 1분 안에 다시 오면 새로 띄우지 않고 횟수만 (적도의 통신 오류는 속성마다 줄줄이 남는다).
     /// 반복이 이어지면 30초에 한 번 새 번호를 붙여 화면에 다시 전한다 — 화면은 after=번호로 묻기 때문에 번호가 그대로면 횟수 변화를 모른다 (Codex L06)
     /// </summary>
-    public void Add(string category, string title, IReadOnlyList<string> why, string fix, string raw, DateTimeOffset at)
+    public void Add(string category, string title, IReadOnlyList<string> why, string fix, string raw, DateTimeOffset at, string? key = null)
     {
+        key ??= title;
         lock (_gate)
         {
             LastAddedAt = DateTimeOffset.Now;
-            var i = _items.FindLastIndex(n => n.Title == title && at - n.At < TimeSpan.FromMinutes(1));
+            var i = _items.FindLastIndex(n => n.Key == key && at - n.At < TimeSpan.FromMinutes(1));
             if (i >= 0)
             {
                 var old = _items[i];
@@ -95,7 +100,7 @@ public sealed class NinaNotices
                 return;
             }
             FileLogProvider.Write("WARN", "N.I.N.A. 알림", $"{title} ({category}) — {raw.Split('\n')[0]}"); // 기록 파일에도 (2026-10-10)
-            var n = new NinaNotice(_next++, at, category, title, why, fix, raw, 1);
+            var n = new NinaNotice(_next++, at, category, title, why, fix, raw, 1) { Key = key };
             _items.Add(n);
             _sentAt[n.Id] = at;
             if (_items.Count > 50)

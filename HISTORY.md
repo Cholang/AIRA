@@ -8,7 +8,24 @@
 
 ---
 
-## 2026-10-11 · [Claude] Codex 20절 반영, 종료 때 추적 끄기, 라이브 사진·배경 효율, 설정 창
+## 2026-10-11 · [Claude] Codex 21절 반영(종료·홈·연결 중단의 미확인 경로), 리뷰 실사용 등급 규칙
+
+**요청**: Codex 21절(20절 재리뷰) 7건 모두 진행. 리뷰 지적을 사용자가 일일이 추적하기 어려움 → 항목마다 실사용 등급(장비 안전 / 겪음 / 이론상)을 붙이는 규칙을 CLAUDE.md·AGENTS.md에. 바탕 화면 바로가기는 설정 기능이 아니라 이 PC에 하나 만들어 달라는 뜻이었음 → 설정 창 기능을 빼고(앞 커밋 전에 되돌림) 바로가기만 만듦
+
+**변경**
+- 21-04 `MountHome.TrackingOffForQuitAsync`: 조회 실패는 false. 21-02 `MountHome.StopForQuitAsync`·`Homing`, `/prepare/stop-for-quit`에 포함, `AppServer.PrepareBusy`가 이유 문장(홈 포함)·GET `/engine/close`에 `held`. 21-03 `MountLock.Unconfirmed`·`MountUnconfirmedException`, `PrepareRunner`가 이유 + 다시 시도로 보여 줌
+- 21-01 `EquipmentConnector`: `EquipmentRun.InFlight`를 장비 → 연결 요청 Task로, 요청은 취소 토큰 없이 보내고 `AbortAsync`가 답을 기다림(최대 65초) 뒤 3초 조용함 확인, 확인한 장비만 Touched에서 뺌
+- 21-05 `PrepareRunner.StopForQuitAsync`/`ShowQuitPaused`("다시 시작"). 21-06 `NinaNotices.Add(key)`·`NinaNotice.Key`. 21-07 `QuitControl` 목록 조회 실패·held 안내
+- 테스트가 실제 기록 파일에 쓰던 문제: `FileLogProvider.Enabled`, 테스트 `TestSetup`(ModuleInitializer)에서 끔
+- DESIGN.md 종료·적도의 확인 필요 규칙, CLAUDE.md·AGENTS.md 실사용 등급
+
+**확인**: 서버 테스트 188 통과·1 건너뜀(새 `QuitSafetyTests` 3개 — 21-03·05·06), 테스트 뒤 기록 파일에 새 줄 없음. 웹·데스크톱 빌드 오류 0. 21-01·02·04는 가짜 N.I.N.A. 응답 시험을 만들지 않아 코드·빌드로만 확인. 실장비 종료·홈 실패·연결 중 종료는 미확인
+
+**남은 것**: 연결 도중 종료하면 장비 연결 끊기 단계가 최대 1분쯤 걸릴 수 있음. 20-11의 시작 감시 중 포커스 되가져오기는 미룸. 기록 파일의 10-11 02:02·11:49 줄은 예전 테스트가 남긴 것
+
+---
+
+## 2026-10-11 · fbeb96c [Claude] Codex 20절 반영, 종료 때 추적 끄기, 라이브 사진·배경 효율, 설정 창
 
 **요청**: Codex 20절 리뷰 검토 → 11건 모두 적용(20-06·20-07은 합의한 변형). Gemini 리뷰 중 화면 폴링·배경 비용 지적 반영(배경은 미리 그린 그림 + 합성기 애니메이션 방식). 실기: 극축 정렬 뒤 종료하자 적도의가 몇 시간 추적해 RA 90° 돎 → 종료 때 추적 끄기. 장비 변경 버튼·설명을 태양 오른쪽 상태 줄 아래로. Empire 로고가 두 번 뜸. 다크 테마도 배경 움직이기. 태양 자전 시안(의견 후 요청). 설정(AI 키·켜기, 프로그램 경로, 기록·진단). 바탕 화면 바로가기는 사용자 PC에만 만듦(앱 기능 아님 — 나중에 인스톨러에서 선택)
 

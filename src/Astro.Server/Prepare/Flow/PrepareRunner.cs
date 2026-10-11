@@ -342,6 +342,19 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
                 await OnOutcomeAsync(cur, outcome);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+            catch (MountUnconfirmedException e)
+            {
+                // 적도의 정지 미확인 (CX-21-03): 오류가 아니라 이유를 보여 주고 다시 시도만
+                log.LogWarning("준비 작업을 시작하지 않음: {Task} — {Why}", task.Id, e.Message);
+                lock (_gate)
+                {
+                    if (_cur != cur) return;
+                    _rows[task.Id] = (PrepTaskStatus.Failed, null);
+                    cur.Status = new StatusLine(e.Message, Tone.Fail);
+                    cur.Actions = [new("retry", "다시 시도", true)];
+                    Changed();
+                }
+            }
             catch (Exception e)
             {
                 log.LogError(e, "준비 작업 오류: {Task}", task.Id);
@@ -545,20 +558,31 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
     public async Task<bool> StopForQuitAsync()
     {
         lock (_gate) if (_ctx is null) return true;
-        Func<Task> again = () => Task.CompletedTask;
+        // 정지를 확인하지 못해 종료를 취소한 뒤 "장비 상태 다시 확인"이 성공하면: 같은 정지를 다시 확인하고 "다시 시작"을 보여 준다 (CX-21-05)
+        // 종료는 이미 취소됐으므로 자동으로 끄지도, 작업을 이어 가지도 않는다
+        Func<Task> again = async () => { if (await StopForQuitAsync()) ShowQuitPaused(afterRecheck: true); };
         if (!await StopCurrentAsync(again) || !await StopLingeringAsync(_tasks.Select(t => t.Id).ToList(), again)) return false;
         // 멈춘 작업은 "다시 확인 필요"로 — 진행 중으로 남으면 종료가 프로그램을 닫지 않는다(PrepareBusy)
+        ShowQuitPaused(afterRecheck: false);
+        return true;
+    }
+
+    /// <summary>종료하려고 멈춘 작업: "다시 확인 필요" + "다시 시작" 버튼 (종료를 취소하고 돌아왔을 때 이어 갈 수 있게)</summary>
+    private void ShowQuitPaused(bool afterRecheck)
+    {
         lock (_gate)
         {
-            if (_cur is { Finished: false } c && _rows[c.Task.Id].Status is PrepTaskStatus.Running or PrepTaskStatus.Waiting)
-            {
-                _rows[c.Task.Id] = (PrepTaskStatus.NeedsRecheck, null);
-                c.Ask = null;
-                c.Actions = [];
-                Changed();
-            }
+            if (_cur is not { } c) return;
+            var status = _rows[c.Task.Id].Status;
+            var stopped = !c.Finished && (status is PrepTaskStatus.Running or PrepTaskStatus.Waiting || afterRecheck && status is PrepTaskStatus.Failed);
+            if (!stopped && !afterRecheck) return;
+            if (stopped) _rows[c.Task.Id] = (PrepTaskStatus.NeedsRecheck, null);
+            c.Ask = null;
+            c.Status = new StatusLine($"{Astro.Core.Product.Reul} 끄려고 작업을 멈췄습니다", Tone.Warn);
+            c.Actions = [new("restart", "다시 시작", true)];
+            _ready = false;
+            Changed();
         }
-        return true;
     }
 
     /// <summary>

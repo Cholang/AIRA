@@ -145,9 +145,21 @@ public sealed class MountLock
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    /// <summary>
+    /// 적도의가 멈췄는지 확인하지 못함(홈 실패 뒤 정지도 미확인 등) — 사용자가 직접 확인하기 전에는 적도의를 움직이는 모든 작업을 막는다 (CX-21-03).
+    /// 잠금을 계속 쥐고 기다리게 하지 않고, 잡으려는 작업에 이유를 돌려준다
+    /// </summary>
+    public string? Unconfirmed { get; set; }
+
     public async Task<IAsyncDisposable> AcquireAsync(CancellationToken ct)
     {
+        if (Unconfirmed is { } why) throw new MountUnconfirmedException(why);
         await _gate.WaitAsync(ct);
+        if (Unconfirmed is { } late)
+        {
+            _gate.Release();
+            throw new MountUnconfirmedException(late);
+        }
         return new Releaser(_gate);
     }
 
@@ -163,6 +175,9 @@ public sealed class MountLock
         }
     }
 }
+
+/// <summary>적도의 정지 미확인으로 적도의 작업을 시작하지 않음 — Message는 사용자에게 보여 줄 문장</summary>
+public sealed class MountUnconfirmedException(string message) : InvalidOperationException(message);
 
 /// <summary>밤을 넘어 기억할 것 (지난 초점 위치·기온, 대상별 카메라 방향). P1은 메모리, 나중에 AA 데이터 폴더</summary>
 public interface IPrepMemory

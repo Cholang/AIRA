@@ -76,9 +76,12 @@ export function QuitProvider({
     if (closing && !closing.busy) return closeApp() // 확인하지 못한 것이 있어도 "그래도 종료" (남은 프로그램은 그대로 — 사용자가 직접 확인)
     // 1. 진행 중인 준비 작업(이동·자동초점·가이딩)을 멈추고 멈춘 것을 확인 — 확인 없이 N.I.N.A.를 닫으면 장비를 놓친다
     setClosing({ busy: true, step: 'tasks' })
-    const tasks = await post<{ stopped: boolean }>('/api/prepare/stop-for-quit')
+    const tasks = await post<{ stopped: boolean; problem: string | null }>('/api/prepare/stop-for-quit')
     if (!tasks?.stopped)
-      return setClosing({ busy: false, problem: '진행 중인 작업을 멈췄는지 확인하지 못했습니다. 적도의·포커서·가이딩이 멈췄는지 직접 확인해 주세요.' })
+      return setClosing({
+        busy: false,
+        problem: tasks?.problem ?? '진행 중인 작업을 멈췄는지 확인하지 못했습니다. 적도의·포커서·가이딩이 멈췄는지 직접 확인해 주세요.',
+      })
     // 1-2. 적도의 추적 끄기 — 켜 둔 채 끄면 밤새 돌아 케이블이 감기거나 경통이 삼각대에 닿는다 (2026-10-11 실기: 극축 정렬 중 끄자 몇 시간 뒤 RA 90°). 촬영 중이면 그대로
     setClosing({ busy: true, step: 'tracking' })
     const tracking = await post<{ ok: boolean }>('/api/mount/tracking-off-for-quit')
@@ -95,10 +98,14 @@ export function QuitProvider({
       return setClosing({ busy: false, problem: `${abort.notDisconnected.join(', ')} 연결을 끊었는지 확인하지 못했습니다. N.I.N.A.에서 직접 확인해 주세요.` })
     // 4. 아이라가 켠 프로그램을 차례로 닫는다 — 남겨 두면 아이라 없이 N.I.N.A. 알림만 뜬다 (2026-10-09). 하나씩 체크하고, 다 닫히면 1초 뒤에 끈다 (2026-10-10).
     //    하나라도 닫히지 않으면(N.I.N.A.의 저장 확인 창 등) 뒤의 프로그램은 닫지 않고 남겨 둔다 — 서버도 N.I.N.A.가 남아 있으면 나머지를 닫지 않는다
-    const list = await fetch('/api/engine/close')
-      .then((r) => (r.ok ? (r.json() as Promise<{ apps: { id: string; name: string }[] }>) : null))
-      .then((b) => b?.apps ?? [])
-      .catch(() => [] as { id: string; name: string }[])
+    //    목록을 받지 못한 것은 "닫을 것 없음"이 아니다 — 그대로 끄지 않고 안내 (CX-21-07). 작업이 아직 돌면 서버가 held로 이유를 준다
+    const body = await fetch('/api/engine/close')
+      .then((r) => (r.ok ? (r.json() as Promise<{ apps: { id: string; name: string }[]; held: string | null }>) : null))
+      .catch(() => null)
+    if (!body)
+      return setClosing({ busy: false, problem: '닫을 프로그램 목록을 받지 못했습니다. 취소한 뒤 다시 종료해 보거나, 그래도 종료하고 N.I.N.A.·PHD2를 직접 닫아 주세요.' })
+    if (body.held) return setClosing({ busy: false, problem: body.held + ' 멈춘 것을 확인한 뒤 다시 종료해 주세요.' })
+    const list = body.apps
     if (list.length === 0) return closeApp()
     let now: ClosingApp[] = list.map((x) => ({ ...x, state: 'waiting' }))
     const mark = (id: string, state: ClosingApp['state']) => {
