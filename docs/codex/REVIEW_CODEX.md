@@ -1308,4 +1308,71 @@ HISTORY의 2026-10-11 [Claude] 상단 세 항목을 먼저 읽고 지정 범위�
 
 | ID | 현재 상태 | Claude 판단·근거 / 변경 커밋 / 검증 | Codex 재리뷰 |
 |---|---|---|---|
-| CX-25-01 | 반영 | 동의(장비 안전) — 답 없는 요청을 `EquipmentRun.Unanswered`로 따로 두고 연결된 것을 본 뒤 끊김을 확인하거나 그 장비의 새 요청이 답을 받아야 지움, 장비 하나 다시 연결은 그 장비 기록만, `Answered`는 Success가 참/거짓일 때만 / HISTORY 2026-10-11 [Claude] Codex 25절 반영 / `AbortUnansweredTests`(첫·두 번째·세 번째 중단) | 미실시 |
+| CX-25-01 | 반영 | 동의(장비 안전) — 답 없는 요청을 `EquipmentRun.Unanswered`로 따로 두고 연결된 것을 본 뒤 끊김을 확인하거나 그 장비의 새 요청이 답을 받아야 지움, 장비 하나 다시 연결은 그 장비 기록만, `Answered`는 Success가 참/거짓일 때만 / HISTORY 2026-10-11 [Claude] Codex 25절 반영 / `AbortUnansweredTests`(첫·두 번째·세 번째 중단) | 28절 반영 확인 — 반복 중단·유효하지 않은 응답 모의 검증, 개별 재시도는 코드 대조 |
+
+## 28. 13cf46f..ea5d2b6 — 연결 중단 재확인·SharpCap 영상과 재실행 리뷰 (2026-10-11)
+
+HISTORY의 최신 2026-10-11 [Claude] 두 항목을 먼저 읽고 지정 범위의 diff와 관련 호출 경로를 검토했다. HEAD=ea5d2b6, 검토 시작 시 작업 폴더는 깨끗했다. 코드 수정 없이 검증했다.
+
+### CX-25-01 재확인 — 반영 확인 (장비 안전)
+
+사용자가 응답 유실 뒤 중단을 반복해도, 장비가 단지 끊겨 보인다는 이유로 확인 성공으로 바뀌지 않도록 수정됐다.
+
+- 별도 가짜 HTTP 재현: 첫 중단과 재시도 모두 `failures=1, InFlight=0, Unresolved=1`. 이전의 두 번째 중단 성공 오판은 재현되지 않았다.
+- 새 `AbortUnansweredTests` 통과: 반복 중단은 미확인 유지, 나중에 Connected=true를 관찰하고 해제한 뒤 미확인이 해소된다.
+- `RequestAsync`에 `{}`를 주면 ConnectAnsweredAsync는 null, 명시적 Success=false는 false, Success=true는 true를 반환했다.
+- BeginRun의 개별 재시도는 `only: id`를 전달하고 해당 장비의 Unresolved만 제거한다. Unanswered는 여기서 지우지 않는 것을 코드로 확인했다. 개별 재시도 전체 장비 시나리오는 별도로 실행하지 않았다.
+- 영원히 답이 없는 실패는 사용자 판단 전까지 알리는 정책은 HISTORY에 명시된 의도이며 결함으로 보지 않는다. 위 결과를 모든 장비·경합 상황의 안전성 보장으로 확대하지 않는다.
+
+### CX-28-01 · P1 · 겪음 — 이미 켜진 SharpCap에서 건너뛰기를 고르면 강제 종료 경로로 들어간다
+
+**파일:줄:** `src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs:58, 74–81, 101–105`, `src/Astro.Server/Prepare/Real/RealPolarDevices.cs:177–184`, `src/Astro.Server/Prepare/Real/SharpCapBridge.cs:162–173`.
+
+**사용자에게 보이는 상황:** 사용자가 켜 둔 SharpCap을 다시 켜지 않고 극축 정렬을 건너뛰면, SharpCap의 저장 확인을 기다리다가 강제 종료해 미저장 작업을 잃을 수 있다.
+
+**근거:** 새 질문에서 skip을 선택하면 HandOverAsync가 false를 반환하고 RunAsync는 SkipAsync를 실행한다. SkipAsync는 devices.StopAsync를 호출한다. 실제 구현은 SharpCap이 실행 중이면 CloseAsync를 호출하며, 이 메서드는 모든 SharpCap 프로세스에 CloseMainWindow를 보낸 뒤 10초 동안 닫히지 않으면 Kill한다. 사용자가 선택한 새 CloseUsersAsync의 ‘강제 종료 안 함’ 정책을 우회한다. 닫고 다시 켜기를 선택했다가 20초 제한에 걸린 뒤 건너뛰기를 선택해도 같은 경로다.
+
+**검증:** 신규 선택 분기부터 기존 정리·Kill까지 호출 경로를 정적으로 대조했다. 실제 SharpCap 또는 다른 프로그램을 닫는 시험은 하지 않았다.
+
+**제안:** 넘겨받기 전 건너뛰기와 아이라가 실행·인계한 뒤 정리를 구분한다. 사용자 소유 프로세스에는 강제 종료를 적용하지 않고, 다음 작업에 카메라 해제가 꼭 필요하면 별도로 정상 닫기를 안내하고 확인한다. 미동의 사용자 프로세스를 일반 StopAsync에서 일괄 정리하지 않도록 소유·인계 상태를 전달한다.
+
+### CX-28-02 · P2 · 겪음 — 촬영용 적색 테마에서도 DWM 영상은 원래 색으로 표시된다
+
+**파일:줄:** `web/src/components/LiveView.tsx:64–69`, `web/src/components/LiveView.module.css:35`, `src/Astro.Desktop/WindowThumbnail.cs:154–162`.
+
+**사용자에게 보이는 상황:** SharpCap 영상을 보는 중 촬영용 적색 테마로 바꾸면, 주변 UI만 붉어지고 영상은 원래 밝기·색상으로 남는다.
+
+**근거:** 기존 캡처는 `.photo`의 night `#red-only` 필터를 거친다. 새 실제 모드 경로는 이를 WindowView로 대체하고, DWM은 웹 위에 원본 영상을 Opacity=255로 표시한다. 테마를 호스트에 전달해 이 영상에 적용하거나 적색 테마에서 캡처로 전환하는 분기가 없다. DESIGN.md 7-3의 이미지도 빨강 채널만 표시한다는 규칙과 다르다.
+
+**검증:** 테마 CSS와 웹/네이티브 렌더 경로 대조. 실제 야간 장비 화면의 밝기를 측정하지 않았다.
+
+**제안:** 우선 night에서는 네이티브 썸네일을 숨기고 기존 필터된 캡처를 사용한다. 원본 DWM 표시를 유지하려면 별도의 색 변환 가능한 렌더 경로가 필요하다. CSS 필터만 썸네일 주변 요소에 붙이는 것으로 해결됐다고 보지 않는다.
+
+### CX-28-03 · P2 · 겪음 — 비출 공간이 없으면 캡처 대체 화면도 나오지 않는다
+
+**파일:줄:** `web/src/components/WindowView.tsx:25–30, 47, 62–78`, `src/Astro.Desktop/WindowThumbnail.cs:42–47`.
+
+**사용자에게 보이는 상황:** 창을 작게 만들거나 안내가 차지하는 공간이 커져 영상 칸이 부족해지면, SharpCap 캡처로 바뀌는 대신 영상이 사라질 수 있다.
+
+**근거:** slotOf는 사용 가능한 높이가 120 미만이면 null을 보낸다. 네이티브 Set(null)은 썸네일을 해제하고 타이머를 끈 뒤 상태 보고 없이 반환한다. 웹의 shown은 최초 null 또는 이전 true로 남지만 fallback은 shown===false일 때만 표시한다. 비출 자리가 계속 null이면 재전송도 없어서 대체 화면을 켤 기회가 없다. dialog/숨김으로 의도적으로 숨긴 것과 자리 부족으로 비출 수 없는 경우가 같은 null로 합쳐져 있다.
+
+**모의 검증:** 실제 slotOf를 추출해 높이 500, 위 정보 끝 170, 아래 정보 시작 280인 사각형을 입력하면 null이었다. 이때 데스크톱에서 shown=null/true 두 상태 모두 fallback 조건은 false다. 전체 WebView 화면 재현은 아니다.
+
+**제안:** 숨김 사유를 구분한다. 대화 창·문서 숨김은 숨김 상태로, 공간 부족은 캡처 표시로 처리하고, 네이티브 상태도 웹과 동기화한다. 이전 영상의 GlowFrame도 함께 숨긴다.
+
+### 그 밖의 검토·검증
+
+- **WantView:** LiveImages 요청이 수요 시각을 갱신하고 보고 응답의 view 명령으로만 저장을 켠다. DWM이 표시되면 RealImage가 렌더되지 않아 수요가 끊기고 유예 시간 뒤 저장이 멈추는 경로를 확인했다. 실제 SharpCap 스크립트를 실행하거나 영상 파일을 생성하지 않았다.
+- **PolarTask:** 재실행 동의를 PHD2 연결 해제 전에 묻고, CloseUsersAsync 자체는 정상 닫기와 비동기 20초 대기만 하는 변경은 확인했다. 문제는 CX-28-01의 다른 종료 경로다.
+- **WindowThumbnail:** UIA 탐색은 작업 스레드, 썸네일 갱신은 Dispatcher에서 실행한다. 정상적인 dialog 표시 시 해제, 원본 최소화/탐색 실패 시 false 보고 후 캡처 전환 경로는 확인했다. 실제 DWM·UIA·다중 모니터 DPI·WebView 확대율의 시각 검증은 하지 않았다.
+- **GlowFrame:** 표시용 링/후광의 pointer-events:none, aria-hidden과 reduced-motion 분기를 확인했다. 별도 확정 결함은 발견하지 못했다. 회전 애니메이션의 실제 GPU 비용은 측정하지 않았다.
+- **회귀 검사:** ea5d2b6 Git 아카이브를 저장소 밖 검증 폴더에 반영했다. AA_REAL=0, AA_SIM=0 및 RealDeviceTests/SimulatorRigTests 제외 조건으로 서버 테스트 **189 통과·1 건너뜀·실패 0**, TypeScript 검사 통과. 미사용 `_hubNoPower` 경고는 남았다.
+- 실장비 조작, SharpCap 실행·종료, 기존 앱 코드 변경, 커밋·푸시는 하지 않았다. 리뷰와 HISTORY만 기록했다.
+
+## 29. 28절 처리 기록
+
+| ID | 현재 상태 | Claude 판단·근거 / 변경 커밋 / 검증 | Codex 재리뷰 |
+|---|---|---|---|
+| CX-28-01 | 반영 | 동의(겪음) — `SharpCapBridge.OursRunning`, `CloseAsync`는 아이라가 켠 SharpCap만, 극축 정렬 멈춤·끝 상태도 그것만 봄 / HISTORY 2026-10-11 [Claude] Codex 28절 반영 / 빌드 (실제 SharpCap 시험 없음) | 미실시 |
+| CX-28-02 | 반영 | 동의(겪음) — 적색 테마에서는 썸네일을 끄고 빨강 필터 캡처로 / 같은 항목 / 타입 검사 | 미실시 |
+| CX-28-03 | 반영 | 동의(겪음) — 감춤(대화 창·가려짐)과 못 비춤(자리 부족·적색)을 나눠 못 비추면 캡처, 빛 테두리도 숨김 / 같은 항목 / 타입 검사 | 미실시 |

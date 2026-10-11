@@ -171,14 +171,14 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
     }
 
     /// <summary>
-    /// 멈춤: RA 회전·이동을 멈추고 확인. 중간에 멈춰도 장비를 원래대로 — SharpCap이 열려 있으면 닫고 가이드 카메라를 PHD2에 돌려준다
-    /// (그러지 않으면 PHD2가 카메라 없이 남아 다음 작업이 가이딩을 못 함)
+    /// 멈춤: RA 회전·이동을 멈추고 확인. 중간에 멈춰도 장비를 원래대로 — 아이라가 켠 SharpCap이 열려 있으면 닫고 가이드 카메라를 PHD2에 돌려준다
+    /// (그러지 않으면 PHD2가 카메라 없이 남아 다음 작업이 가이딩을 못 함). 사용자가 켠 SharpCap은 닫지 않는다 (CX-28-01 — 건너뛰기에서 강제로 끝내던 것)
     /// </summary>
     public async Task<bool> StopAsync(CancellationToken ct)
     {
         axis.Stop();
         var still = await rig.StopSlewAndConfirmAsync(ct);
-        if (sharpCap.Running || await CameraAsync(ct) is { Connected: false })
+        if (sharpCap.OursRunning || await CameraAsync(ct) is { Connected: false })
         {
             await sharpCap.CloseAsync(ct);
             try { await phd2.CallAsync("set_connected", new object[] { true }, ct, TimeSpan.FromSeconds(60)); }
@@ -193,7 +193,7 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         string state;
         try { state = await phd2.AppStateAsync(ct); } catch (Phd2Exception) { state = ""; }
         var mount = await rig.MountAsync(ct);
-        return new PolarEndState(!sharpCap.Running, cam is { Connected: true }, state == "Looping",
+        return new PolarEndState(!sharpCap.OursRunning, cam is { Connected: true }, state == "Looping",
             await rig.GuiderConnectedAsync(ct), mount is null || mount.Slewing);
     }
 

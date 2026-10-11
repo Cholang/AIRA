@@ -101,6 +101,9 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
 
     public bool Running => _process is { HasExited: false } || Process.GetProcessesByName("SharpCap").Length > 0;
 
+    /// <summary>아이라가 켠 SharpCap이 켜져 있다 (사용자가 켠 SharpCap은 아니다 — 정리할 때 건드리지 않게, CX-28-01)</summary>
+    public bool OursRunning => _process is { HasExited: false };
+
     /// <summary>SharpCap을 그 카메라와 AA 스크립트로 켜고, 스크립트의 첫 보고가 올 때까지 기다린다. 실패면 이유</summary>
     public async Task<string?> LaunchAsync(string cameraName, string reportUrl, CancellationToken ct)
     {
@@ -158,25 +161,31 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
         return null;
     }
 
-    /// <summary>SharpCap 닫기 (스크립트에 끝 알림 → 창 닫기 → 안 되면 끝내기). 닫혔으면 true</summary>
+    /// <summary>
+    /// 아이라가 켠 SharpCap 닫기 (스크립트에 끝 알림 → 창 닫기 → 안 되면 끝내기). 닫혔으면 true.
+    /// 사용자가 켠 SharpCap은 건드리지 않는다 — 강제로 끝내면 저장하지 않은 촬영을 잃는다 (CX-28-01). 그것은 CloseUsersAsync(사용자가 눌렀을 때만, 창 닫기만)
+    /// </summary>
     public async Task<bool> CloseAsync(CancellationToken ct)
     {
+        if (_process is not { } p) return true;
         Send("quit");
         await Task.Delay(800, ct);
-        foreach (var p in Process.GetProcessesByName("SharpCap"))
+        try
         {
-            using (p)
+            if (!p.HasExited)
             {
-                try
-                {
-                    p.CloseMainWindow();
-                    if (!p.WaitForExit(10_000)) { log.LogWarning("SharpCap이 닫히지 않아 끝냅니다"); p.Kill(); p.WaitForExit(5_000); }
-                }
-                catch (InvalidOperationException) { }
+                p.CloseMainWindow();
+                if (!p.WaitForExit(10_000)) { log.LogWarning("SharpCap이 닫히지 않아 끝냅니다"); p.Kill(); p.WaitForExit(5_000); }
             }
         }
-        _process = null;
-        return !Running;
+        catch (InvalidOperationException) { }
+        var closed = p.HasExited;
+        if (closed)
+        {
+            p.Dispose();
+            _process = null;
+        }
+        return closed;
     }
 
     /// <summary>

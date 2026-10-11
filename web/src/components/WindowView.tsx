@@ -9,12 +9,16 @@ type Box = { x: number; y: number; w: number; h: number }
 /**
  * 다른 프로그램 창의 한 칸을 이 자리에 실시간으로 (2026-10-11 — SharpCap 영상 칸). 실제로 그리는 것은 데스크톱 창(WindowThumbnail, DWM 썸네일)이고,
  * 화면은 **비춰도 되는 자리**만 알려 준다: 같은 화면의 글자·버튼(`data-occludes`) 위아래를 피한 띠. 썸네일은 웹 화면 위에 그려져 그 자리의 글자를 가리기 때문.
- * 비친 영상 둘레에는 빛 테두리(GlowFrame — 칼 같은 경계를 부드럽게, 2026-10-11 사용자 요청). 열린 창(dialog)이 있거나 화면이 가려지면 감춘다. 데스크톱 창이 비추지 못하면(SharpCap 최소화·못 찾음, 브라우저) fallback(창 캡처 사진)을 보여 준다
+ * 비친 영상 둘레에는 빛 테두리(GlowFrame — 칼 같은 경계를 부드럽게, 2026-10-11 사용자 요청).
+ * 비추지 않는 까닭을 나눈다 (CX-28-02·03): 열린 창(dialog)·화면 가려짐 = 잠깐 감춤(아무것도 안 그림) / 촬영용 적색 테마(썸네일은 빨강 필터를 못 거침 — 밤눈 보호)·
+ * 자리 부족·데스크톱 창이 못 비춤(SharpCap 최소화·못 찾음)·브라우저 = fallback(창 캡처 사진, 적색 테마면 빨강 필터)
  */
 export default function WindowView({ target, fallback }: { target: 'sharpcap'; fallback: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<{ shown: boolean; rect: Box | null } | null>(null)
-  const shown = state?.shown ?? null
+  // 화면 쪽에서 비추지 않기로 한 까닭: null = 비춤, hidden = 잠깐 감춤, fallback = 캡처 사진으로
+  const [off, setOff] = useState<null | 'hidden' | 'fallback'>(null)
+  const shown = off === null ? (state?.shown ?? null) : false
   const desktop = inDesktop()
 
   useEffect(() => {
@@ -22,7 +26,10 @@ export default function WindowView({ target, fallback }: { target: 'sharpcap'; f
     let last = ''
     const send = () => {
       const el = ref.current
-      const rect = el && !document.hidden && !document.querySelector('dialog[open]') ? slotOf(el) : null
+      const hidden = !el || document.hidden || !!document.querySelector('dialog[open]')
+      const night = document.documentElement.dataset.theme === 'night'
+      const rect = hidden || night ? null : slotOf(el)
+      setOff(hidden ? 'hidden' : night || !rect ? 'fallback' : null)
       const key = JSON.stringify(rect) + window.devicePixelRatio
       if (key === last) return
       last = key
@@ -44,7 +51,7 @@ export default function WindowView({ target, fallback }: { target: 'sharpcap'; f
     <>
       <div ref={ref} className={styles.slot} />
       {shown && state?.rect && <Glow at={state.rect} slot={ref.current} />}
-      {(!desktop || shown === false) && fallback}
+      {(!desktop || (off !== 'hidden' && shown === false)) && fallback}
     </>
   )
 }
