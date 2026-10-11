@@ -52,12 +52,14 @@ public sealed class UserSettings
     {
         lock (_gate)
         {
-            _data = change(_data);
+            var next = change(_data);
             Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
             // 임시 파일에 다 쓴 뒤 바꾼다 — 쓰는 도중 꺼져도 반쯤 쓴 파일 때문에 설정 전체(경로·AI 켜기)가 조용히 사라지지 않게 (2026-10-11 자체 점검 L2)
             var tmp = _file + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(tmp, JsonSerializer.Serialize(next, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(tmp, _file, overwrite: true);
+            // 저장에 성공한 뒤에만 앱 안의 값을 바꾼다 — 실패하면 이전 설정 그대로 (Codex CX-30-08: 앱과 파일의 설정이 달라지던 것)
+            _data = next;
         }
     }
 

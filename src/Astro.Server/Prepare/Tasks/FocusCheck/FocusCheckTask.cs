@@ -117,7 +117,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
                 points.Add(new { pos, hfr });
                 run.Readout("hfr", $"{hfr:F1}", "별 크기 (HFR) · 이번 지점", Tone.Busy, new Dictionary<string, double> { ["hfr"] = hfr, ["position"] = pos }, live: true);
                 run.Live("focus-curve", data: new { points = points.ToArray(), last = ctx.Memory.LastFocus?.Position });
-                run.Status($"자동초점 중입니다 · {points.Count} / 9 지점 · AA 추천값");
+                run.Status($"자동초점 중입니다 · {points.Count} / 9 지점");
             }, ct);
             if (!af.Ok || !af.StarsFound || !af.CurveGood)
             {

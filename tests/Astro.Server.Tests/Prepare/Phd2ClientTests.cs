@@ -82,4 +82,23 @@ public class Phd2ClientTests
         }
         finally { server.Stop(); }
     }
+
+    [Fact]
+    public async Task CX30_06_객체가_아닌_답이_와도_이벤트를_계속_받는다()
+    {
+        var server = new TcpListener(IPAddress.Loopback, 0);
+        server.Start();
+        try
+        {
+            await using var phd2 = new Phd2Client(NullLogger<Phd2Client>.Instance) { Host = "127.0.0.1", Port = ((IPEndPoint)server.LocalEndpoint).Port };
+            var accept = server.AcceptTcpClientAsync();
+            using var events = await phd2.SubscribeAsync(CancellationToken.None);
+            using var client = await accept;
+            var stream = client.GetStream();
+            await stream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("[]\r\n{\"Event\":\"GuideStep\"}\r\n"));
+            var e = await events.WaitAsync(["GuideStep"], TimeSpan.FromSeconds(5), CancellationToken.None);
+            Assert.NotNull(e);
+        }
+        finally { server.Stop(); }
+    }
 }

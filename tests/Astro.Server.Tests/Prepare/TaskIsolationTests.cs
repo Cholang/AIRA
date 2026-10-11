@@ -49,6 +49,14 @@ public class TaskIsolationTests
     }
 
     [Fact]
+    public async Task CX30_02_적도의_정지_확인이_필요하면_극축_정렬이_적도의를_움직이지_않는다()
+    {
+        var ctx = Harness.Context();
+        ctx.Mount.Unconfirmed = "적도의가 멈췄는지 확인하지 못했습니다";
+        await Assert.ThrowsAsync<MountUnconfirmedException>(() => new PolarTask(new SimulatedPolarDevices(Fast, new SimFaults())).RunAsync(new AutoRun(ctx), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task 극축_정렬_단독()
     {
         var (done, _) = await RunAlone(new PolarTask(new SimulatedPolarDevices(Fast, new SimFaults())), Harness.Context());
@@ -141,7 +149,7 @@ public class TaskIsolationTests
         faults.Arm("focus.stars");
         var (done, run) = await RunAlone(new FocusTask(new SimulatedFocusDevices(Fast, faults)), Harness.Context(),
             actions => actions.Any(a => a.Id == "manual") ? "manual" : actions.First(a => a.Primary).Id);
-        Assert.Contains(run.Statuses, s => s.Contains("넓은 간격"));
+        Assert.Contains(run.Statuses, s => s.Contains("넓은 간격") || s.Contains("넓게 찾")); // 처음이면 자동초점 전에 넓게 찾는다 (2026-10-11)
         Assert.True(Assert.IsType<FocusResult>(done.Result).Manual);
     }
 

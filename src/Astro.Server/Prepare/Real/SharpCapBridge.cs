@@ -36,6 +36,8 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
             Dbl(body, "x"), Dbl(body, "y"), Dbl(body, "exp"), Str(body, "camera"), DateTimeOffset.Now,
             body.TryGetProperty("bg", out var bg) && bg.TryGetDouble(out var b) && b >= 0 ? b : null,
             body.TryGetProperty("gain", out var gn) && gn.TryGetDouble(out var gv) ? gv : null);
+        // 열린 카메라 이름을 기억 — 다음에 SharpCap을 켤 때 그 이름으로 연다 (2026-10-11 실기: PHD2의 드라이버 이름 "ToupTek Camera"로는 SharpCap이 못 열었다)
+        if (r.Camera.Length > 0) RememberCamera(r.Camera);
         lock (_gate)
         {
             _last = r;
@@ -123,7 +125,9 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
         using var behind = Engine.BackgroundWindows.KeepBehind(TimeSpan.FromSeconds(10), "SharpCap");
         try
         {
-            _process = Process.Start(new ProcessStartInfo(exe, $"/camera \"{cameraName}\" /runscript \"{script}\"") { UseShellExecute = false });
+            // 지난번에 SharpCap이 실제로 연 이름이 있으면 그것 — 없으면 PHD2의 이름(맞지 않으면 스크립트가 목록에서 고른다)
+            var open = RememberedCamera() ?? cameraName;
+            _process = Process.Start(new ProcessStartInfo(exe, $"/camera \"{open}\" /runscript \"{script}\"") { UseShellExecute = false });
         }
         catch (Exception e)
         {
@@ -234,6 +238,25 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
     private static double Dbl(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
 
     /// <summary>SharpCap(IronPython) 스크립트: 카메라를 기다린 뒤 노출·게인을 맞추고 극축 정렬을 켜서 0.5초마다 보고, 답의 명령을 실행</summary>
+    private static string CameraFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder, "sharpcap-camera.txt");
+
+    private static string? RememberedCamera()
+    {
+        try { return File.Exists(CameraFile) && File.ReadAllText(CameraFile).Trim() is { Length: > 0 } n ? n : null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    private void RememberCamera(string name)
+    {
+        if (name.Contains("Test Camera", StringComparison.OrdinalIgnoreCase) || name == RememberedCamera()) return;
+        try
+        {
+            File.WriteAllText(CameraFile, name);
+            log.LogInformation("SharpCap 가이드 카메라 이름을 기억: {Name}", name);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
     private static string Script(string url) => """
         # AA가 만든 파일 — 극축 정렬 상태를 AA로 보내고 AA의 명령을 받는다 (고치지 마세요)
         import clr, time, threading
@@ -252,11 +275,24 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
             except Exception as e:
                 return ""
 
+        def pick_camera():
+            # 켤 때 넘긴 이름으로 못 열었으면(PHD2의 드라이버 이름 등) 목록에서 테스트 카메라가 아닌 것을 고른다 (2026-10-11 실기)
+            try:
+                for c in SharpCap.Cameras:
+                    name = str(c)
+                    low = name.lower()
+                    # 테스트 카메라·노트북 웹캠·ASCOM 장치(주 카메라 등)는 건너뛴다
+                    if "test camera" in low or "webcam" in low or "uvc" in low or "integrated" in low or "ascom" in low: continue
+                    SharpCap.SelectedCamera = c
+                    return
+            except Exception: pass
+
         def run():
             cam = None
             for i in range(60):
                 cam = SharpCap.SelectedCamera
                 if cam is not None: break
+                if i == 8: pick_camera()
                 time.sleep(1)
             if cam is None:
                 post('{"stage":"","camera":""}')

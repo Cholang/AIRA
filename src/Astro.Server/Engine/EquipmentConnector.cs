@@ -731,9 +731,27 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         // PHD2 안의 가이드 카메라가 꺼져 있음 → PHD2에 장비 연결을 시키고 알림으로 원인을 본다 (N.I.N.A.가 이미 시켰어도 원인 문장은 받지 못함)
         var (ok, alert) = await Phd2Check.ConnectEquipmentAsync(host, port, ct);
         if (ok) return await Phd2Check.CheckAsync(host, port, mount, ct);
+        // 같은 카메라를 다른 USB 자리에 꽂아서 못 찾았으면: PHD2가 기억한 자리를 지금 자리로 고치고 한 번 더 연결 (2026-10-11 사용자 요청)
+        var place = Phd2Check.CameraNotFound(alert) ? Phd2CameraRepoint.TryRepoint() : null;
+        if (place is { Fixed: true })
+        {
+            log.LogInformation("PHD2 가이드 카메라 자리를 바꿈: {Saved} → {Now}", place.Saved, place.Now);
+            (ok, alert) = await Phd2Check.ConnectEquipmentAsync(host, port, ct);
+            if (ok) return await Phd2Check.CheckAsync(host, port, mount, ct);
+        }
         if (Phd2Check.CameraNotFound(alert))
-            return new Phd2Check.Problem("PHD2가 기억해 둔 가이드 카메라를 찾지 못했습니다",
-                "가이드 카메라를 다른 USB 자리에 꽂으면 PHD2가 카메라를 다시 골라야 합니다(PHD2의 동작). PHD2의 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 고른 뒤 연결하고, 창을 닫은 다음 다시 연결을 눌러 주세요.");
+            // 왜 못 찾았는지 자리로 알린다 (사용자 요청: 다른 자리에 꽂혔다는 것을 알려 줄 것)
+            return place switch
+            {
+                { Present: 0 } => new Phd2Check.Problem("가이드 카메라가 PC에 연결되어 있지 않습니다",
+                    "가이드 카메라의 USB 케이블과 전원을 확인한 뒤 다시 연결을 눌러 주세요."),
+                { Present: > 1 } => new Phd2Check.Problem("같은 종류의 카메라가 여러 대 꽂혀 있어 가이드 카메라를 고르지 못했습니다",
+                    "PHD2의 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 고른 뒤 연결하고, 창을 닫은 다음 다시 연결을 눌러 주세요."),
+                { Moved: true } => new Phd2Check.Problem("가이드 카메라가 전과 다른 USB 자리에 꽂혀 있습니다",
+                    "아이라가 PHD2에 새 자리를 알려 주었지만 연결되지 않았습니다. 가이드 카메라를 전에 쓰던 USB 자리에 다시 꽂거나, PHD2의 장비 연결 창에서 카메라를 다시 고른 뒤 다시 연결을 눌러 주세요."),
+                _ => new Phd2Check.Problem("PHD2가 기억해 둔 가이드 카메라를 찾지 못했습니다",
+                    "가이드 카메라를 다른 USB 자리에 꽂으면 PHD2가 카메라를 다시 골라야 합니다(PHD2의 동작). PHD2의 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 고른 뒤 연결하고, 창을 닫은 다음 다시 연결을 눌러 주세요."),
+            };
         return alert is { Length: > 0 } ? problem with { Fix = $"PHD2 알림: \"{alert}\". {problem.Fix}" } : problem;
     }
 

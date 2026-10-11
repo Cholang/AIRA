@@ -59,7 +59,7 @@ public sealed record AutofocusRun(bool Ok, bool StarsFound, int BestPosition, do
 public sealed record FocusEndState(bool Moving, int Position, bool Error);
 
 /// <summary>
-/// 장비 준비 ③ 초점 (DESIGN.md ④ — 캘리브레이션 위치의 별로, 대상과 무관): 지난번 맞은 위치(그때 기온과 함께)에서 시작 → 자동초점(AA 추천값) → 결과를 AA 말로.
+/// 장비 준비 ③ 초점 (DESIGN.md ④ — 캘리브레이션 위치의 별로, 대상과 무관): 지난번 맞은 위치(그때 기온과 함께)에서 시작(처음이면 넓게 찾은 위치) → 자동초점(N.I.N.A. 설정의 칸 크기·백래시) → 결과를 AA 말로.
 /// 별이 안 보이면 포커서 범위 안에서 넓게 훑기 → 그래도 안 되면 손 초점 안내. 포커서 에러(멈춤 감지)는 바로 멈추고 해제 안내.
 /// </summary>
 public sealed class FocusTask(IFocusDevices devices) : IPrepTask
@@ -86,8 +86,22 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             run.SubStep(0);
             run.Guide("시작 위치로", "포커서를 지난번에 맞았던 위치로 옮긴 뒤, 조금씩 옮기며 별 크기를 잽니다.");
             var temp = await devices.TemperatureAsync(ct);
-            // 같은 밤에 맞춘 위치 → 저장해 둔 지난 밤 위치 → 지금 위치
+            // 같은 밤에 맞춘 위치 → 저장해 둔 지난 밤 위치 → (처음이면) 넓게 찾은 위치
             ctx.Memory.LastFocus ??= devices.SavedFocus;
+            if (ctx.Memory.LastFocus is null)
+            {
+                // 맞춘 적이 없는 망원경: 자동초점은 시작점 앞뒤 수백 걸음만 보므로 먼저 넓게 찾는다 (2026-10-11 실기 — 0 근처에서 시작해 실패)
+                var (min, max) = await devices.LimitsAsync(ct);
+                run.Status("이 망원경은 처음이라 초점 위치부터 넓게 찾습니다 (몇 분)");
+                var near = await devices.CoarseSearchAsync(min, max, await devices.PositionAsync(ct), p =>
+                    run.Readout("search", $"{p:N0}", "초점 위치 찾는 중 · 포커서 위치", Tone.Busy, new Dictionary<string, double> { ["position"] = p }), ct);
+                if (near is { } n) ctx.Memory.LastFocus = (n, temp);
+                else
+                {
+                    run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌린 뒤 다시 자동초점을 누르세요. 덮개가 닫혀 있지 않은지도 확인해 주세요.");
+                    return await ManualAsync(run, "넓게 훑어도 별을 찾지 못했습니다. 초점을 손으로 대략 맞춘 뒤 눌러 주세요.", ct);
+                }
+            }
             var start = ctx.Memory.LastFocus?.Position ?? await devices.PositionAsync(ct);
             run.Status(ctx.Memory.LastFocus is { } lf ? $"지난번 위치 {lf.Position:N0}에서 시작합니다{TempText(temp, lf.TemperatureC)}" : "지금 위치에서 시작합니다");
             // 자동초점 범위가 포커서 0~최대 안에 들도록 시작점을 끝에서 떼어 놓는다
@@ -115,7 +129,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                 points.Add(new { pos, hfr });
                 run.Readout("hfr", $"{hfr:F1}", "별 크기 (HFR) · 이번 지점", Tone.Busy, new Dictionary<string, double> { ["hfr"] = hfr, ["position"] = pos }, live: true);
                 run.Live("focus-curve", LiveUrl, new { points = points.ToArray(), last = ctx.Memory.LastFocus?.Position });
-                run.Status($"자동초점 중입니다 · {points.Count} / 9 지점 · AA 추천값");
+                run.Status($"자동초점 중입니다 · {points.Count} / 9 지점");
             }, ct);
             // 자동초점이 멈췄는지 모르면 다시 자동초점·사진을 하지 않고 멈춤 확인부터 (CX-NIGHT-06)
             while (af.StopUnconfirmed)

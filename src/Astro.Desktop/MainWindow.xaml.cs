@@ -254,6 +254,8 @@ public partial class MainWindow : Window
     private void OnWebProcessFailed(Microsoft.Web.WebView2.Core.CoreWebView2ProcessFailedKind kind)
     {
         Astro.Server.Engine.FileLogProvider.Write("ERROR", "창", $"화면 프로세스 문제: {kind}");
+        // 화면이 다시 뜨기 전에 비추던 SharpCap 영상을 먼저 거둔다 — 그대로 두면 새 화면(시작 화면) 위에 남는다 (Codex CX-30-05). 새 화면이 자리를 보내면 다시 비춘다
+        _thumbnail?.Stop();
         var now = DateTime.UtcNow;
         _webFailures.RemoveAll(t => now - t > TimeSpan.FromMinutes(1));
         _webFailures.Add(now);

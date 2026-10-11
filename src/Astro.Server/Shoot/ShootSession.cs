@@ -252,6 +252,40 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         await EndAsync("nina", CancellationToken.None);
     }
 
+    /// <summary>
+    /// 아이라 종료 (2026-10-11 Codex CX-30-01): 연속 촬영은 N.I.N.A.가 아니라 아이라가 한 장씩 시킨다 — 아이라가 꺼지면 다음 사진·자오선 반전·끝 조건을 볼
+    /// 주체가 사라져 추적만 남는다(자오선을 넘어 경통이 삼각대에 닿을 수 있음). 그래서 지금 사진을 바로 중단하고(실기 확인: X-T5 30초 노출이 1초 안에 멈춤)
+    /// 촬영을 끝낸다 — 가이딩 정지 확인, 반전 중이었으면 적도의가 멈춘 것도 확인. 뒤의 종료 절차가 추적을 끄고 장비를 정리한다. 다 확인했으면 true
+    /// </summary>
+    public async Task<bool> StopForQuitAsync()
+    {
+        CancellationTokenSource? cts;
+        Task run;
+        bool flipping;
+        lock (_gate)
+        {
+            if (_ctx is null || _mode is ShootMode.Ended or ShootMode.Idle) return true;
+            cts = _cts;
+            run = _run;
+            flipping = _mode == ShootMode.Flip;
+        }
+        log.LogInformation("종료: 촬영을 멈춤 (지금 사진 중단)");
+        cts?.Cancel();
+        try { await devices.AbortExposureAsync(CancellationToken.None); }
+        catch (Exception e) { log.LogWarning(e, "종료: 노출 중단 실패"); }
+        try { await run.WaitAsync(TimeSpan.FromSeconds(30)); } catch (Exception) { /* 취소·시간 초과 — 아래에서 확인 */ }
+        if (flipping)
+        {
+            bool still;
+            try { still = await devices.ConfirmMountStillAsync(CancellationToken.None); }
+            catch (Exception e) { log.LogWarning(e, "종료: 반전 중 적도의 정지 확인 실패"); still = false; }
+            Set(() => _mountStill = still);
+        }
+        Note($"{Astro.Core.Product.Reul} 끄려고 촬영을 멈췄어요", Tone.Warn, 600);
+        await EndAsync("quit", CancellationToken.None);
+        lock (_gate) return _guideStopped && _mountStill;
+    }
+
     /// <summary>"촬영 중단": 지금 사진은 끝까지 찍고 멈춘다. 찍고 있지 않으면 이유</summary>
     public string? Stop()
     {

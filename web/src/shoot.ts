@@ -59,14 +59,18 @@ export function watchShoot(onState: (v: ShootView) => void, onError: (message: s
       if (closed) return
       if (!r.ok) {
         const body = (await r.json().catch(() => null)) as { error?: string } | null
+        if (closed) return // 기다리는 사이 화면이 닫힘 (Codex CX-30-07)
         onError(body?.error ?? '촬영을 시작하지 못했습니다.')
         return
       }
-      onState((await r.json()) as ShootView)
+      const first = (await r.json()) as ShootView
+      // 본문을 기다리는 사이 화면이 닫혔으면 연결을 열지 않는다 — 열면 닫을 사람이 없다 (Codex CX-30-07)
+      if (closed) return
+      onState(first)
       source = new EventSource('/api/shoot/watch')
       source.addEventListener('state', (e) => onState(JSON.parse((e as MessageEvent).data) as ShootView))
     })
-    .catch(() => onError('내부 서버에 연결하지 못했습니다.'))
+    .catch(() => !closed && onError('내부 서버에 연결하지 못했습니다.'))
   return () => {
     closed = true
     source?.close()

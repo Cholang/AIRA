@@ -47,10 +47,6 @@
 }
 
 /* 하늘 화면(준비 단계): 진행 표시도 하늘 위에 */
-.body[data-sky='true'] {
-  background: var(--sky);
-}
-
 .body[data-sky='true'] .rail {
   --rail-bg: var(--sky); /* 점 속을 하늘색으로 (세로선을 가린다) */
   background: transparent;

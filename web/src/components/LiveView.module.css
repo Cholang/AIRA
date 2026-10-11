@@ -1,8 +1,9 @@
 /* 하늘 화면: 화면 영역 전체 배경. 좌우 끝은 하늘색으로 사라진다 (시안 v8) */
+/* 바탕은 칠하지 않는다 — 사진·그림만 앱 배경(성운) 위에 (2026-10-11 사용자 요청: 늘 우주 위에서) */
 .view {
   position: absolute;
   inset: 0;
-  background: var(--sky);
+  background: transparent;
   pointer-events: none;
 }
 

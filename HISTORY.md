@@ -8,7 +8,37 @@
 
 ---
 
-## 2026-10-11 · [Claude] 자체 점검(Deep Self-Audit) High·Med·Low 15건 수정
+## 2026-10-11 · [Claude] Codex 30절 반영, 화면 암전 없앰, PHD2·SharpCap 가이드 카메라 자동 선택, 처음 초점은 넓게 찾기
+
+**요청**: 실내 장비 시험 중 발견 — PHD2가 가이드 카메라를 못 잡음(같은 G3M662M을 다른 USB 자리에 꽂아 PHD2가 건너뜀, "왜 아이라가 바꿔 주지 못하나", "다른 자리에 꽂혔다고 알려 줄 것"), SharpCap이 카메라 없이 켜짐, 자동초점이 0 근처에서 시작해 실패(넓은 탐색을 믿어 보기로), 단계 넘어갈 때 화면 전체 암전(늘 우주 위에서 작업하는 느낌 유지). Codex 30절 8건 — 30-01은 X-T5 노출 중단 실기 확인 뒤 "지금 사진 중단 후 평소 종료"로 결정
+
+**변경**
+- 암전: `App.module.css` `.body[data-sky]` 바탕, `PrepareScreen .stage`, `LiveView .view`의 하늘색 바탕 제거 — DESIGN.md 배경 규칙 바꿈
+- 새 `Engine/Phd2CameraRepoint.cs`(PHD2 설정 cam_hash\*\whichCamera를 지금 꽂힌 같은 VID/PID 자리로, 하나만 꽂혀 있을 때만), `EquipmentConnector.CheckPhd2Async`가 고친 뒤 한 번 더 연결·실패 이유를 자리로(연결 안 됨·여러 대·다른 자리)
+- `SharpCapBridge`: 스크립트 `pick_camera`(테스트·웹캠·ASCOM 제외), 열린 이름을 `sharpcap-camera.txt`에 기억해 다음 `/camera`로
+- 초점: `RealFocusDevices.CoarseSearchAsync` 2단계(약 2,000걸음 → 400걸음, 별 수·HFR), `FocusTask`는 기억된 위치가 없으면 자동초점 전에 넓게 찾기, "AA 추천값" 문구 삭제
+- 30-01 `ShootSession.StopForQuitAsync`·stop-for-quit·`QuitControl` 문구 · 30-02 `PolarTask` MountLock · 30-03 `PrepareRunner.Act`·`StopCurrentAsync`·`RecheckStopAsync` · 30-04 `AscomAxis` 다시 씀(뒤에서 하나씩 15초)·`RealPolarDevices.StopAsync` · 30-05 `MainWindow.OnWebProcessFailed` · 30-06 `Phd2Client.ReadLoopAsync` · 30-07 `prepare.ts`·`shoot.ts` · 30-08 `UserSettings.Update`
+- DESIGN.md 종료(촬영 중)·초점 처음 위치
+
+**확인**: 서버 테스트 198 통과·1 건너뜀(새: CX30_02·03·06·08, 바뀐 초점 테스트 문구). 웹 타입 검사·빌드, 데스크톱 빌드. 실기(집, 실내): X-T5 30초 노출을 5초에 중단 → N.I.N.A. "Exposure aborted", 1초 안에 노출 끝; PHD2 기록으로 USB 자리 차이(&0&2 → &0&1) 확인, 이 PC 설정에서 옛·새 자리 구분 확인. 확인 못 함: PHD2 설정 실제 고쳐 쓰기(사용자가 먼저 직접 고름), SharpCap 스크립트 카메라 고르기, 넓게 찾기(별 필요), 촬영 중 종료, 암전 없어진 전환 모습
+
+**남은 것**: 맑은 밤에 넓게 찾기·SharpCap 카메라·촬영 중 종료 확인
+
+---
+
+## 2026-10-11 · [Codex] dd428d8 프로젝트 전반 독립 심층 감사 (30절)
+
+**요청**: 클로드 자체 점검·수정 이후 7개 영역과 취소·재시도·재연결·종료 경계를 독립 검토. 코드 수정·실장비·외부 프로그램 조작 없이 검증하고 리뷰와 HISTORY에 기록.
+
+**변경**: `docs/codex/REVIEW_CODEX.md` 30절 추가 — **High 4·Med 1·Low 3건**, 항목마다 실사용 등급·발생 경로·근거·수정 방향·검증 한계 표시. 우선 항목은 촬영 중 종료의 제어 주체 소멸, 극축 정렬의 적도의 안전 잠금 우회, 재시도 중복 실행, 동기 COM 정지 대기의 한계. 구조·최적화 제안은 결함과 분리. 29절의 CX-28-01~03은 정적 재확인 결과 기록.
+
+**확인**: 기준 `dd428d88d9a4b3f1dfb132c0385500fe22b1f954`, 작업 시작·검증 후 같은 HEAD. 저장소 밖 아카이브에서 실장비/설치 시뮬레이터 테스트를 제외한 서버 검사 **194 통과·1 건너뜀**, 웹 타입 검사 통과. 가짜 작업·장비·PHD2와 임시 설정으로 재시도 겹침, 미확인 상태에서 극축 정렬 진입, 정지 대기, 저장 실패 불일치, 파싱 오류 후 구독/재접속을 확인. 실제 웹 함수에 지연 응답을 주입해 cleanup 후 SSE 생성 재현. 정상 회귀 검사 통과와 추가 결함 재현을 구분함.
+
+**남은 것**: 30절 수정 검토·반영. 실제 WebView/DWM·COM·장비 정지와 장시간 CPU/GPU/핸들 검증은 하지 않음. 앱 코드·기존 테스트는 수정하지 않았고 커밋·푸시하지 않음.
+
+---
+
+## 2026-10-11 · dd428d8 [Claude] 자체 점검(Deep Self-Audit) High·Med·Low 15건 수정
 
 **요청**: 프로세스 수명·장비 연동·동시성·SSE·화면 자원·오류 격리·스타일 토큰 7개 영역의 잠재 크래시·데드락·누수·상태 불일치 점검 → H(4)·M(5)·L(6) 차례로 모두 수정.
 

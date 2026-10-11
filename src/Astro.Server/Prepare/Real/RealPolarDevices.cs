@@ -176,8 +176,10 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
     /// </summary>
     public async Task<bool> StopAsync(CancellationToken ct)
     {
-        axis.Stop();
+        // 드라이버 멈춤과 N.I.N.A. 멈춤을 함께 — 드라이버가 답하지 않아도 N.I.N.A. 쪽 정지·확인은 한다 (Codex CX-30-04: 동기 드라이버 호출이 막히면 뒤가 전부 막혔다)
+        var axisStop = axis.StopAsync();
         var still = await rig.StopSlewAndConfirmAsync(ct);
+        if (!await axisStop) still = still && await rig.ConfirmStillAsync(ct); // 드라이버 멈춤을 못 보냈으면 정지를 한 번 더 확인
         if (sharpCap.OursRunning || await CameraAsync(ct) is { Connected: false })
         {
             await sharpCap.CloseAsync(ct);

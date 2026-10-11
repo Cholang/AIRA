@@ -159,18 +159,37 @@ public sealed class RealFocusDevices(NinaRig rig, IConfiguration config, Focuser
     }
 
     /// <summary>범위 안에서 넓은 간격으로 사진을 찍어 별이 보이는 위치를 찾는다 (2초 노출, 별 5개 이상)</summary>
+    /// <summary>
+    /// 초점 위치를 모를 때 넓게 찾기 (2026-10-11 실기: 기억이 없어 0 근처에서 자동초점을 시작해 실패 — 자동초점은 시작점 앞뒤 수백 걸음만 본다).
+    /// 1단계: 전체 범위를 약 1.6mm(2,000걸음, Oasis+이 초점기에서 약 125걸음 = 0.1mm) 간격으로 찍어 별이 가장 많이 잡힌 곳.
+    /// 2단계: 그 앞뒤 ±2,000을 400걸음 간격으로 찍어 별 크기(HFR)가 가장 작은 곳. 예전에는 범위를 8칸(약 5.6mm)으로만 나눠
+    /// f/3.8에서 칸 사이 별이 수백 픽셀로 번져 지나칠 수 있었다. 지금 위치에서 가까운 곳부터 찍는다. 못 찾으면 null
+    /// </summary>
     public async Task<int?> CoarseSearchAsync(int min, int max, int from, Action<int> visiting, CancellationToken ct)
     {
-        var step = Math.Max(1, (max - min) / 8);
-        var spots = Enumerable.Range(0, 9).Select(i => min + i * step).OrderBy(p => Math.Abs(p - from)).ToList();
+        var wide = await SweepAsync(Spots(min, max, Math.Max(1, Math.Min(2000, (max - min) / 8)), from), visiting, ct);
+        if (wide is not { Stars: >= 3 } w) return null;
+        var fine = await SweepAsync(Spots(Math.Max(min, w.Position - 2000), Math.Min(max, w.Position + 2000), 400, w.Position), visiting, ct);
+        return fine is { Stars: >= 5 } f ? f.Position : w.Position;
+    }
+
+    private static List<int> Spots(int lo, int hi, int step, int from) =>
+        Enumerable.Range(0, (hi - lo) / step + 1).Select(i => lo + i * step).OrderBy(p => Math.Abs(p - from)).ToList();
+
+    /// <summary>자리마다 2초 한 장 → 별 수·크기. 가장 좋은 곳(별이 많고, 같으면 작은 곳). 포커서가 못 움직이면 그때까지의 가장 좋은 곳</summary>
+    private async Task<(int Position, int Stars, double Hfr)?> SweepAsync(List<int> spots, Action<int> visiting, CancellationToken ct)
+    {
+        (int Position, int Stars, double Hfr)? best = null;
         foreach (var p in spots)
         {
             visiting(p);
-            if ((await MoveAsync(p, ct)).Ok is false) return null;
+            if ((await MoveAsync(p, ct)).Ok is false) break;
             var shot = await rig.CaptureAsync(2, solve: false, save: false, null, ct);
-            if (shot.Ok && await rig.LastStatsAsync(ct) is { Stars: >= 5 }) return p;
+            if (!shot.Ok || await rig.LastStatsAsync(ct) is not { } s || s.Stars <= 0) continue;
+            var hfr = double.IsFinite(s.Hfr) && s.Hfr > 0 ? s.Hfr : double.MaxValue;
+            if (best is not { } b || s.Stars > b.Stars * 1.2 || s.Stars >= b.Stars * 0.8 && hfr < b.Hfr) best = (p, s.Stars, hfr);
         }
-        return null;
+        return best;
     }
 
     public async Task<bool> StopAsync(CancellationToken ct)

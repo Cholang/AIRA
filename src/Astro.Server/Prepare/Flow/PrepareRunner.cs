@@ -480,7 +480,9 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
             }
             // 다음 작업을 시작하는 버튼은 받는 즉시 지운다 — 거의 동시에 두 번 들어와도 같은 작업이 두 번 돌지 않게 (2026-10-11 자체 점검 L1).
             // 새 작업이 시작되면(또는 다음이 없으면 끝 버튼) 버튼이 다시 채워진다
-            if (actionId is "next" or "restart" || actionId.StartsWith("next:", StringComparison.Ordinal))
+            // 다시 시도·다시 하기·장비 상태 다시 확인도 받는 즉시 지운다 — 정지 확인을 기다리는 동안 한 번 더(또는 다른 화면에서) 눌러
+            // 같은 작업이 두 번 시작되던 것 (Codex CX-30-03). 실패하면 각 흐름이 버튼을 다시 놓는다
+            if (actionId is "next" or "restart" or "retry" or "device-check" || actionId.StartsWith("next:", StringComparison.Ordinal) || actionId.StartsWith("redo:", StringComparison.Ordinal))
             {
                 cur.Actions = [];
                 Changed();
@@ -749,7 +751,8 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
         cts?.Cancel();
         try { await _runTask.WaitAsync(StopTimeout); } catch { /* 취소·시간 초과 — 아래에서 정지 확인 */ }
         if (!wasRunning && cur.Finished) return true; // 끝난 작업은 움직이는 장비가 없다
-        if (await TryStopAsync(cur.Task)) return true;
+        // 멈추라고 알린 것과 실제로 끝난 것은 다르다 — 앞 실행이 아직 정리 중이면 새 실행을 시작하지 않고 확인 필요로 (CX-30-03)
+        if (await TryStopAsync(cur.Task) && _runTask.IsCompleted) return true;
         ShowStopUnconfirmed(cur.Task, then);
         return false;
     }
@@ -786,7 +789,12 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
         (IPrepTask Task, Func<Task> Then)? pending;
         lock (_gate) pending = _stopUnconfirmed;
         if (pending is not { } p) return;
-        if (!await TryStopAsync(p.Task)) return;
+        if (!await TryStopAsync(p.Task) || !_runTask.IsCompleted)
+        {
+            // 아직 확인 못 함: 지운 버튼을 다시 놓는다 (CX-30-03 — 받는 즉시 지우므로)
+            ShowStopUnconfirmed(p.Task, p.Then);
+            return;
+        }
         lock (_gate)
         {
             _stopUnconfirmed = null;

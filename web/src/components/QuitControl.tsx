@@ -142,7 +142,10 @@ export function QuitProvider({
     closing?.problem ??
     (closing?.busy && closing.step
       ? STEP_TEXT[closing.step]
-      : stage
+      : stage === '촬영'
+        ? // 촬영 중 종료: 아이라가 한 장씩 시키는 촬영이라 꺼지면 이어 찍을 수 없다 — 지금 사진을 중단하고 평소대로 정리 (CX-30-01)
+          `촬영을 멈추고 ${PRODUCT.reul} 종료합니다. 지금 찍는 사진은 중단해 버리고, 가이딩·추적을 끈 뒤 장비를 정리합니다.`
+        : stage
         ? `${stage} 진행을 종료하고 ${PRODUCT.reul} 종료합니다.`
         : `${PRODUCT.reul} 종료합니다.`)
 

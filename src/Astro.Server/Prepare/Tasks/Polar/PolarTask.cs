@@ -95,7 +95,10 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         while (true)
         {
             run.Status("적도의 추적 속도를 항성으로 맞추는 중입니다");
-            await devices.SetSiderealTrackingAsync(ct); // 실패해도 진행 (DESIGN.md ①)
+            // 적도의 명령은 공통 적도의 잠금 안에서 — 정지 확인이 필요한 상태(홈 실패 등)면 잠금이 이유를 돌려주고 여기서 멈춘다 (2026-10-11 Codex CX-30-02:
+            // 극축 정렬만 잠금을 거치지 않아 확인 필요 상태에서도 추적을 켜고 RA축을 돌렸다)
+            await using (await run.Context.Mount.AcquireAsync(ct))
+                await devices.SetSiderealTrackingAsync(ct); // 실패해도 진행 (DESIGN.md ①)
             // 사용자가 켜 둔 SharpCap: 아이라는 켤 때 넘기는 스크립트로만 SharpCap을 조종하므로 닫고 다시 켠다 — 누르면 (2026-10-11 사용자 결정).
             // PHD2가 카메라를 놓기 전에 묻는다 (놓은 뒤에 막히면 가이드 카메라가 아무 데도 없음)
             if (await devices.SharpCapAlreadyOpenAsync(ct))
@@ -145,7 +148,10 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         run.Live("sharpcap", "/api/prepare/live/sharpcap");
         while (true)
         {
-            var found = await devices.FindPoleAsync(p =>
+            // 극 찾기는 RA축을 돌린다 — 끝나고 멈춘 것을 확인할 때까지 적도의 잠금을 쥔다 (CX-30-02)
+            PoleFindResult found;
+            await using (await run.Context.Mount.AcquireAsync(ct))
+            found = await devices.FindPoleAsync(p =>
             {
                 run.Status(p.Stage switch
                 {

@@ -132,7 +132,9 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
                 JsonElement msg;
                 try { using var doc = JsonDocument.Parse(line); msg = doc.RootElement.Clone(); }
                 catch (JsonException) { continue; }
-                if (msg.TryGetProperty("id", out var id) && id.TryGetInt32(out var n))
+                // 객체가 아닌 답([] 등)은 버린다 — 예전에는 여기서 예외로 루프만 끝나고 구독은 끝났다는 알림을 받지 못했다 (Codex CX-30-06)
+                if (msg.ValueKind != JsonValueKind.Object) continue;
+                if (msg.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt32(out var n))
                 {
                     TaskCompletionSource<JsonElement>? tcs;
                     lock (_gate) _pending.TryGetValue(n, out tcs);
@@ -150,8 +152,15 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
         {
             log.LogInformation("PHD2 연결 끊김: {Message}", e.Message);
         }
-        // 이 읽기 루프의 연결만 끊는다 — 그사이 새로 연결됐으면 새 연결은 그대로 (M1: 늦게 끝난 옛 루프가 새 연결을 끊던 것)
-        Drop(stream);
+        catch (Exception e)
+        {
+            log.LogWarning(e, "PHD2 답을 읽다 예상하지 못한 오류");
+        }
+        finally
+        {
+            // 어떤 이유로 끝나든 이 읽기 루프의 연결만 끊는다 — 그사이 새로 연결됐으면 새 연결은 그대로 (M1·CX-30-06)
+            Drop(stream);
+        }
     }
 
     /// <summary>

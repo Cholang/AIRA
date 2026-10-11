@@ -4,11 +4,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--sky);
-}
-
-/* 실제 사진이 없을 때(실장비): 하늘 바탕·아래 그늘 없이 앱 배경(성운)이 비치게 */
-.stage[data-sky='false'] {
+  /* 바탕을 칠하지 않는다 — 늘 앱 배경(성운) 위에서 작업하는 느낌, 단계를 넘어갈 때 화면이 검게 덮였다가 성운이 튀어나오지 않게 (2026-10-11 사용자 요청) */
   background: transparent;
 }
 
