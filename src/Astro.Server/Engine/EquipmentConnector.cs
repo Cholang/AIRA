@@ -732,7 +732,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         var (ok, alert) = await Phd2Check.ConnectEquipmentAsync(host, port, ct);
         if (ok) return await Phd2Check.CheckAsync(host, port, mount, ct);
         // 같은 카메라를 다른 USB 자리에 꽂아서 못 찾았으면: PHD2가 기억한 자리를 지금 자리로 고치고 한 번 더 연결 (2026-10-11 사용자 요청)
-        var place = Phd2Check.CameraNotFound(alert) ? Phd2CameraRepoint.TryRepoint() : null;
+        var place = Phd2Check.CameraNotFound(alert) ? TryRepoint() : null;
         if (place is { Fixed: true })
         {
             log.LogInformation("PHD2 가이드 카메라 자리를 바꿈: {Saved} → {Now}", place.Saved, place.Now);
@@ -808,6 +808,17 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         foreach (var noise in new[] { "WandererEmpire ", "ASCOM " }) name = name.Replace(noise, "");
         name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+\d+$", ""); // "WandererBox 1" → "WandererBox"
         return name.Trim();
+    }
+
+    /// <summary>PHD2 카메라 자리 고치기 — 레지스트리·장치 목록을 읽다 무엇이 실패해도 연결 확인은 원래 안내로 끝나게 (2026-10-11 실기: 여기서 예외가 나 요청 전체가 오류)</summary>
+    private Phd2CameraRepoint.Result? TryRepoint()
+    {
+        try { return Phd2CameraRepoint.TryRepoint(); }
+        catch (Exception e)
+        {
+            log.LogWarning(e, "PHD2 가이드 카메라 자리를 확인하지 못함");
+            return null;
+        }
     }
 
     private static string? Text(JsonElement obj, string key) =>

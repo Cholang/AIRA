@@ -79,6 +79,8 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
         if (!ctx.HasFocuser) return await ManualAsync(run, "자동초점 장치가 없습니다. 초점을 손으로 맞춘 뒤 눌러 주세요.", ct);
         run.Live("focus-curve", LiveUrl, new { points = Array.Empty<object>(), last = ctx.Memory.LastFocus?.Position });
         if (devices.ZeroRequested) await ZeroAsync(run, ct);
+        // 넓게 훑기가 실패해 사용자가 손으로 대략 맞춘 뒤 "지금 위치에서 자동초점"을 골랐다 — 다시 넓게 훑지 않고 지금 위치에서 (CX-32-04)
+        var fromHere = false;
 
         while (true)
         {
@@ -88,7 +90,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             var temp = await devices.TemperatureAsync(ct);
             // 같은 밤에 맞춘 위치 → 저장해 둔 지난 밤 위치 → (처음이면) 넓게 찾은 위치
             ctx.Memory.LastFocus ??= devices.SavedFocus;
-            if (ctx.Memory.LastFocus is null)
+            if (ctx.Memory.LastFocus is null && !fromHere)
             {
                 // 맞춘 적이 없는 망원경: 자동초점은 시작점 앞뒤 수백 걸음만 보므로 먼저 넓게 찾는다 (2026-10-11 실기 — 0 근처에서 시작해 실패)
                 var (min, max) = await devices.LimitsAsync(ct);
@@ -98,8 +100,12 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                 if (near is { } n) ctx.Memory.LastFocus = (n, temp);
                 else
                 {
-                    run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌린 뒤 다시 자동초점을 누르세요. 덮개가 닫혀 있지 않은지도 확인해 주세요.");
-                    return await ManualAsync(run, "넓게 훑어도 별을 찾지 못했습니다. 초점을 손으로 대략 맞춘 뒤 눌러 주세요.", ct);
+                    run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌린 뒤 \"지금 위치에서 자동초점\"을 누르세요. 덮개가 닫혀 있지 않은지도 확인해 주세요. 손으로 다 맞췄으면 \"초점을 맞췄어요\".");
+                    run.Status(null);
+                    // 손으로 대략 맞춘 위치는 저장하지 않는다 — 자동초점이 성공해야 저장 (CX-32-04)
+                    if (await run.AskAsync([new("autofocus-here", "지금 위치에서 자동초점", true), new("manual-done", "초점을 맞췄어요")], ct) != "autofocus-here") return ManualDone(ctx);
+                    fromHere = true;
+                    continue;
                 }
             }
             var start = ctx.Memory.LastFocus?.Position ?? await devices.PositionAsync(ct);

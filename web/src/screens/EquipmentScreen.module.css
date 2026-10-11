@@ -15,6 +15,9 @@
   --state-ring: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent);
   /* 연결된 장비의 궤도 밝기 (2026-10-11 사용자 — 선이 많으면 이상해서 아주 희미하게) */
   --orbit-alpha: 0.03;
+  /* 항성이 엔진 켜기 자리에서 옮겨 오는 시간·가속 (skyPan.ts SUN_MOVE_MS와 같게). 배경은 더 천천히 따라온다 (SkyBackdrop .pan) */
+  --sun-move: 1100ms;
+  --sun-ease: cubic-bezier(0.65, 0, 0.35, 1);
   flex: 1;
   position: relative;
   overflow: hidden;
@@ -82,7 +85,7 @@ g[data-on='true'] > .moons {
 /* 소행성대: 화성과 목성 사이 점들 — 행성과 같은 차례로 나타나(화성 다음) 흐리게 있다가, 화성·바깥 행성이 연결되면 또렷이 */
 .beltShow {
   animation: appear 300ms ease-out both;
-  animation-delay: calc(900ms + var(--i) * 90ms);
+  animation-delay: calc(var(--sun-move) + var(--i) * 90ms);
 }
 
 .belt {
@@ -101,7 +104,7 @@ g[data-on='true'] > .moons {
 /* 항성 이글거림: 테두리 바깥 흐린 빛줄기 두 묶음이 서로 반대로 아주 천천히 돌며 숨 쉬듯 (회전·크기만 — 가볍다) */
 .corona {
   opacity: 0;
-  animation: appear 1.2s ease-out 900ms both;
+  animation: appear 1.2s ease-out var(--sun-move) both;
 }
 
 .halo {
@@ -161,6 +164,7 @@ g[data-on='true'] > .moons {
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   box-shadow: inset 0 0 0 1px var(--glass-line);
+  --corona-scale: 1.087; /* 테두리가 글래스 원 가장자리라 이글거림을 100/92배 (SunCorona) */
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -170,7 +174,7 @@ g[data-on='true'] > .moons {
 }
 
 .sun[data-ready='true'] {
-  animation: moveIn 900ms cubic-bezier(0.45, 0, 0.25, 1) both;
+  animation: moveIn var(--sun-move) var(--sun-ease) both;
 }
 
 @keyframes moveIn {
@@ -188,7 +192,7 @@ g[data-on='true'] > .moons {
 }
 
 /* 항성 테두리 빛·반짝임·실패 점멸은 JarvisRing이 그린다. 항성 둘레가 글래스 원의 가장자리라 안쪽 고리는 감추고 빛을 가장자리에 */
-.sun .ring > svg {
+.sun .ring > svg[data-arcs] {
   opacity: 0;
 }
 
@@ -242,7 +246,7 @@ g[data-on='true'] > .moons {
   justify-items: start;
   gap: 4px;
   max-width: 320px;
-  animation: appear 400ms ease-out 900ms both;
+  animation: appear 400ms ease-out var(--sun-move) both;
 }
 
 .headline {
@@ -276,7 +280,7 @@ g[data-on='true'] > .moons {
   display: flex;
   align-items: center;
   gap: 14px;
-  animation: appear 400ms ease-out 900ms both;
+  animation: appear 400ms ease-out var(--sun-move) both;
 }
 
 .modeRow {
@@ -342,7 +346,7 @@ g[data-on='true'] > .moons {
   opacity: 0;
   /* 항성이 자리를 잡은 뒤 차례로 나타난다 (투명도만) */
   animation: appear 300ms ease-out both;
-  animation-delay: calc(900ms + var(--i) * 90ms);
+  animation-delay: calc(var(--sun-move) + var(--i) * 90ms);
   transition: background-color 260ms, border-color 260ms, color 260ms, transform var(--lift-ms), box-shadow var(--lift-ms);
 }
 
@@ -647,7 +651,7 @@ g[data-on='true'] > .moons {
   transform: translate(-50%, -50%);
   /* 행성이 다 나타난 뒤 마지막에 (--i = 9) */
   animation: appear 300ms ease-out both;
-  animation-delay: calc(900ms + var(--i) * 90ms);
+  animation-delay: calc(var(--sun-move) + var(--i) * 90ms);
 }
 
 .scopeButton {
@@ -995,7 +999,7 @@ g[data-on='true'] > .moons {
 /* 행성의 고리·위성(SVG): 행성 원과 같은 차례로 나타난다 (--i, 2026-10-11) */
 .cascade {
   animation: appear 300ms ease-out both;
-  animation-delay: calc(900ms + var(--i) * 90ms);
+  animation-delay: calc(var(--sun-move) + var(--i) * 90ms);
 }
 
 @media (prefers-reduced-motion: reduce) {

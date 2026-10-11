@@ -229,26 +229,33 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     /// </summary>
     public async Task<bool> AbortExposureAsync(CancellationToken ct)
     {
-        if (!await CameraExposingAsync(ct)) return true;
-        if (await IsFujifilmAsync(ct))
+        // 답이 없으면 "모름" — 끝난 것으로도, 후지가 아닌 것으로도 보지 않는다 (CX-32-03: 응답이 빠지면 정지 확인으로 처리하거나 X-T5에 중단을 보냈다)
+        if (await CameraInfoAsync(ct) is not { } first) return false;
+        if (!Bool(first, "IsExposing")) return true;
+        if (IsFujifilm(first))
         {
-            while (await CameraExposingAsync(ct)) await Task.Delay(1000, ct);
-            await Task.Delay(2000, ct); // 노출이 끝난 뒤 사진을 받는 시간
+            while (await CameraInfoAsync(ct) is not { } now || Bool(now, "IsExposing")) await Task.Delay(1000, ct);
+            // 노출이 끝난 뒤 N.I.N.A.가 사진을 받는 시간. 받기 끝을 알리는 값이 일반 노출에는 없어 고정 (2026-10-11 실기: 끝난 뒤 변환까지 약 20초 — 받기만은 따로 재지 못함)
+            await Task.Delay(2000, ct);
             return true;
         }
         await nina.RequestAsync("equipment/camera/abort-exposure", Short, ct);
         for (var i = 0; i < 5; i++)
         {
-            if (!await CameraExposingAsync(ct)) return true;
+            if (await CameraInfoAsync(ct) is { } now && !Bool(now, "IsExposing")) return true;
             await Task.Delay(1000, ct);
         }
         return false;
     }
 
+    /// <summary>카메라 정보 — 답이 오고 노출 중인지(IsExposing)가 참·거짓으로 있을 때만. 아니면 null(모름)</summary>
+    private async Task<JsonElement?> CameraInfoAsync(CancellationToken ct) =>
+        (await nina.RequestAsync("equipment/camera/info", Short, ct)) is { Ok: true, Response: { ValueKind: JsonValueKind.Object } c }
+        && c.TryGetProperty("IsExposing", out var e) && e.ValueKind is JsonValueKind.True or JsonValueKind.False ? c : null;
+
     /// <summary>후지필름 카메라인가 (N.I.N.A. 후지 플러그인 — 일반 노출을 중단할 수 없다). 이름이 X-·GFX로 시작하거나 드라이버 정보에 Fuji</summary>
-    private async Task<bool> IsFujifilmAsync(CancellationToken ct)
+    private static bool IsFujifilm(JsonElement c)
     {
-        if ((await nina.RequestAsync("equipment/camera/info", Short, ct)).Response is not { ValueKind: JsonValueKind.Object } c) return false;
         var name = Text(c, "Name") ?? "";
         var driver = (Text(c, "DriverInfo") ?? "") + " " + (Text(c, "Description") ?? "") + " " + (Text(c, "DeviceId") ?? "");
         return name.StartsWith("X-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("GFX", StringComparison.OrdinalIgnoreCase)

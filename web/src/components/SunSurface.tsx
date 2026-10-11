@@ -12,11 +12,12 @@ import type { RingState } from './JarvisRing'
 /** 지금 회전 각 — 화면이 바뀌어 원이 새로 그려져도(엔진 켜기 → 장비 연결) 무늬가 튀지 않고 이어지게 모든 원이 같이 쓴다 */
 let sharedRot = 0
 
-export default function SunSurface({ state, spin = true, className }: { state: RingState; spin?: boolean; className?: string }) {
+export default function SunSurface({ state, spin = true, className }: { state: RingState; spin?: boolean | 'always'; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   // spin=false: 진행 중이어도 돌지 않는다 (장비 변경 모드 — 고르는 동안 계속 그리지 않게, 자체 점검 L5)
   const stateRef = useRef(state)
-  stateRef.current = spin ? state : 'done'
+  // spin='always': 상태와 상관없이 늘 돈다 (장비 연결 이후의 태양 — 2026-10-11 사용자 요청)
+  stateRef.current = spin === 'always' ? 'working' : spin ? state : 'done'
   const kick = useRef<() => void>(() => {})
 
   useEffect(() => {

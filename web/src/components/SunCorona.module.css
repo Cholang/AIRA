@@ -7,6 +7,11 @@
   height: 140%;
   overflow: visible;
   pointer-events: none;
+  /* 원 테두리 바깥에만 보이게 (2026-10-11 사용자 — 원 위에 겹쳐 안쪽까지 이글거렸다). 경계 = 고리 반지름 92 ÷ 이 판의 반 140 = 65.7%.
+     글래스 원 가장자리(100)가 테두리인 곳(장비 연결 항성·구석 태양)은 --corona-scale: 1.087(=100/92)로 통째로 키운다 */
+  transform: scale(var(--corona-scale, 1));
+  -webkit-mask: radial-gradient(closest-side, transparent 65%, #000 66.4%);
+  mask: radial-gradient(closest-side, transparent 65%, #000 66.4%);
 }
 
 .halo {

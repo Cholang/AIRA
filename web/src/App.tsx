@@ -6,6 +6,7 @@ import NinaLostCard, { type NinaState } from './components/NinaLostCard'
 import NinaNoticeCard from './components/NinaNoticeCard'
 import StepRail, { RailProvider, type RailExtra, type Stage } from './components/StepRail'
 import SkyBackdrop from './components/SkyBackdrop'
+import CornerSun from './components/CornerSun'
 import { logClicks, logEvent } from './log'
 import MountHomeButton from './components/MountHomeButton'
 import { QuitButton, QuitProvider } from './components/QuitControl'
@@ -39,6 +40,9 @@ import styles from './App.module.css'
 type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipment' | 'site' | 'preflight' | 'rig' | 'plan' | 'target' | 'shoot' | 'wrap' | 'summary'
 
 /** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md 2장) */
+/** 장비 연결 뒤 화면들: 왼쪽 위에 구석 태양을 둔다 (2026-10-11 사용자 요청, CornerSun) */
+const CORNER_SUN: Phase[] = ['site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
+
 const STAGE_OF: Partial<Record<Phase, Stage>> = {
   check: '연결',
   engine: '연결',
@@ -99,6 +103,9 @@ export default function App() {
   useEffect(() => logEvent(`테마: ${theme}`), [theme])
   useEffect(() => logClicks(), [])
   const [shown, setShown] = useState(true)
+  // 넘어가는 중인 다음 화면 (앞 화면이 사라지기 시작할 때부터 — 구석 태양이 그때 자리를 잡게). 넘어간 뒤에는 지금 화면과 같다
+  const [heading, setHeading] = useState<Phase>('boot')
+  useEffect(() => setHeading(phase), [phase])
   const [profiles, setProfiles] = useState<Profile[] | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loadError, setLoadError] = useState(false)
@@ -118,6 +125,7 @@ export default function App() {
   const fadeTo = useCallback((next: Phase) => {
     if (fading.current) return
     fading.current = true
+    setHeading(next)
     setSettled(false)
     setShown(false)
     const out = phaseNow.current === 'boot' ? BOOT_FADE_MS : FADE_MS
@@ -384,6 +392,12 @@ export default function App() {
       {/* 전환 중(settled=false)에는 화면 전체를 누를 수 없고 초점도 받지 않는다 (inert) */}
       {/* 화면 영역(왼쪽) + 진행 표시(오른쪽 세로 열). 화면 영역이 크기 기준 틀이라 화면 안의 cqw·cqh는 이 영역 기준 */}
       <div className={styles.body} data-sky={sky}>
+      {/* 구석 태양: 화면 내용 아래 층. 장비 연결 화면이 사라지기 시작할 때부터 그 자리에 있다가 더 밀려난다 */}
+      {CORNER_SUN.includes(heading) && (CORNER_SUN.includes(phase) || phase === 'equipment') && (
+        <div className={styles.sunLayer} data-wide={phase === 'site'}>
+          <CornerSun />
+        </div>
+      )}
       <ScreenReady.Provider value={settled}>
       <ScreenSkyProvider onChange={setSky}>
       <RailProvider onChange={setRailExtra}>

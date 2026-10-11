@@ -9,7 +9,7 @@ import ScopeList from '../components/ScopeList'
 import { useCheckStream, type CheckItem } from '../checks'
 import { scaleOf } from '../frame'
 import { useKeepInside } from '../keepInside'
-import { setSkyPan } from '../skyPan'
+import { PARALLAX, setSkyPan, SUN_MOVE_MS } from '../skyPan'
 import { coordText, type CurrentSite } from '../sites'
 import engineStyles from './EngineStartScreen.module.css'
 import { PLANET_OF, solarLayout, type Planet, type SolarGeo } from './equipmentOrbits'
@@ -67,7 +67,7 @@ export default function EquipmentScreen({ onContinue, site }: { onContinue: Equi
       // 1단계 화면을 그대로 이어 보여 주는 자리라 나타나는 효과 없이 바로
       <main className={engineStyles.stage} style={{ animation: 'none' }}>
         <div ref={holdRing}>
-          <JarvisRing state="done" className={engineStyles.ring} surface still corona>
+          <JarvisRing state="done" className={engineStyles.ring} surface still corona spin="always">
             준비되었습니다
           </JarvisRing>
         </div>
@@ -141,8 +141,8 @@ function EquipmentGraph({
       dx: from ? (from.left + from.width / 2 - (now.left + now.width / 2)) / s : 0,
       dy: from ? (from.top + from.height / 2 - (now.top + now.height / 2)) / s : 0,
     })
-    // 배경도 태양과 같은 만큼 함께 민다 — 태양은 배경에 붙어 있고 화면이 움직이는 것처럼 (2026-10-11, skyPan.ts. 밀린 자리는 그대로 둔다)
-    if (from) setSkyPan(now.left + now.width / 2 - (from.left + from.width / 2), now.top + now.height / 2 - (from.top + from.height / 2))
+    // 배경도 함께 민다 — 태양보다 덜·더 천천히 (시차: 태양이 가깝고 배경이 멀게, 2026-10-11 사용자 — 같은 만큼·같은 속도는 어색했다). 밀린 자리는 그대로 둔다 (skyPan.ts)
+    if (from) setSkyPan((now.left + now.width / 2 - (from.left + from.width / 2)) * PARALLAX, (now.top + now.height / 2 - (from.top + from.height / 2)) * PARALLAX)
   }, [geo, moveFrom, from])
 
   // ── 자동 진행: 모두 되면 4초 동안 항성 테두리 호가 차오른다. 그동안 "장비 변경"을 누르면 변경 모드로 ─────────
@@ -356,7 +356,7 @@ function EquipmentGraph({
               }
               data-ready={moveFrom !== null}
             >
-              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`} surface corona spin={mode !== 'edit'}>
+              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`} surface corona spin='always'>
                 {null}
               </JarvisRing>
               {/* 1단계 끝 모습을 위에 겹쳐 두고, 옮겨 가는 동안 흐려진다 → 항성으로 크로스페이드 */}
@@ -501,8 +501,8 @@ function orbitPath(geo: SolarGeo, p: Planet) {
 const BELT_ORDER = 4
 const SCOPE_ORDER = 9
 const cascadeOrder = (kind: string) => PLANET_OF[kind] + (PLANET_OF[kind] >= BELT_ORDER ? 1 : 0)
-/** 연결 경과를 보여 주기 시작하는 때: 항성이 옮겨 오는 0.9초 + 마지막(망원경)이 나타나기 시작 + 나타나는 0.3초 (CSS와 같게) */
-const REVEAL_MS = 900 + SCOPE_ORDER * 90 + 300
+/** 연결 경과를 보여 주기 시작하는 때: 항성이 옮겨 오는 시간(SUN_MOVE_MS) + 마지막(망원경)이 나타나기 시작 + 나타나는 0.3초 (CSS와 같게) */
+const REVEAL_MS = SUN_MOVE_MS + SCOPE_ORDER * 90 + 300
 
 /** 시작(when)한 뒤 ms가 지나면 true. 동작 줄이기면 바로 */
 function useRevealAfter(when: boolean, ms: number) {

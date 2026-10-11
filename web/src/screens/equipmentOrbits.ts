@@ -93,15 +93,18 @@ function rng(seed: number) {
 /** 망원경 아이콘의 반쯤 (아이콘 + 이름) */
 const SCOPE_HALF = 56
 
-export function solarLayout(w: number, h: number): SolarGeo | null {
-  if (w < 200 || h < 200) return null
+/** 항성 자리 (화면 영역 w×h 안): 중심이 왼쪽 위 구석이라 1/4만 보인다. 이후 단계의 구석 태양(CornerSun)도 같은 자리에서 시작 */
+export function sunSpot(w: number, h: number) {
   // 기준 길이: 시안(1500×760) 비율로 — 세로가 긴 창에서 행성이 너무 커져 몰리지 않게
   const u = Math.min(h, w / 1.97)
-  const sunD = u * 0.66
+  return { u, sunD: u * 0.66, cx: w * 0.015, cy: h * 0.02 }
+}
+
+export function solarLayout(w: number, h: number): SolarGeo | null {
+  if (w < 200 || h < 200) return null
+  const { u, sunD, cx, cy } = sunSpot(w, h)
   const R = sunD / 2
   const base = u * 0.152 // 지구 지름 ÷ 0.9
-  const cx = w * 0.015
-  const cy = h * 0.02
   // 궤도 자리: 행성 8개 + 화성 뒤 소행성대 한 칸. 수성은 항성에 너무 붙지 않게 한 칸 바깥부터, 안쪽은 촘촘·바깥은 넓게
   const slots = PLANETS.length + 1
   const rFirst = R + base * 0.75

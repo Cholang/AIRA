@@ -148,9 +148,23 @@ public class TaskIsolationTests
         var faults = new SimFaults();
         faults.Arm("focus.stars");
         var (done, run) = await RunAlone(new FocusTask(new SimulatedFocusDevices(Fast, faults)), Harness.Context(),
-            actions => actions.Any(a => a.Id == "manual") ? "manual" : actions.First(a => a.Primary).Id);
+            actions => actions.Any(a => a.Id == "manual") ? "manual" : actions.Any(a => a.Id == "manual-done") ? "manual-done" : actions.First(a => a.Primary).Id);
         Assert.Contains(run.Statuses, s => s.Contains("넓은 간격") || s.Contains("넓게 찾")); // 처음이면 자동초점 전에 넓게 찾는다 (2026-10-11)
         Assert.True(Assert.IsType<FocusResult>(done.Result).Manual);
+    }
+
+    [Fact]
+    public async Task CX32_04_넓게_훑기가_실패하면_손으로_대략_맞춘_뒤_지금_위치에서_자동초점()
+    {
+        var faults = new SimFaults();
+        faults.Arm("focus.stars"); // 넓게 훑기만 실패하고 (Take), 손으로 맞춘 뒤의 자동초점은 별을 찾는다
+        var ctx = Harness.Context();
+        var (done, run) = await RunAlone(new FocusTask(new SimulatedFocusDevices(Fast, faults)), ctx);
+        Assert.Contains("autofocus-here,manual-done", run.Asked);
+        Assert.Single(run.Statuses, s => s.Contains("넓게 찾")); // 다시 넓게 훑지 않는다
+        var r = Assert.IsType<FocusResult>(done.Result);
+        Assert.False(r.Manual);
+        Assert.Equal(12340, ctx.Memory.LastFocus!.Value.Position); // 저장은 자동초점 결과
     }
 
     [Fact]

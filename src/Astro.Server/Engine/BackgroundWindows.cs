@@ -28,8 +28,9 @@ public static class BackgroundWindows
 
     /// <summary>
     /// 최소화하지 않고 AA 뒤로만 보낸다 (SharpCap — 최소화하면 창 캡처가 빈다). 지켜보는 동안 새 창을 맨 아래로 보내고 AA 창을 앞으로.
+    /// AA를 잠깐 "항상 위"로 두어 새 창이 처음부터 AA 뒤에서 열리게 한다 (2026-10-11 실기: SharpCap 창이 하얗게 한 번 위에 떴다가 뒤로 갔다 — N.I.N.A.·PHD2와 같은 방식으로)
     /// </summary>
-    public static IDisposable KeepBehind(TimeSpan grace, params string[] processNames) => new Watcher(processNames, grace, minimize: false);
+    public static IDisposable KeepBehind(TimeSpan grace, params string[] processNames) => new Watcher(processNames, grace, minimize: false, onTop: true);
 
     /// <summary>지금부터 AA를 "항상 위"로 두고 이 프로그램들의 새 창이 포커스를 가져가면 AA로 되돌린다. Dispose 뒤에도 grace 동안 더 (조금 늦게 뜨는 창)</summary>
     public static IDisposable Watch(TimeSpan grace, params string[] processNames) => new Watcher(processNames, grace, minimize: false, onTop: true);

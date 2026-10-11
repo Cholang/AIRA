@@ -37,8 +37,8 @@ export default function JarvisRing({
   still?: boolean
   /** 테두리 바깥 이글거림 (SunCorona) — 엔진 켜기 원·장비 연결 항성 */
   corona?: boolean
-  /** 태양 표면을 돌릴지 (surface일 때) — 장비 변경 모드에서는 멈춘다 */
-  spin?: boolean
+  /** 태양 표면을 돌릴지 (surface일 때). true = 진행 중에만, 'always' = 늘 (장비 연결 태양·이후 단계의 구석 태양 — 2026-10-11 사용자 요청) */
+  spin?: boolean | 'always'
 }) {
   // 완료 문장은 기다리지 않고 바로 (완료 순간과 글자가 어긋나 보이지 않게)
   const { shown, visible } = useSmoothContent(children, state === 'done')
@@ -46,7 +46,7 @@ export default function JarvisRing({
     <div className={[styles.ring, className].filter(Boolean).join(' ')} data-state={state} data-surface={surface} data-still={still} role="status" aria-live="polite">
       {corona && <SunCorona />}
       {surface && <SunSurface state={state} spin={spin} className={styles.surface} />}
-      <svg className={styles.arcs} viewBox="0 0 200 200" aria-hidden="true">
+      <svg className={styles.arcs} viewBox="0 0 200 200" aria-hidden="true" data-arcs="">
         <circle className={styles.track} cx="100" cy="100" r="92" />
         <circle className={styles.outer} cx="100" cy="100" r="92" pathLength="100" />
         <circle className={styles.middle} cx="100" cy="100" r="80" pathLength="100" />

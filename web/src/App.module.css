@@ -108,3 +108,27 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* 구석 태양 층 (CornerSun): 화면 영역(진행 표시 왼쪽)에 깔고 화면 내용은 그 위에 */
+.body {
+  position: relative;
+}
+
+.sunLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: var(--rail-w);
+  pointer-events: none;
+}
+
+/* 관측지 화면은 진행 표시를 숨겨 화면 영역이 창 끝까지 */
+.sunLayer[data-wide='true'] {
+  right: 0;
+}
+
+.body > .screen {
+  position: relative;
+  z-index: 1;
+}

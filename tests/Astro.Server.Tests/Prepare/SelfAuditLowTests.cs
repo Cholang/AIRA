@@ -54,6 +54,15 @@ public class SelfAuditLowTests
     }
 
     [Fact]
+    public void PHD2_카메라_자리_번호를_읽는다()
+    {
+        var m = Astro.Server.Engine.Phd2CameraRepoint.UsbId.Match(@"\\?\usb#vid_0547&pid_15b3#7&2a0686fb&0&1#{a5dcbf10-6530-11d2-901f-00c04fb951ed}");
+        Assert.True(m.Success);
+        Assert.Equal("7&2a0686fb&0&1", m.Groups[3].Value);
+        Assert.False(Astro.Server.Engine.Phd2CameraRepoint.UsbId.Match("ZWO ASI120MM Mini").Success); // USB 자리 번호가 없는 이름 (CX-32-02)
+    }
+
+    [Fact]
     public void CX30_08_설정_저장이_실패하면_앱_안의_값도_그대로()
     {
         var root = Path.Combine(Path.GetTempPath(), "aira-settings-" + Guid.NewGuid().ToString("N"));

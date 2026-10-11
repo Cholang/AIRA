@@ -12,7 +12,8 @@ namespace Astro.Server.Engine;
 /// </summary>
 public static class Phd2CameraRepoint
 {
-    private static readonly Regex UsbId = new(@"vid_([0-9a-f]{4})&pid_([0-9a-f]{4})#([^#\]+)", RegexOptions.IgnoreCase);
+    // 위치 번호 = 다음 # 또는 \ 앞까지. 정규식 안에서 \ 자체는 \\ 로 써야 한다 (2026-10-11 실기: \ 하나여서 ]가 이스케이프돼 정규식이 깨졌고, 이 클래스를 처음 쓰는 순간 예외)
+    internal static readonly Regex UsbId = new(@"vid_([0-9a-f]{4})&pid_([0-9a-f]{4})#([^#\\]+)", RegexOptions.IgnoreCase);
 
     /// <summary>PHD2가 기억한 자리와 지금 자리. Moved = 다른 자리에 꽂혀 있었음, Fixed = PHD2 설정을 지금 자리로 고침, Present = 지금 꽂힌 같은 장치 수</summary>
     public sealed record Result(bool Moved, bool Fixed, int Present, string? Saved, string? Now);
