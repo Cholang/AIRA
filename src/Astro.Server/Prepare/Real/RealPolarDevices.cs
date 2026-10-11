@@ -63,6 +63,11 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         return problem is null ? DeviceResult.Success : DeviceResult.Fail(problem);
     }
 
+    public Task<bool> SharpCapAlreadyOpenAsync(CancellationToken ct) => Task.FromResult(sharpCap.Running);
+
+    public async Task<DeviceResult> CloseOpenSharpCapAsync(CancellationToken ct) =>
+        await sharpCap.CloseUsersAsync(ct) is { } problem ? DeviceResult.Fail(problem) : DeviceResult.Success;
+
     public async Task<PoleFindResult> FindPoleAsync(Action<PoleProgress> progress, CancellationToken ct)
     {
         // 첫 사진: 위치를 찾을 때까지 (노출을 늘려 가며)

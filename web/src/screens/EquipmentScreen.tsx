@@ -8,6 +8,7 @@ import JwstIcon from '../components/JwstIcon'
 import ScopeList from '../components/ScopeList'
 import { useCheckStream, type CheckItem } from '../checks'
 import { scaleOf } from '../frame'
+import { useKeepInside } from '../keepInside'
 import { coordText, type CurrentSite } from '../sites'
 import engineStyles from './EngineStartScreen.module.css'
 import { PLANET_OF, solarLayout, type Planet, type SolarGeo } from './equipmentOrbits'
@@ -209,6 +210,8 @@ function EquipmentGraph({
     const { item, error } = (await res.json()) as { item: CheckItem; error: string | null }
     patch((prev) => prev.map((i) => (i.id === kind ? item : i)))
     if (error) setEditError({ kind, message: error })
+    // 연결 모드(망원경 아이콘에서 바로 고름)면 바로 다시 확인 — 변경 완료가 없으므로 기다리면 "확인 대기"에서 멈춘다 (CX-24-03)
+    else if (mode === 'connect') void recheckOne(kind, `/api/equipment/connect/${kind}`)
     else changed.current.add(kind)
   }
 
@@ -291,7 +294,7 @@ function EquipmentGraph({
 
   return (
     <main className={styles.stage}>
-      <div ref={graphRef} className={styles.graph} data-mode={mode}>
+      <div ref={graphRef} className={styles.graph} data-mode={mode} data-clip-box>
         {geo && (
           <>
             {/* 궤도·고리·위성·소행성대: 연결된 장비만, 아주 희미하게 (연결선 대신) */}
@@ -695,6 +698,7 @@ function DeviceList({
 }) {
   const [devices, setDevices] = useState<{ id: string; name: string }[] | null>(null)
   const [error, setError] = useState(false)
+  const keep = useKeepInside<HTMLDivElement>()
   const load = useCallback(() => {
     setDevices(null)
     setError(false)
@@ -712,7 +716,7 @@ function DeviceList({
   }, [onClose])
 
   return (
-    <div className={styles.deviceList} data-left={left} role="listbox" aria-label="설치된 드라이버">
+    <div ref={keep} className={styles.deviceList} data-left={left} role="listbox" aria-label="설치된 드라이버">
       {devices === null && !error && <p className={styles.listNote}>드라이버 목록을 읽는 중입니다</p>}
       {error && <p className={styles.listNote}>N.I.N.A.에서 목록을 받지 못했습니다</p>}
       {devices?.map((d) => (

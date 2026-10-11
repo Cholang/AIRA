@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CurrentView, ReadoutView } from '../prepare'
 import styles from './LiveView.module.css'
+import WindowView from './WindowView'
 
 /**
  * 하늘 화면 (DESIGN.md "촬영 준비" 화면 영역 — 배경 전체). 서버의 live.kind에 따라 그린다:
@@ -60,7 +61,12 @@ export default function LiveView({ current, extras, simulated = true }: { curren
   if (!simulated && live?.url && !extras?.grid)
     return (
       <div className={styles.view} aria-hidden="true">
-        <RealImage url={live.url} refresh={kind === 'sharpcap' || kind === 'guide-image' || kind === 'focus-curve'} stamp={live.observedAt} />
+        {kind === 'sharpcap' ? (
+          // SharpCap 영상: 데스크톱 창이 SharpCap 영상 칸을 그대로 비춘다(WindowView). 못 하면 예전처럼 창 캡처 사진
+          <WindowView target="sharpcap" fallback={<RealImage url={live.url} refresh stamp={live.observedAt} />} />
+        ) : (
+          <RealImage url={live.url} refresh={kind === 'guide-image' || kind === 'focus-curve'} stamp={live.observedAt} />
+        )}
         {kind === 'guide-image' && <GuidingGraph data={live.data} />}
         {kind === 'test-photo' && <Histogram data={live.data} />}
         {kind === 'focus-curve' && <FocusPanel data={live.data} />}
@@ -183,25 +189,30 @@ function Histogram({ data }: { data: unknown }) {
 /**
  * 실제 이미지. refresh(창 캡처·가이드 사진·자동초점 사진)면 1초마다 서버에 묻되, **사진이 바뀌었을 때만** 받는다 —
  * 지난번 표지(ETag)를 보내 같으면 서버가 304로 아무것도 보내지 않는다 (2026-10-11 Gemini 리뷰: 같은 사진을 1초마다 통째로 받아 다시 그리던 것).
- * 창이 가려져 있으면 묻지 않는다. 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 받기 전·실패면 하늘색 바탕만
+ * 창이 가려져 있으면 묻지 않고, 다시 보이면 그때 한 번 받는다 (CX-24-04 — 시험 사진처럼 한 번만 받는 사진도).
+ * 표지는 주소별로 기억한다 — 상태 시각(stamp)이 바뀌어도 새로 받지 않게 (CX-24-07). 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 받기 전·실패면 하늘색 바탕만
  */
 function RealImage({ url, refresh, stamp }: { url: string; refresh: boolean; stamp: string }) {
   const [shown, setShown] = useState<string | null>(null)
+  const tags = useRef(new Map<string, string>()) // 받은 주소 → ETag
+  const objectUrl = useRef<string | null>(null)
+  // 실시간 사진은 상태 시각과 상관없이 같은 주소를 계속 본다 — stamp는 한 번 받는 사진에만
+  const src = refresh ? url : `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(stamp)}`
   useEffect(() => {
     let alive = true
     let timer = 0
-    let tag: string | null = null
-    let objectUrl: string | null = null
-    const next = () => {
-      if (alive && refresh) timer = window.setTimeout(load, 1000)
-    }
+    let pending = false // 가려져 있어서 미룬 받기
     const load = async () => {
-      if (document.hidden) return next() // 창이 가려져 있으면 쉬었다가 다시
-      const src = refresh ? url : `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(stamp)}`
+      if (document.hidden) {
+        pending = true
+        return
+      }
       try {
+        const tag = tags.current.get(src)
         const res = await fetch(src, { cache: 'no-store', headers: tag ? { 'If-None-Match': tag } : {} })
         if (res.status === 200) {
-          tag = res.headers.get('ETag')
+          const etag = res.headers.get('ETag')
+          if (etag) tags.current.set(src, etag)
           const blobUrl = URL.createObjectURL(await res.blob())
           // 다 읽은 뒤에 바꾼다 (깜빡이지 않게)
           const img = new Image()
@@ -211,23 +222,37 @@ function RealImage({ url, refresh, stamp }: { url: string; refresh: boolean; sta
             URL.revokeObjectURL(blobUrl)
             return
           }
-          const old = objectUrl
-          objectUrl = blobUrl
+          const old = objectUrl.current
+          objectUrl.current = blobUrl
           setShown(blobUrl)
           if (old) window.setTimeout(() => URL.revokeObjectURL(old), 1000)
         }
       } catch {
         /* 받지 못함 — 다음에 다시 */
       }
-      next()
+      if (alive && refresh) timer = window.setTimeout(load, 1000)
     }
+    const onVisible = () => {
+      if (!document.hidden && pending) {
+        pending = false
+        void load()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
     void load()
     return () => {
       alive = false
       clearTimeout(timer)
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [url, refresh, stamp])
+  }, [src, refresh])
+  // 보여 주던 사진은 다음 사진으로 바뀔 때(위) 또는 사라질 때만 놓는다 — 주소가 바뀌는 동안 빈 화면이 되지 않게
+  useEffect(
+    () => () => {
+      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current)
+    },
+    [],
+  )
   return shown ? <img className={styles.photo} src={shown} alt="" /> : null
 }
 

@@ -213,8 +213,9 @@ public static class AppServer
             return Results.Ok(new { outlet = power.Outlet });
         });
         // 종료 전: 장비 연결 중이면 멈추고 이번에 연결하던 장비를 끊은 것을 확인 (끊지 못한 장비 이름 목록 — 비면 정상)
-        api.MapPost("/equipment/abort", async (EquipmentConnector connector, CancellationToken ct) =>
-            Results.Ok(new { notDisconnected = await connector.AbortAsync(ct) }));
+        // 촬영 중이면 끊지 않는다 — 촬영은 N.I.N.A.가 이어 간다 (답을 못 받은 연결 요청이 남아 있어도, CX-24-02)
+        api.MapPost("/equipment/abort", async (EquipmentConnector connector, Shoot.ShootSession shoot, CancellationToken ct) =>
+            Results.Ok(new { notDisconnected = shoot.Active ? [] : await connector.AbortAsync(ct) }));
         // 장비 연결이 모의인가 — 화면의 [임시] 모의 전용 버튼을 실장비에서 숨기려고
         api.MapGet("/equipment/simulated", (IOptions<EquipmentOptions> eq) => Results.Ok(new { simulated = eq.Value.Simulate }));
         // simulateFail=true: [임시] 화면 설계용 실패 만들기 (Equipment:Simulate가 켜져 있을 때만 동작)

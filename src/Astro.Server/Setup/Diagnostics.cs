@@ -11,11 +11,36 @@ public static class Diagnostics
 {
     public static string LogsDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Astro.Core.Product.DataFolder, "logs");
 
+    private static readonly Lock Gate = new();
+
+    /// <summary>
+    /// 임시 폴더에 다 만든 뒤 바탕 화면으로 옮긴다 — 도중에 실패해도 반쯤 만든 파일이 남지 않게. 같은 이름이 있으면 (2), (3)…을 붙인다.
+    /// 두 번 눌러도 하나씩 차례로 만든다 (CX-24-06: 이름이 분 단위라 같은 분에 다시 누르면 실패했다)
+    /// </summary>
     public static string Export(UserSettings settings)
     {
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        var path = Path.Combine(desktop, $"{Astro.Core.Product.Id}-진단-{DateTime.Now:yyyyMMdd-HHmm}.zip");
-        using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
+        lock (Gate)
+        {
+            var temp = Path.Combine(Path.GetTempPath(), $"{Astro.Core.Product.Id}-diag-{Guid.NewGuid():N}.zip");
+            try
+            {
+                using (var zip = ZipFile.Open(temp, ZipArchiveMode.Create)) Fill(zip, settings);
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                var name = $"{Astro.Core.Product.Id}-진단-{DateTime.Now:yyyyMMdd-HHmmss}";
+                var path = Path.Combine(desktop, name + ".zip");
+                for (var n = 2; File.Exists(path); n++) path = Path.Combine(desktop, $"{name} ({n}).zip");
+                File.Move(temp, path);
+                return path;
+            }
+            finally
+            {
+                try { File.Delete(temp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
+    }
+
+    private static void Fill(ZipArchive zip, UserSettings settings)
+    {
         // 아이라 기록: 최근 3일 (aira-날짜.log · connect-날짜.log)
         if (Directory.Exists(LogsDir))
             foreach (var f in Directory.EnumerateFiles(LogsDir, "*.log").Where(f => File.GetLastWriteTime(f) > DateTime.Now.AddDays(-3)))
@@ -36,8 +61,8 @@ public static class Diagnostics
             .AppendLine($"N.I.N.A.: {InstallLocator.NinaExe(null) ?? "찾지 못함"}{(settings.NinaExe is null ? " (자동)" : " (설정에서 지정)")}")
             .AppendLine($"SharpCap: {settings.SharpCapExe ?? Prepare.Real.SharpCapBridge.FindExe() ?? "찾지 못함"}{(settings.SharpCapExe is null ? " (자동)" : " (설정에서 지정)")}")
             .AppendLine($"AI 비서: {(settings.AiEnabled ? "켜짐" : "꺼짐")} · 설정 화면 키 {(settings.GeminiKey is null ? "없음" : "있음(내용은 넣지 않음)")}");
-        using (var w = new StreamWriter(zip.CreateEntry("정보.txt").Open(), Encoding.UTF8)) w.Write(info.ToString());
-        return path;
+        using var w = new StreamWriter(zip.CreateEntry("정보.txt").Open(), Encoding.UTF8);
+        w.Write(info.ToString());
     }
 
     /// <summary>쓰는 중인 기록 파일도 읽을 수 있게 공유 모드로 연다</summary>

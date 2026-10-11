@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { useKeepInside } from '../keepInside'
 import Button from './Button'
 import styles from './ScopeList.module.css'
 
@@ -45,6 +46,7 @@ export default function ScopeList({
   const [data, setData] = useState<{ scopes: Scope[]; currentId: string | null; max: number } | null>(null)
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const keep = useKeepInside<HTMLDivElement>()
 
   const load = useCallback(async () => {
     const res = await fetch('/api/optics')
@@ -101,7 +103,7 @@ export default function ScopeList({
     setEditing((ed) => (ed ? { ...ed, form: { ...ed.form, [key]: e.target.value } } : ed))
 
   return (
-    <div className={styles.panel} data-left={left} role="dialog" aria-label="망원경 목록">
+    <div ref={keep} className={styles.panel} data-left={left} role="dialog" aria-label="망원경 목록">
       {editing ? (
         <form
           className={styles.form}

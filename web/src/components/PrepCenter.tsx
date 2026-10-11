@@ -33,7 +33,8 @@ export default function PrepCenter({
   const rest = shown.filter((a) => a !== primary)
   return (
     <section className={styles.center} aria-live="polite">
-      <div className={styles.readout} data-fresh={readout?.freshness ?? 'Fresh'}>
+      {/* data-occludes: 실제로 보이는 줄만 — SharpCap 영상을 비출 자리를 피하게 (WindowView). 측정값 칸은 비어 있으면 높이 0 */}
+      <div className={styles.readout} data-fresh={readout?.freshness ?? 'Fresh'} data-occludes>
         {custom ??
           (readout &&
             (readout.kind === 'polar-offset' ? (
@@ -45,12 +46,12 @@ export default function PrepCenter({
             )))}
       </div>
 
-      <p className={styles.status} data-tone={status?.tone ?? 'None'}>
+      <p className={styles.status} data-tone={status?.tone ?? 'None'} data-occludes>
         {status && status.tone !== 'None' && <StatusIcon status={TONE[status.tone]} />}
         <span>{status?.text ?? ''}</span>
       </p>
 
-      <div className={styles.actions} data-empty={!primary}>
+      <div className={styles.actions} data-empty={!primary} data-occludes={primary ? '' : undefined}>
         {primary && (
           <Button variant="primary" size="lg" surface="sky" className={styles.primary} onClick={() => onAct(primary.id)} disabled={disabled}>
             {primary.label}

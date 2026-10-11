@@ -54,3 +54,14 @@ export function pickExe(name: string): Promise<string | null> {
     h.postMessage({ type: 'pick-exe', name })
   })
 }
+
+/** 데스크톱 창이 보낸 메시지 받기 (type이 같은 것만). 브라우저면 아무 일도 없다. 돌려준 함수로 그만 받는다 */
+export function onHostMessage<T>(type: string, fn: (data: T) => void): () => void {
+  const h = host()
+  if (!h) return () => {}
+  const listener = (e: { data: unknown }) => {
+    if ((e.data as { type?: string } | null)?.type === type) fn(e.data as T)
+  }
+  h.addEventListener('message', listener)
+  return () => h.removeEventListener('message', listener)
+}

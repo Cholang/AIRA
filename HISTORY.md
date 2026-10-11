@@ -8,7 +8,48 @@
 
 ---
 
-## 2026-10-11 · [Claude] Codex 21절 반영(종료·홈·연결 중단의 미확인 경로), 리뷰 실사용 등급 규칙
+## 2026-10-11 · [Claude] Codex 24절 반영, SharpCap 영상을 DWM 썸네일로 비추기, 빛 테두리 GlowFrame, 켜져 있던 SharpCap 닫고 다시 켜기
+
+**요청**: Codex 24절 7건 모두 수정. SharpCap 화면이 깨져 보임 → 사용자 아이디어("아이라를 창문처럼 투명하게") → DWM 썸네일 + UI Automation으로 영상 칸만, 가운데에. 칼 같은 외곽선에 빛 테두리(참고 그림 "Glowing Border Animation V2", 공통 모듈로). 사용자가 켜 둔 SharpCap은 "닫고 다시 켜기"로(다른 프로그램도 같은 경우가 있으면 같이 — 없었음). 효과 요청은 코드·링크를 주면 더 정확하다고 답함
+
+**변경**
+- 24-01 `NinaApiClient.ConnectAnsweredAsync`·`NinaReply.Answered`, `EquipmentConnector` InFlight를 `Task<bool?>`로. 24-02 `EquipmentRun.Unresolved`, `/equipment/abort`는 촬영 중이면 끊지 않음. 24-03 `EquipmentScreen.select`. 24-04·07 `LiveView.RealImage`. 24-05 새 `keepInside.ts`(`ScopeList`·드라이버 목록). 24-06 `Diagnostics.Export`·`Settings` 버튼
+- SharpCap 영상: 새 `Astro.Desktop/WindowThumbnail.cs`(UIA `WpfPreviewPanel`›`Image` 위치 → DWM 썸네일, 비춘 자리를 화면에 알림), `MainWindow` "window-view" 메시지, 새 `WindowView.tsx`(글자·버튼 `data-occludes`를 피한 가운데 띠, 못 비추면 예전 캡처), `host.onHostMessage`. 스크립트는 화면이 사진을 물을 때만 저장(`SharpCapBridge.WantView` — "Snapshot captured" 줄이 영상 위에 뜨던 것)
+- 새 `GlowFrame.tsx`/`.module.css`(옅은 선 + 선 위 마주 보는 두 빛 + 바깥 후광, transform 회전만, 동작 줄이기면 멈춤). 화면 틀 배율(0.8)로 나눠 테두리 자리를 맞춤
+- `PolarTask.HandOverAsync`: PHD2가 카메라를 놓기 전에 켜져 있던 SharpCap을 물음 → `SharpCapBridge.CloseUsersAsync`(창 닫기만, 20초)
+- DESIGN.md: 장비 목록 위치·망원경 바로 확인, SharpCap 영상 비추기·이미 켜져 있을 때, GlowFrame
+
+**확인**: 서버 테스트 188 통과·1 건너뜀, 웹 타입 검사·빌드, 데스크톱 빌드. 실기(집, 4K 250%): UIA로 영상 칸·Polar Align 패널 글자 읽기, 썸네일이 실제 가이드 카메라 영상을 즉시 갱신하며 비춤(사용자 확인), 첫 시도 때 테두리가 0.8배로 작게 그려진 것을 고침. GlowFrame은 헤드리스 Edge 그림으로. 확인 못 함: 고친 뒤 극축 정렬 화면의 영상 크기·테두리 맞음, "닫고 다시 켜기" 실제 흐름, 24-01·02 가짜 응답 시험
+
+**남은 것**: Codex 25절 CX-25-01(중단 재시도에서 응답 유실 사유를 잃음) 판단 대기. Polar Align 패널 글자를 아이라 상태로 보여 주기(읽기만)는 다음
+
+---
+
+## 2026-10-11 · [Codex] 24절 수정분 재확인 (25절)
+
+**요청**: Claude가 고친 24절 항목을 재리뷰.
+
+**변경**: `docs/codex/REVIEW_CODEX.md` 25절 추가. HEAD 13cf46f 위 미커밋 수정분 기준으로 CX-24-03~07 반영 확인, 01·02 부분 반영. 응답 유실의 미확인 사유가 중단 재시도에서 사라지는 경로를 CX-25-01(P1·장비 안전)로 기록. 앱 코드 수정 없음.
+
+**확인**: 격리 복사본 서버 테스트 188 통과·1 건너뜀·실패 0, 웹 TypeScript 검사 통과. 실제 클래스+가짜 HTTP로 첫 중단 실패 1건→재시도 실패 0건을 재현. LiveView effect 모의 시험에서 단일 사진 복원 요청 1회·라이브 stamp 변경 추가 요청 0회·ETag 유지 확인. 나머지는 코드 경로 확인이며 실제 장비·외부 프로그램 조작 없음.
+
+**남은 것**: CX-25-01의 미확인 사유 보존·개별 재시도 시 전체 초기화·응답 형식 검증 보완. 전체 WebView 조작과 실제 진단 수집은 하지 않음. 커밋·푸시하지 않음.
+
+---
+
+## 2026-10-11 · [Codex] a42a945..13cf46f 재리뷰 — 21절 반영 확인·새 설정과 장비 화면
+
+**요청**: 상단 [Claude] 세 항목을 먼저 읽고 CX-21-01~07 반영, 장비 태양계 화면·설정/키 암호화·진단·프로그램 경로·사진 ETag·배경을 검토. 항목마다 실사용 등급 표시.
+
+**변경**: `docs/codex/REVIEW_CODEX.md` 24절 추가. 21-02~07 반영 확인, 21-01 부분 반영. 연결 응답 유실·중단 재시도의 미확인 장비 처리(P1·장비 안전 2건), 망원경 선택 후 확인 대기·숨김 중 시험 사진·선택 목록 잘림·진단 파일명 충돌(P2·겪음 4건), ETag 초기화(P3·이론상 1건). 앱 코드 수정 없음.
+
+**확인**: 13cf46f 격리 복사본에서 서버 테스트 188 통과·1 건너뜀·실패 0, TypeScript 검사 통과. 실제 클래스와 가짜 응답으로 연결 중단·홈 정지·추적 조회 실패·망원경 선택·ETag, 임시 파일로 DPAPI·ZIP 충돌 확인. UI는 추출한 effect/배치 함수로 모의 검증. 실장비와 외부 프로그램을 조작하지 않음.
+
+**남은 것**: 24절 지적 반영 여부 결정. 전체 WebView 조작·실장비 종료·장시간 배경 성능은 이번 검증 범위 밖. 커밋·푸시하지 않음.
+
+---
+
+## 2026-10-11 · 13cf46f [Claude] Codex 21절 반영(종료·홈·연결 중단의 미확인 경로), 리뷰 실사용 등급 규칙
 
 **요청**: Codex 21절(20절 재리뷰) 7건 모두 진행. 리뷰 지적을 사용자가 일일이 추적하기 어려움 → 항목마다 실사용 등급(장비 안전 / 겪음 / 이론상)을 붙이는 규칙을 CLAUDE.md·AGENTS.md에. 바탕 화면 바로가기는 설정 기능이 아니라 이 PC에 하나 만들어 달라는 뜻이었음 → 설정 창 기능을 빼고(앞 커밋 전에 되돌림) 바로가기만 만듦
 

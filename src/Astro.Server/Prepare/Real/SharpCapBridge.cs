@@ -41,6 +41,9 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
             _last = r;
             var cmds = string.Join(';', _commands);
             _commands.Clear();
+            // 화면이 저장본(사진)을 찾고 있을 때만 저장하게 — 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄운다.
+            // 데스크톱 창이 SharpCap 영상을 직접 비추면(WindowThumbnail) 화면이 사진을 묻지 않으므로 저장하지 않는다 (2026-10-11)
+            if (DateTime.UtcNow - _viewWantedAt < TimeSpan.FromSeconds(8)) cmds = cmds.Length == 0 ? "view" : cmds + ";view";
             return cmds;
         }
     }
@@ -72,7 +75,12 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
         }
     }
 
-    /// <summary>스크립트가 1.5초마다 저장하는 "화면에 보이는 영상"의 이름 앞부분 (뒤에 -번호_WithDisplayStretch.png). 하늘 화면이 읽는다</summary>
+    private static DateTime _viewWantedAt = DateTime.MinValue;
+
+    /// <summary>화면이 SharpCap 사진을 물었다 (LiveImages) — 스크립트가 잠시 영상을 저장한다</summary>
+    public static void WantView() => _viewWantedAt = DateTime.UtcNow;
+
+    /// <summary>스크립트가 화면이 원할 때 4.5초마다 저장하는 "화면에 보이는 영상"의 이름 앞부분 (뒤에 -번호_WithDisplayStretch.png). 하늘 화면이 읽는다</summary>
     public static string ViewFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder, "sharpcap-view");
 
     /// <summary>저장된 영상 (5초 안에 쓴 것만). 없으면 null</summary>
@@ -99,7 +107,7 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
         // 설정에서 직접 지정한 경로가 있으면 그것 (자동으로 못 찾는 설치 위치 — 2026-10-11 설정 화면)
         var exe = settings?.SharpCapExe is { } chosen && File.Exists(chosen) ? chosen : FindExe();
         if (exe is null) return "SharpCap을 찾지 못했습니다. SharpCap 4.1을 설치해 주세요.";
-        if (Running) return "SharpCap이 이미 켜져 있습니다. SharpCap을 닫은 뒤 다시 시도해 주세요.";
+        if (Running) return "SharpCap이 이미 켜져 있습니다. SharpCap을 닫은 뒤 다시 시도해 주세요."; // 보통은 극축 정렬이 먼저 "닫고 다시 켜기"를 묻는다
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder);
         Directory.CreateDirectory(dir);
         var script = Path.Combine(dir, "sharpcap-polar.py");
@@ -171,6 +179,35 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
         return !Running;
     }
 
+    /// <summary>
+    /// 사용자가 켜 둔 SharpCap 닫기 ("닫고 다시 켜기", 2026-10-11 사용자 결정 — 아이라는 켤 때 넘기는 스크립트로만 SharpCap을 조종할 수 있다).
+    /// 창 닫기만 하고 강제로 끝내지 않는다 (저장하지 않은 촬영이 있으면 SharpCap이 묻는다). 못 닫으면 이유
+    /// </summary>
+    public async Task<string?> CloseUsersAsync(CancellationToken ct)
+    {
+        foreach (var p in Process.GetProcessesByName("SharpCap"))
+        {
+            using (p)
+            {
+                try
+                {
+                    p.CloseMainWindow();
+                    using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    limit.CancelAfter(TimeSpan.FromSeconds(20));
+                    await p.WaitForExitAsync(limit.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    log.LogWarning("켜져 있던 SharpCap이 닫히지 않음");
+                    return "SharpCap이 닫히지 않았습니다. SharpCap에 저장을 묻는 창이 떠 있는지 확인해 주세요.";
+                }
+                catch (InvalidOperationException) { }
+            }
+        }
+        log.LogInformation("켜져 있던 SharpCap을 닫음 (극축 정렬용으로 다시 켬)");
+        return null;
+    }
+
     /// <summary>자동으로 찾은 SharpCap (Program Files의 SharpCap* 폴더). 설정 화면도 "자동으로 찾은 경로"로 보여 준다</summary>
     public static string? FindExe()
     {
@@ -230,6 +267,7 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
             SharpCap.Transforms.SelectTransform("Polar Align")
             pa = SharpCap.PolarAlignment
             lastbg = -1
+            want_view = False
             for n in range(7200):
                 # 배경 밝기 0~1: 히스토그램(첫 채널)의 평균 칸 ÷ 칸 수 (모르면 -1). 비트 수와 상관없게 칸에서 직접 계산
                 bg = -1
@@ -247,7 +285,7 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
                 except Exception: pass
                 # 하늘 화면용: 화면에 보이는 영상만 저장 (창 캡처는 SharpCap 창 전체가 나옴 — 2026-10-08 실기).
                 # 같은 이름이면 SharpCap이 덮어쓸지 묻는 창을 띄우고 멈춘다 → 매번 새 이름, 두 번 전 파일은 지운다 (읽는 중인 최신 파일은 남김)
-                if n % 3 == 0:
+                if want_view and n % 3 == 0:
                     k = n / 3
                     try: cam.SaveAsViewed(VIEW + "-%d.png" % k)
                     except Exception: pass
@@ -261,6 +299,7 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
                 except Exception as e:
                     body = '{"stage":"","camera":"%s"}' % cam.DeviceName
                 reply = post(body) or ""
+                want_view = "view" in reply.split(";")
                 for cmd in reply.split(";"):
                     if cmd == "advance":
                         try: pa.Advance()

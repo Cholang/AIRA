@@ -98,3 +98,9 @@
 @media (prefers-reduced-motion: reduce) {
   .jitter { animation: none; }
 }
+
+/* WindowView: 데스크톱 창이 다른 프로그램 영상을 비출 자리 재기용 (보이는 것 없음) */
+.slot {
+  position: absolute;
+  inset: 0;
+}

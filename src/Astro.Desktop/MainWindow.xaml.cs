@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder, "theme.txt");
 
     private WebApplication? _server;
+    private WindowThumbnail? _thumbnail;
 
     public MainWindow()
     {
@@ -110,6 +111,25 @@ public partial class MainWindow : Window
                         var dialog = new Microsoft.Win32.OpenFileDialog { Title = $"{name} 고르기", Filter = $"{name}|{name}", CheckFileExists = true };
                         var picked = dialog.ShowDialog(this) == true ? dialog.FileName : null;
                         Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "picked-exe", name, path = picked }));
+                        return;
+                    }
+                    // 준비 화면의 SharpCap 영상: 화면이 비울 자리(글자·버튼 없는 곳)를 알려 주면 그 자리에 SharpCap 영상 칸을 실시간으로 비춘다 (WindowThumbnail)
+                    if (type == "window-view")
+                    {
+                        var target = doc.RootElement.GetProperty("target").GetString() ?? "";
+                        Rect? rect = null;
+                        if (doc.RootElement.TryGetProperty("rect", out var r) && r.ValueKind == JsonValueKind.Object)
+                            rect = new Rect(r.GetProperty("x").GetDouble(), r.GetProperty("y").GetDouble(), r.GetProperty("w").GetDouble(), r.GetProperty("h").GetDouble());
+                        var dpr = doc.RootElement.TryGetProperty("dpr", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetDouble() : 1;
+                        _thumbnail ??= new WindowThumbnail(this, Web, (t, shown, at) =>
+                            Web.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                            {
+                                type = "window-view-state",
+                                target = t,
+                                shown,
+                                rect = at is { } v ? new { x = v.X, y = v.Y, w = v.Width, h = v.Height } : null,
+                            })));
+                        _thumbnail.Set(target, rect, dpr);
                         return;
                     }
                     if (type != "theme") return;

@@ -6,7 +6,7 @@ import styles from './PrepGuide.module.css'
  */
 export default function PrepGuide({ task, title, text, problem }: { task: string; title: string; text: string; problem?: boolean }) {
   return (
-    <section className={styles.guide} aria-live="polite">
+    <section className={styles.guide} aria-live="polite" data-occludes>
       <div className={styles.titleRow}>
         <span className={styles.task}>{task}</span>
         <i className={styles.dash} aria-hidden="true">—</i>

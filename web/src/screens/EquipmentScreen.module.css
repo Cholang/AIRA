@@ -816,7 +816,7 @@ g[data-on='true'] > .moons {
   position: absolute;
   top: 50%;
   left: calc(100% + 18px);
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + var(--keep-shift, 0px))); /* 잘리지 않게 useKeepInside가 민다 */
   z-index: 5;
   display: grid;
   gap: 2px;

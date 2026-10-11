@@ -12,6 +12,10 @@ public interface IPolarDevices
     Task<bool> Phd2DialogOpenAsync(CancellationToken ct) => Task.FromResult(false);
     /// <summary>SharpCap을 카메라·스크립트와 함께 실행하고 극축 정렬을 켠다</summary>
     Task<DeviceResult> StartSharpCapAsync(CancellationToken ct);
+    /// <summary>SharpCap이 이미 켜져 있나 (사용자가 켬 — 아이라 스크립트 없이 켜진 SharpCap은 조종할 수 없다)</summary>
+    Task<bool> SharpCapAlreadyOpenAsync(CancellationToken ct) => Task.FromResult(false);
+    /// <summary>켜져 있던 SharpCap 닫기 (사용자가 "닫고 다시 켜기"를 눌렀을 때)</summary>
+    Task<DeviceResult> CloseOpenSharpCapAsync(CancellationToken ct) => Task.FromResult(DeviceResult.Success);
     /// <summary>첫 사진 → RA 회전 → 둘째 사진. 진행(별 개수·노출·회전 각도)을 알린다. 별이 모자라면 노출을 늘려 다시</summary>
     Task<PoleFindResult> FindPoleAsync(Action<PoleProgress> progress, CancellationToken ct);
     /// <summary>정렬 중 조절량을 계속 받는다 (SharpCap 스크립트 → AA)</summary>
@@ -92,6 +96,22 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         {
             run.Status("적도의 추적 속도를 항성으로 맞추는 중입니다");
             await devices.SetSiderealTrackingAsync(ct); // 실패해도 진행 (DESIGN.md ①)
+            // 사용자가 켜 둔 SharpCap: 아이라는 켤 때 넘기는 스크립트로만 SharpCap을 조종하므로 닫고 다시 켠다 — 누르면 (2026-10-11 사용자 결정).
+            // PHD2가 카메라를 놓기 전에 묻는다 (놓은 뒤에 막히면 가이드 카메라가 아무 데도 없음)
+            if (await devices.SharpCapAlreadyOpenAsync(ct))
+            {
+                run.Status("SharpCap이 이미 켜져 있습니다. 아이라는 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어, 닫고 다시 켜야 합니다", Tone.Warn);
+                var pick = await run.AskAsync([new("restart-sharpcap", "SharpCap 닫고 다시 켜기", true), new("skip", "극축 정렬 건너뛰기")], ct);
+                if (pick == "skip") return false;
+                run.Status("켜져 있던 SharpCap을 닫는 중입니다");
+                var closed = await devices.CloseOpenSharpCapAsync(ct);
+                if (!closed.Ok)
+                {
+                    run.Status(closed.Problem ?? "SharpCap이 닫히지 않았습니다.", Tone.Fail);
+                    if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+                }
+                continue;
+            }
             if (await devices.Phd2DialogOpenAsync(ct))
             {
                 // 넘겨받기를 세 번 헛되이 시도하지 않고 먼저 닫게 한다 (F03)

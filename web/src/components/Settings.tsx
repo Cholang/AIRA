@@ -40,6 +40,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [key, setKey] = useState('')
+  const [exporting, setExporting] = useState(false) // 진단 내보내기 중 — 두 번 누르지 않게 (CX-24-06)
 
   const load = useCallback(() => {
     fetch('/api/settings')
@@ -165,15 +166,19 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
               </Button>
               <Button
                 size="sm"
+                disabled={exporting}
                 onClick={async () => {
                   setError(null)
+                  setNote(null)
+                  setExporting(true)
                   const r = await fetch('/api/settings/diagnostics', { method: 'POST' }).catch(() => null)
-                  const b = r?.ok ? ((await r.json()) as { path: string }) : null
+                  const b = r?.ok ? ((await r.json().catch(() => null)) as { path: string } | null) : null
+                  setExporting(false)
                   if (b) setNote(`바탕 화면에 만들었습니다: ${b.path.split('\\').pop()}`)
                   else setError('진단 묶음을 만들지 못했습니다')
                 }}
               >
-                진단 내보내기
+                {exporting ? '만드는 중…' : '진단 내보내기'}
               </Button>
             </div>
             <small className={styles.muted}>
