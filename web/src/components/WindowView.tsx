@@ -66,7 +66,7 @@ function Glow({ at, slot }: { at: Box; slot: HTMLElement | null }) {
 }
 
 /** 비출 자리 (화면 기준 CSS 픽셀): 이 칸 안에서 위쪽 글자 아래 ~ 아래쪽 글자 위, 좌우 여백. 너무 작으면 null */
-function slotOf(el: HTMLElement): { x: number; y: number; w: number; h: number } | null {
+export function slotOf(el: HTMLElement): { x: number; y: number; w: number; h: number } | null {
   const box = el.getBoundingClientRect()
   const mid = box.top + box.height / 2
   let top = box.top

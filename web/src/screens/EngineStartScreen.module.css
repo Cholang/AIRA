@@ -23,7 +23,12 @@
 /* 원 = 장비 연결 화면의 항성과 같은 크기 (2026-10-11 사용자 결정 — 옮겨 갈 때 크기는 그대로 자리만, equipmentOrbits sunD = 0.66 × min(높이, 폭÷1.97)).
    글자는 2026-10-11 요청대로 20% 크게 */
 .ring {
-  width: calc(0.66 * min(100cqh, 100cqw / 1.97));
+  --d: calc(0.66 * min(100cqh, 100cqw / 1.97));
+  width: var(--d);
+  /* 태양 바탕 (장비 연결 항성과 같은 색): 고리(반지름 92/200) 안만 — 둘레 4%는 비운다 (padding %는 부모 기준이라 지름으로) */
+  padding: calc(var(--d) * 0.04);
+  border-radius: 50%;
+  background: var(--sun-fill) content-box;
   --ring-font: clamp(19.2px, 1.92cqw, 24px);
 }
 
@@ -34,6 +39,18 @@
 
 .arrive [data-visible] {
   animation: arriveText 500ms ease-out 1.3s backwards; /* backwards: 끝난 뒤에는 글자 바꿈(흐려짐)을 막지 않게 */
+}
+
+/* 이글거림(SunCorona의 흐림 필터)은 멀어지는 동안 감췄다가 자리를 잡을 때 나타난다 — 5배에서 줄어드는 동안 흐림을 매 프레임 다시 그려
+   움직임이 중간에 버벅였다 (2026-10-11 사용자). 고리 SVG(data-arcs)는 그대로 */
+.arrive > svg:not([data-arcs]) {
+  animation: coronaIn 700ms ease-out 1.5s backwards;
+}
+
+@keyframes coronaIn {
+  0% { visibility: hidden; opacity: 0; }
+  1% { visibility: visible; opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes sunArrive {

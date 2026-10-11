@@ -30,6 +30,7 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
     private Int32Rect? _source; // 원본 창 왼쪽 위 기준 영상 칸 (실제 픽셀)
     private AutomationElement? _image;
     private bool _locating;
+    private DateTime? _lostAt; // 같은 창에서 영상 칸을 못 찾기 시작한 때
     private (bool Shown, Rect? Rect)? _reported;
 
     /// <summary>모두 멈춘다 (창을 닫을 때): 확인 타이머를 끄고 썸네일을 놓는다</summary>
@@ -79,6 +80,14 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
             {
                 _locating = false;
                 var (hwnd, source) = found;
+                // 같은 창에서 영상 칸을 잠깐 못 찾은 것(SharpCap이 다시 그리는 중 등)은 3초까지 앞 자리를 그대로 쓴다 (2026-10-11 실기:
+                // 바로 "안 보임"으로 알리면 화면이 대체 사진으로 바뀌고, 대체 사진을 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄웠다)
+                if (source is null && hwnd != 0 && hwnd == _sourceHwnd && _source is not null)
+                {
+                    _lostAt ??= DateTime.UtcNow;
+                    if (DateTime.UtcNow - _lostAt < TimeSpan.FromSeconds(3)) return;
+                }
+                else _lostAt = null;
                 if (hwnd != _sourceHwnd) Release();
                 _sourceHwnd = hwnd;
                 _source = source;

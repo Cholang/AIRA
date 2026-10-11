@@ -8,7 +8,30 @@
 
 ---
 
-## 2026-10-11 · [Claude] Codex 32절 반영, PHD2 카메라 자리 고치기 정규식, 태양 연출(늘 도는 표면·시차 이동·구석 태양), SharpCap 창 깜빡임
+## 2026-10-11 · [Claude] 장비 연결 빠르게(N.I.N.A.·PHD2·Empire 미리 켜기), 태양·행성 불투명 회보라, 사진 틀·촬영 사진 전체 화면, 화면 다듬기
+
+**요청**: 실내 확인 뒤 — 장비 연결 태양 외곽선 두 줄, SharpCap 영상에 "Snapshot captured" 줄이 보이고 중간에 내부 화면으로 바뀜, PHD2·파워박스 연결이 느림(COM 포트를 훑나?), 초점 "[임시] 건너뛰기", 배경 별이 순간적으로 여기저기 반짝임, 점검 카드가 사라질 때 아래 카드와 어색하게 겹침, 외부 영상 화면에서 진행 표시 영역만 색이 달라 잘려 보임, 초점·시험·촬영 사진이 화면을 다 덮음 → SharpCap 영상과 같은 크기로, 촬영 사진 누르면 전체 화면. 이어서: N.I.N.A. 켤 때 태양이 멀어지다 버벅임 → 흐림 끄기, 아이라를 켤 때 N.I.N.A.를 바로 켜기, 태양·행성을 투명 대신 색으로(시안 → 1안 회보라 단색, 행성 글로우는 1-a로 줄이되 연결 반짝임은 그대로).
+
+**변경**
+- 연결 속도: `EngineStarter.PreLaunch`(새 `POST /api/engine/prelaunch`, App이 로고 때 부름) — N.I.N.A.·PHD2·Empire를 꺼져 있을 때만 켜고 `NinaLaunched`로 표시(종료 때 함께 닫힘), 엔진 켜기는 "아이라가 켜질 때 함께 켰습니다"로 준비를 기다림. 엔진 켜기의 `WarmUp`(PHD2·Empire). `HubInputVoltsAsync` — 전압 칸이 없으면 바로(매번 2초 기다리던 것)
+- 태양 외곽선 한 줄: `.sun .ring[data-surface][data-state=working]::before` inset 0
+- SharpCap 썸네일: `WindowThumbnail` — 같은 창에서 영상 칸을 잠깐 못 찾으면 3초까지 앞 자리 유지(`_lostAt`). 바로 "안 보임"이면 화면이 대체 사진으로 바뀌고 스냅샷 저장마다 SharpCap이 "Snapshot captured" 줄을 띄웠다
+- 초점 [임시] 건너뛰기: `PrepareRunner.TempSkippable`에 focus(결과는 손으로 맞춤과 같게, 위치 저장 없음), `PrepareScreen` `TEMP_SKIP`
+- 반짝이는 별: `SkyBackdrop` — 한 번씩 돌고 `animationend`에서 새 자리로 다시 시작(도는 중 길이만 바꾸면 진행 위치가 다시 계산돼 중간 밝기로 툭 나타났다)
+- 점검 카드: 0.64초·76px 위로, V가 먼저 사라짐(`vOut`), 아래 카드는 0.14초 뒤(`transition-delay`), `CARD_MS` 640
+- 진행 표시 밑 어두운 띠: `App.module.css` `.body[data-sky] .rail` 그라데이션
+- 사진 틀: `LiveView` `FramedImage`(`WindowView.slotOf`로 글자 사이 띠, 비율 유지, `GlowFrame`), 촬영 화면 `FullPhoto`(portal, 누르거나 Esc), `PrepareScreen .over` pointer-events none(아래 사진을 누를 수 있게)
+- 엔진 켜기 버벅임: 멀어지는 동안 이글거림 SVG를 감췄다가 1.5초 뒤 나타남(흐림 필터 다시 그리기) — 원에는 원래 유리 흐림이 없었다(앞에서 흐림 탓이라 한 말 정정)
+- 색: `index.css` `--sun-fill`·`--planet-fill(-strong)`·`--planet-line`·`--planet-glow`(두 테마), 장비 연결 항성·행성·`fromRing`·`CornerSun`·엔진 켜기 원(`padding` 지름 4% + content-box)에 적용, 행성 뒤 흐림 없앰. 시안 `mockups/aira-body-colors.html`
+- DESIGN.md 원 색·연결됨 빛·카드 넘김·사진 자리·미리 켜기
+
+**확인**: 실기 — 아이라만 켜자 N.I.N.A.·PHD2·Empire가 1초 안에 켜지고 25초 뒤 N.I.N.A. 응답, 장비 연결 55초 → 25초(파워박스 36 → 10초, 가이더 11 → 6.8초, 허브 전압 2초 → 8ms). 장비 연결 중 태양 외곽선 한 줄, 엔진 켜기 원·행성 불투명 회보라 화면 확인. 아이라 종료로 세 프로그램이 함께 닫힘. 서버 테스트 219 통과·1 건너뜀, 웹 타입 검사·빌드. 확인 못 함: SharpCap 썸네일 3초 유지, 반짝이는 별·카드 넘김·엔진 버벅임 체감, 사진 틀·전체 화면(별 사진이 있어야), 촬영 테마의 새 색.
+
+**남은 것**: 실내 시험 중 홈 버튼은 준비 작업 중 잠금이 정상(준비 중단 뒤 풀림).
+
+---
+
+## 2026-10-11 · 0ba12fb [Claude] Codex 32절 반영, PHD2 카메라 자리 고치기 정규식, 태양 연출(늘 도는 표면·시차 이동·구석 태양), SharpCap 창 깜빡임
 
 **요청**: 실내 장비 확인 — X-T5 정지(중단 없이 기다림) 실기 확인, "PHD2 또 안 됨", 장비 연결에서도 태양 회전·N.I.N.A. 실행 뒤 태양과 배경 속도를 다르게(배경이 더 느리게, 가속·감속)·이후 단계에도 왼쪽 위 태양 유지(제목 아래 층, 장비 연결 뒤 80%만 보이게), 엔진 켜기 원이 안 도는 듯·장비 연결 이글거림 사라짐·구석 태양 이글거림이 원 안쪽까지, SharpCap 켜질 때 하얀 창. Codex 32절 4건 모두 고치기.
 

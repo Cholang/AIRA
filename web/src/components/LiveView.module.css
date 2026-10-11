@@ -32,6 +32,17 @@
 
 :root[data-theme='night'] .photo { filter: url(#red-only); }
 
+/* 사진 틀 (FramedImage): SharpCap 영상과 같은 자리·같은 빛 테두리. 비율은 JS가 맞춘다 */
+.framed {
+  position: absolute;
+  object-fit: fill;
+}
+
+.framed[data-open='true'] {
+  pointer-events: auto;
+  cursor: zoom-in;
+}
+
 .star { fill: var(--star); }
 .label { font-family: var(--font); font-size: 17px; fill: var(--sky-muted); }
 .labelStrong { font-family: var(--font); font-size: 17px; fill: var(--star); }

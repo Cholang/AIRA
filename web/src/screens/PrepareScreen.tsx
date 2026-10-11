@@ -27,7 +27,7 @@ const RAIL_STATE: Record<PrepTaskStatus, RailItem['state']> = {
 }
 
 /** [임시] 건너뛰기 버튼을 보일 작업 (서버 PrepareRunner.TempSkippable과 같게) */
-const TEMP_SKIP = ['polar', 'calibration']
+const TEMP_SKIP = ['polar', 'calibration', 'focus']
 
 /** [임시] 작업마다 걸어 볼 수 있는 모의 실패 (서버 SimFaults.Known) — 실제 장비(P3)를 붙이면 뺀다 */
 const FAULTS: Record<string, [string, string][]> = {

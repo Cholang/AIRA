@@ -10,9 +10,7 @@
   position: absolute;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: var(--sun-fill);
   box-shadow: inset 0 0 0 1px var(--glass-line);
   --corona-scale: 1.087; /* 테두리가 글래스 원 가장자리라 이글거림을 100/92배 (SunCorona) */
   transform: translate(-50%, -50%);

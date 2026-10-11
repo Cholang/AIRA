@@ -144,6 +144,8 @@ export default function App() {
 
   useEffect(() => {
     listProfiles().then(setProfiles, () => setLoadError(true))
+    // 로고가 뜨는 동안 N.I.N.A.·PHD2·Empire를 미리 켠다 — 프로필을 고르는 사이 준비돼 엔진 켜기는 확인만 (2026-10-11 사용자 결정, EngineStarter.PreLaunch)
+    void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
   }, [])
 
   // 부팅 로고를 잠깐 보여 준 뒤, 프로필이 없으면 바로 만들기 화면으로

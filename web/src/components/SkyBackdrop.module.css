@@ -131,7 +131,7 @@
   background: radial-gradient(circle, rgb(var(--star) / 0.65) 0 var(--r, 1px), rgb(var(--star) / 0.18) calc(var(--r, 1px) + 0.6px), transparent 9px);
   opacity: 0;
   will-change: opacity;
-  animation: glint 14s ease-in-out infinite;
+  animation: glint 14s ease-in-out 1; /* 한 번씩 — 끝나면 SkyBackdrop.tsx가 새 자리에서 다시 시작 */
 }
 
 /* 앞쪽 절반 동안 빛났다 사라지고(sin² 모양) 나머지는 쉰다 */

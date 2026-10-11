@@ -139,6 +139,12 @@ public static class AppServer
             watcher.SimulateExit();
             return Results.NoContent();
         });
+        // 아이라 화면이 뜨면(로고) N.I.N.A.·PHD2·Empire를 미리 켠다 (EngineStarter.PreLaunch)
+        api.MapPost("/engine/prelaunch", (EngineStarter starter) =>
+        {
+            starter.PreLaunch();
+            return Results.NoContent();
+        });
         api.MapGet("/engine/start", (EngineStarter starter, CancellationToken ct) =>
             TypedResults.ServerSentEvents(starter.RunAsync(ct), eventType: "check"));
 

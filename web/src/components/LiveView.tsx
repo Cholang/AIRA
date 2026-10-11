@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CurrentView, ReadoutView } from '../prepare'
 import styles from './LiveView.module.css'
-import WindowView from './WindowView'
+import { scaleOf } from '../frame'
+import GlowFrame from './GlowFrame'
+import WindowView, { slotOf } from './WindowView'
 
 /**
  * 하늘 화면 (DESIGN.md "촬영 준비" 화면 영역 — 배경 전체). 서버의 live.kind에 따라 그린다:
@@ -21,7 +23,18 @@ export interface LiveExtras {
   grid?: boolean
 }
 
-export default function LiveView({ current, extras, simulated = true }: { current: CurrentView | null; extras?: LiveExtras; simulated?: boolean }) {
+export default function LiveView({
+  current,
+  extras,
+  simulated = true,
+  onPhoto,
+}: {
+  current: CurrentView | null
+  extras?: LiveExtras
+  simulated?: boolean
+  /** 사진을 누르면 (촬영 화면의 전체 화면 보기). 없으면 누를 수 없다 */
+  onPhoto?: () => void
+}) {
   const live = current?.live ?? null
   const kind = live?.kind ?? 'none'
   const readout = current?.center.readout ?? null
@@ -65,7 +78,7 @@ export default function LiveView({ current, extras, simulated = true }: { curren
           // SharpCap 영상: 데스크톱 창이 SharpCap 영상 칸을 그대로 비춘다(WindowView). 못 하면 예전처럼 창 캡처 사진
           <WindowView target="sharpcap" fallback={<RealImage url={live.url} refresh stamp={live.observedAt} />} />
         ) : (
-          <RealImage url={live.url} refresh={kind === 'guide-image' || kind === 'focus-curve'} stamp={live.observedAt} />
+          <RealImage url={live.url} refresh={kind === 'guide-image' || kind === 'focus-curve'} stamp={live.observedAt} onOpen={onPhoto} />
         )}
         {kind === 'guide-image' && <GuidingGraph data={live.data} />}
         {kind === 'test-photo' && <Histogram data={live.data} />}
@@ -192,7 +205,7 @@ function Histogram({ data }: { data: unknown }) {
  * 창이 가려져 있으면 묻지 않고, 다시 보이면 그때 한 번 받는다 (CX-24-04 — 시험 사진처럼 한 번만 받는 사진도).
  * 표지는 주소별로 기억한다 — 상태 시각(stamp)이 바뀌어도 새로 받지 않게 (CX-24-07). 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 받기 전·실패면 하늘색 바탕만
  */
-function RealImage({ url, refresh, stamp }: { url: string; refresh: boolean; stamp: string }) {
+function RealImage({ url, refresh, stamp, onOpen }: { url: string; refresh: boolean; stamp: string; onOpen?: () => void }) {
   const [shown, setShown] = useState<string | null>(null)
   const tags = useRef(new Map<string, string>()) // 받은 주소 → ETag
   const objectUrl = useRef<string | null>(null)
@@ -253,7 +266,57 @@ function RealImage({ url, refresh, stamp }: { url: string; refresh: boolean; sta
     },
     [],
   )
-  return shown ? <img className={styles.photo} src={shown} alt="" /> : null
+  return shown ? <FramedImage src={shown} onOpen={onOpen} /> : null
+}
+
+type Box = { x: number; y: number; w: number; h: number }
+
+/**
+ * 사진을 SharpCap 영상과 같은 자리에 (2026-10-11 사용자 요청 — 사진이 화면을 위아래로 다 덮어 구석 태양까지 가렸다):
+ * 같은 화면의 글자·버튼(data-occludes) 위아래를 피한 띠(WindowView slotOf) 안에 비율을 지켜 가운데, 둘레에 빛 테두리.
+ * onOpen이 있으면 누를 수 있다 (촬영 화면: 전체 화면으로)
+ */
+function FramedImage({ src, onOpen }: { src: string; onOpen?: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+  const [box, setBox] = useState<Box | null>(null)
+  useEffect(() => {
+    // 글자 칸 높이가 바뀌면(상태 문장 등) 자리도 바뀐다 — WindowView처럼 자주 다시 잰다
+    const measure = () => {
+      const el = ref.current
+      if (!el) return
+      const at = slotOf(el)
+      const b = el.getBoundingClientRect()
+      const s = scaleOf(el)
+      const next = at ? { x: (at.x - b.left) / s, y: (at.y - b.top) / s, w: at.w / s, h: at.h / s } : null
+      setBox((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+    }
+    measure()
+    const t = window.setInterval(measure, 300)
+    return () => clearInterval(t)
+  }, [])
+  const fit = box && natural ? fitInside(natural, box) : null
+  return (
+    <div ref={ref} className={styles.slot}>
+      <img
+        className={styles.framed}
+        src={src}
+        alt=""
+        data-open={!!onOpen}
+        style={fit ?? { visibility: 'hidden' }}
+        onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+        onClick={onOpen}
+      />
+      {fit && <GlowFrame style={{ position: 'absolute', ...fit }} />}
+    </div>
+  )
+}
+
+function fitInside(size: { w: number; h: number }, box: Box) {
+  const k = Math.min(box.w / size.w, box.h / size.h)
+  const width = size.w * k
+  const height = size.h * k
+  return { left: box.x + (box.w - width) / 2, top: box.y + (box.h - height) / 2, width, height }
 }
 
 function activeSub(current: CurrentView | null) {

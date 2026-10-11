@@ -49,7 +49,8 @@
 /* 하늘 화면(준비 단계): 진행 표시도 하늘 위에 */
 .body[data-sky='true'] .rail {
   --rail-bg: var(--sky); /* 점 속을 하늘색으로 (세로선을 가린다) */
-  background: transparent;
+  /* 하늘 화면 아래쪽의 어두운 띠(PrepareScreen .scrim, 400px)를 진행 표시 밑으로도 이어 — 끊겨 잘린 것처럼 보였다 (2026-10-11 사용자) */
+  background: linear-gradient(to top, var(--sky), transparent 400px);
 }
 
 /* 진행 표시: 처음 나타날 때만 페이드인 (상태 줄과 같음) */

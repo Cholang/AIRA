@@ -643,7 +643,8 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                         }
             // 기록: 허브가 주는 읽기 전용 칸 이름과 값 — 입력 전압 칸 이름이 맞는지 다음 실행에서 확인하려고 (2026-10-10, 실기 미확인)
             if (i == 0 || best is null && i == 2) log.LogInformation("허브 읽기 칸 ({Try}번째): {Gauges}", i + 1, seen.Count == 0 ? "없음" : string.Join(", ", seen));
-            if (best is null && i >= 2) return null; // 전압 칸이 없음
+            // 전압 칸이 없음 — 칸 목록이 왔는데 전압 이름이 하나도 없으면 바로 (2026-10-11 기록: 이 허브는 DC1·DC3 칸뿐이라 매번 2초를 기다렸다)
+            if (best is null && (i >= 2 || seen.Count > 0 && !seen.Any(IsInputVoltage))) return null;
             if (best >= NoPowerVolts) { log.LogInformation("허브 입력 전압 {Volts}V — 전원 있음", best); return best; }
             await Task.Delay(1000, ct);
         }

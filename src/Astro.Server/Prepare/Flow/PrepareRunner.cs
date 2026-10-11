@@ -697,7 +697,7 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
     /// </summary>
     // ── [임시] 시험용 건너뛰기 (2026-10-10 사용자 요청 — 실내에서 극축 정렬·캘리브레이션을 바로 넘기려고).
     //    지울 때: 이 메서드 · AppServer의 /prepare/{group}/temp-skip · 웹 PrepareScreen의 TEMP_SKIP 버튼 (모두 "[임시] 건너뛰기"로 찾으면 됨)
-    public static readonly string[] TempSkippable = ["polar", "calibration"];
+    public static readonly string[] TempSkippable = ["polar", "calibration", "focus"]; // focus: 2026-10-11 사용자 요청 (실내 시험)
 
     /// <summary>[임시] 지금 하는 극축 정렬·캘리브레이션을 멈추고(장비 정지 확인) "건너뜀" 결과로 끝내고 다음 작업으로. 안 되면 이유</summary>
     public async Task<string?> TempSkipAsync()
@@ -716,9 +716,12 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
     {
         if (_ctx is null) return;
         var now = _ctx.Now();
-        object result = cur.Task.Id == "polar"
-            ? new PolarResult(null, 0, 0, "건너뜀(임시)", now, Skipped: true)
-            : new CalibrationResult(false, null, "", Sky.TonightService.EveningOf(now), now, Skipped: true);
+        object result = cur.Task.Id switch
+        {
+            "polar" => new PolarResult(null, 0, 0, "건너뜀(임시)", now, Skipped: true),
+            "focus" => new FocusResult(true, null, null, null, now), // 손으로 맞춤과 같게 — 위치를 저장하지 않는다
+            _ => new CalibrationResult(false, null, "", Sky.TonightService.EveningOf(now), now, Skipped: true),
+        };
         _ctx.Results.Set(result);
         log.LogInformation("[임시] 건너뛰기: {Task}", cur.Task.Id);
         lock (_gate)

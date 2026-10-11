@@ -28,6 +28,8 @@
   position: absolute;
   inset: 0;
   transition: opacity 300ms;
+  /* 판 자체는 누름을 받지 않는다 — 글·버튼 사이로 아래 사진을 누를 수 있게 (촬영 화면: 사진 전체 화면, 2026-10-11) */
+  pointer-events: none;
 }
 
 .over > * { pointer-events: auto; }
@@ -117,3 +119,22 @@
 .nightTable b { font-weight: 650; }
 .nightTable span { color: var(--sky-muted); font-size: 16px; }
 .nightTable .hd { color: var(--sky-muted); font-size: 14px; }
+
+/* 촬영 사진 전체 화면 (ShootScreen): 앱 창 전체를 덮고, 누르거나 Esc면 돌아간다 */
+.fullPhoto {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: var(--bg);
+  cursor: zoom-out;
+}
+
+.fullPhoto img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

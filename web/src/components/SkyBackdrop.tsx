@@ -154,9 +154,17 @@ export default function SkyBackdrop() {
       g.style.animationDuration = `${rand(5, 9) + rand(1.4, 2.6) * GLINTS}s` // 빛나는 시간 + 쉬는 시간 (평균 2초에 하나꼴)
       if (first) g.style.animationDelay = `${-rand(0, 20)}s`
     }
+    // 한 번 빛나면 새 자리·길이로 처음부터 다시 — 도는 중에 길이만 바꾸면 진행 위치가 다시 계산돼 다음 별이 서서히 켜지지 않고
+    // 중간 밝기로 툭 나타났다 (2026-10-11 사용자: "순간적으로 여기저기 반짝임")
     glints.forEach((g) => {
       placeGlint(g, true)
-      g.addEventListener('animationiteration', () => placeGlint(g))
+      g.addEventListener('animationend', () => {
+        placeGlint(g)
+        g.style.animationDelay = '0s'
+        g.style.animationName = 'none'
+        void g.offsetWidth // 다시 시작하게
+        g.style.animationName = ''
+      })
     })
 
     const resize = () => {

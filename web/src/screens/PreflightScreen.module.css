@@ -105,14 +105,20 @@
    눌림은 누르는 순간 한 번뿐 — 사라질 때 다시 눌리면 두 번 들어갔다 나오는 것처럼 보였다 (2026-10-09) */
 .card[data-state='gone'] {
   pointer-events: none;
-  animation: away 520ms cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
+  animation: away 640ms cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
   box-shadow: inset 0 0 0 1.5px var(--step-done-line), var(--lift-shadow);
 }
 
+/* 2026-10-11 사용자: 사라지는 카드가 올라오는 아래 카드와 겹쳐 어색했다 → 더 높이(76px) 떠올라 아래 카드에서 비켜나며 천천히, V는 카드보다 먼저 사라진다 */
 @keyframes away {
   0% { transform: scale(0.96); opacity: 1; }
-  25% { opacity: 1; }
-  100% { transform: translateY(-44px) scale(1.03); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-76px) scale(1.03); opacity: 0; }
+}
+
+@keyframes vOut {
+  0%, 20% { opacity: 1; }
+  75%, 100% { opacity: 0; }
 }
 
 .pic {
@@ -148,6 +154,17 @@
 
 .card[data-state='gone'] .checkMark {
   opacity: 1;
+  animation: vOut 640ms ease-out forwards;
+}
+
+/* 아래 카드는 위 카드가 조금 떠오른 뒤에 올라온다 (바로 올라오면 사라지는 카드와 겹쳤다). 누름(:active)은 바로 */
+.card[data-state='top'],
+.card[data-state='under'] {
+  transition-delay: 140ms;
+}
+
+.card[data-state='top']:active {
+  transition-delay: 0ms;
 }
 
 .card[data-state='gone'] .pic {

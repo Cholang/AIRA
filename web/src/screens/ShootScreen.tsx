@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import LiveView from '../components/LiveView'
 import PrepCenter from '../components/PrepCenter'
 import PrepGuide from '../components/PrepGuide'
@@ -72,6 +73,7 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
   const [problem, setProblem] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
   const [then, setThen] = useState<Then | null>(null)
+  const [full, setFull] = useState(false) // 사진 전체 화면
   const [actError, setActError] = useState<string | null>(null)
   const [faultsOpen, setFaultsOpen] = useState(false)
 
@@ -194,6 +196,9 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
     )
   }
 
+  // 사진 전체 화면 (2026-10-11 사용자 요청): 사진을 누르면 앱 창 전체로, 다시 누르면 돌아온다. 그동안 새 사진이 오면 바로 바뀐다(가장 싼 방법 — 사용자 허락)
+  const photoUrl = view.mode !== 'Focus' && live?.live?.url ? live.live.url : null
+
   const status: { text: string; tone: Tone } | null = actError ? { text: actError, tone: 'Fail' } : view.note
 
   const act = async (id: string) => {
@@ -206,7 +211,8 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
 
   return (
     <main className={styles.stage}>
-      <LiveView current={live} simulated={view.simulated} />
+      {full && photoUrl && <FullPhoto url={photoUrl} onClose={() => setFull(false)} />}
+      <LiveView current={live} simulated={view.simulated} onPhoto={photoUrl ? () => setFull(true) : undefined} />
       <div className={styles.scrim} />
       <div className={styles.over}>
         <PrepGuide task="촬영" title={title} text={text} />
@@ -231,5 +237,20 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
         </div>
       )}
     </main>
+  )
+}
+
+/** 촬영 사진 전체 화면: 앱 틀(축소된 화면) 밖, 창 전체에 (portal). 누르거나 Esc로 닫는다 */
+function FullPhoto({ url, onClose }: { url: string; onClose: () => void }) {
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [onClose])
+  return createPortal(
+    <button type="button" className={styles.fullPhoto} onClick={onClose} aria-label="전체 화면 닫기">
+      <img src={url} alt="" />
+    </button>,
+    document.body,
   )
 }
