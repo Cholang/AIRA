@@ -184,9 +184,10 @@ public static class AppServer
         // 홈 버튼으로 시작한 홈 이동도 멈추고 확인한다 (CX-21-02)
         api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Shoot.ShootSession shoot) =>
         {
-            // 촬영 중이면 지금 사진을 중단하고 촬영을 끝낸 뒤 평소 종료 절차로 (CX-30-01 — 아이라가 꺼지면 다음 사진·반전을 볼 주체가 없다)
+            // 촬영 중이면 지금 사진이 끝나기를 기다려 촬영을 끝낸 뒤 평소 종료 절차로 (CX-30-01 — 아이라가 꺼지면 다음 사진·반전을 볼 주체가 없다.
+            // X-T5는 일반 노출을 중단할 수 없어 끝까지 찍는다 — ShootSession.StopForQuitAsync)
             if (shoot.Active && !await shoot.StopForQuitAsync())
-                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영을 멈췄지만 가이딩이나 적도의가 멈췄는지 확인하지 못했습니다. PHD2와 적도의를 직접 확인해 주세요." });
+                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영이 끝나기를 기다렸지만 끝나지 않았거나, 가이딩·적도의가 멈췄는지 확인하지 못했습니다. N.I.N.A.·PHD2와 적도의를 직접 확인해 주세요." });
             foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
                 if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false, problem = (string?)null });
             if (!await home.StopForQuitAsync())

@@ -220,8 +220,22 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     public async Task<bool> CameraExposingAsync(CancellationToken ct) =>
         (await nina.RequestAsync("equipment/camera/info", Short, ct)).Response is { ValueKind: JsonValueKind.Object } c && Bool(c, "IsExposing");
 
+    /// <summary>
+    /// 지금 노출을 멈춘다(멈춘 것을 확인하면 true). 준비 단계의 중단·멈추기, 다시 켜 이어서 할 때 쓴다.
+    /// 후지 카메라(X-T5 등)는 중단 명령을 보내지 않고, 지금 노출이 끝나 N.I.N.A.가 사진을 받을 때까지 기다린다 — 2026-10-11 실기: N.I.N.A. 후지 플러그인의
+    /// 노출 중단은 벌브 노출만 멈춘다. 셔터 속도를 정한 일반 노출(예: 30초)에는 "Stop exposure (bulb safety) failed"로 실패하는데 N.I.N.A.는 "중단됨"으로 답하고
+    /// 기다리기만 그만둔다. 카메라는 끝까지 찍고 사진을 PC로 보내려고 기다리다("이미지를 PC로 전송") 다음 사진이 꼬이고 전원도 꺼지지 않았다.
+    /// 그래서 끝까지 찍게 두면 N.I.N.A.가 사진을 받아 카메라가 비워진다. 부르는 쪽의 ct가 기다리는 한도를 정한다(준비 단계 정지 확인은 15초 — 넘으면 "장비 상태 다시 확인")
+    /// </summary>
     public async Task<bool> AbortExposureAsync(CancellationToken ct)
     {
+        if (!await CameraExposingAsync(ct)) return true;
+        if (await IsFujifilmAsync(ct))
+        {
+            while (await CameraExposingAsync(ct)) await Task.Delay(1000, ct);
+            await Task.Delay(2000, ct); // 노출이 끝난 뒤 사진을 받는 시간
+            return true;
+        }
         await nina.RequestAsync("equipment/camera/abort-exposure", Short, ct);
         for (var i = 0; i < 5; i++)
         {
@@ -229,6 +243,16 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             await Task.Delay(1000, ct);
         }
         return false;
+    }
+
+    /// <summary>후지필름 카메라인가 (N.I.N.A. 후지 플러그인 — 일반 노출을 중단할 수 없다). 이름이 X-·GFX로 시작하거나 드라이버 정보에 Fuji</summary>
+    private async Task<bool> IsFujifilmAsync(CancellationToken ct)
+    {
+        if ((await nina.RequestAsync("equipment/camera/info", Short, ct)).Response is not { ValueKind: JsonValueKind.Object } c) return false;
+        var name = Text(c, "Name") ?? "";
+        var driver = (Text(c, "DriverInfo") ?? "") + " " + (Text(c, "Description") ?? "") + " " + (Text(c, "DeviceId") ?? "");
+        return name.StartsWith("X-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("GFX", StringComparison.OrdinalIgnoreCase)
+            || driver.Contains("Fuji", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>솔빙으로 얻은 지금 위치로 적도의를 동기화 (DESIGN.md ⑤ — 솔빙 동기화는 정상)</summary>
@@ -442,6 +466,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     }
 
     internal static bool Bool(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.True;
+    internal static string? Text(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     /// <summary>숫자 (N.I.N.A.는 값이 없으면 문자열 "NaN"을 준다 — Codex 실기 조회 2026-10-06)</summary>
     internal static double Num(JsonElement e, string key)

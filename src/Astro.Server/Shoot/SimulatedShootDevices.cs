@@ -116,7 +116,9 @@ public sealed class SimulatedShootDevices(SimOptions sim, SimFaults faults) : IS
     }
     public async Task<bool> ReconnectGuiderAsync(CancellationToken ct) { await sim.Delay(800, ct); _disconnected = false; return true; }
     public async Task<bool> RecenterAsync(PrepContext ctx, CancellationToken ct) { await sim.Delay(1500, ct); Calls.Add("recenter"); _lostChecks = 0; return true; }
-    public async Task<bool> AbortExposureAsync(CancellationToken ct) { await sim.Delay(100, ct); return !_abortScenario; }
+    /// <summary>[시험] 노출 중단을 부른 횟수 — 종료·가이드 별 잃음이 중단하지 않는지 (X-T5는 일반 노출을 중단할 수 없음)</summary>
+    public int AbortCalls { get; private set; }
+    public async Task<bool> AbortExposureAsync(CancellationToken ct) { AbortCalls++; await sim.Delay(100, ct); return !_abortScenario; }
     public Task<bool> DewHeaterBoostAsync(CancellationToken ct) => Task.FromResult(false);
     // 모의: 평소 여유 16°C·열선 꺼짐(자동), 이슬 상황(shoot.dew)이면 여유 1.2°C·열선 최대
     public Task<DewStatus?> DewAsync(CancellationToken ct) =>

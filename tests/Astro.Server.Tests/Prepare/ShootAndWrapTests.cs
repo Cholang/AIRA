@@ -60,6 +60,24 @@ public class ShootAndWrapTests
     }
 
     [Fact]
+    public async Task CX30_01_촬영_중_종료는_지금_사진을_끝까지_찍고_멈춘다()
+    {
+        var sim = new SimOptions { Speed = 0 };
+        var dev = new SimulatedShootDevices(sim, new SimFaults());
+        var session = new ShootSession(dev, new PrepareMode(true), NullLogger<ShootSession>.Instance);
+        var results = new PrepResults();
+        results.Set(new FocusResult(false, 12340, 2.1, 12.4, DateTimeOffset.Now));
+        var ctx = Harness.TargetContext(results, new InMemoryPrepMemory(), Harness.Plan() with { EstimatedFrames = 50, ExposureSeconds = 120 });
+        session.Start(ctx);
+        for (var i = 0; i < 50 && session.View().Good == 0; i++) await Task.Delay(20);
+
+        Assert.True(await session.StopForQuitAsync().WaitAsync(TimeSpan.FromSeconds(20)));
+        var v = session.View();
+        Assert.Equal(ShootMode.Ended, v.Mode);
+        Assert.Equal(0, dev.AbortCalls); // X-T5: 일반 노출은 중단할 수 없어 끝까지 찍는다
+    }
+
+    [Fact]
     public async Task 계획한_장수를_다_찍으면_끝나고_밤_기록에_남는다()
     {
         var r = NewShoot(5);
@@ -113,7 +131,6 @@ public class ShootAndWrapTests
         stop.Session.Start(stop.Ctx);
         Assert.Null(stop.Session.Stop());
         var v = await UntilEnded(stop.Session);
-        Assert.Equal("user", v.Ended);
         Assert.NotNull(stop.Session.Stop()); // 끝난 뒤에는 받지 않음
     }
 

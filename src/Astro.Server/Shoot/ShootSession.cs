@@ -254,36 +254,33 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
 
     /// <summary>
     /// 아이라 종료 (2026-10-11 Codex CX-30-01): 연속 촬영은 N.I.N.A.가 아니라 아이라가 한 장씩 시킨다 — 아이라가 꺼지면 다음 사진·자오선 반전·끝 조건을 볼
-    /// 주체가 사라져 추적만 남는다(자오선을 넘어 경통이 삼각대에 닿을 수 있음). 그래서 지금 사진을 바로 중단하고(실기 확인: X-T5 30초 노출이 1초 안에 멈춤)
-    /// 촬영을 끝낸다 — 가이딩 정지 확인, 반전 중이었으면 적도의가 멈춘 것도 확인. 뒤의 종료 절차가 추적을 끄고 장비를 정리한다. 다 확인했으면 true
+    /// 주체가 사라져 추적만 남는다(자오선을 넘어 경통이 삼각대에 닿을 수 있음). 그래서 촬영을 끝낸 뒤 종료한다.
+    /// 지금 사진은 중단하지 않고 끝까지 찍어 받은 뒤 멈춘다 ("촬영 중단"과 같은 길) — 2026-10-11 실기, Fujifilm X-T5: N.I.N.A. 후지 플러그인의 노출 중단은
+    /// 벌브 노출만 멈춘다. 일반 노출(셔터 속도 지정)은 "Stop exposure (bulb safety) failed"로 실패하는데 N.I.N.A.는 "중단됨"으로 답해, 카메라는 끝까지 찍고
+    /// 사진을 PC로 보내려고 기다리다 전원도 꺼지지 않았다("이미지를 PC로 전송"). 끝나면 가이딩 정지 확인 → 뒤의 종료 절차가 추적을 끄고 장비를 정리한다.
+    /// 다 확인했으면 true. 노출 시간 + 3분 안에 끝나지 않으면 false
     /// </summary>
     public async Task<bool> StopForQuitAsync()
     {
-        CancellationTokenSource? cts;
         Task run;
-        bool flipping;
+        int exposure;
         lock (_gate)
         {
             if (_ctx is null || _mode is ShootMode.Ended or ShootMode.Idle) return true;
-            cts = _cts;
             run = _run;
-            flipping = _mode == ShootMode.Flip;
+            exposure = _ctx.ExposureSeconds;
         }
-        log.LogInformation("종료: 촬영을 멈춤 (지금 사진 중단)");
-        cts?.Cancel();
-        try { await devices.AbortExposureAsync(CancellationToken.None); }
-        catch (Exception e) { log.LogWarning(e, "종료: 노출 중단 실패"); }
-        try { await run.WaitAsync(TimeSpan.FromSeconds(30)); } catch (Exception) { /* 취소·시간 초과 — 아래에서 확인 */ }
-        if (flipping)
+        log.LogInformation("종료: 지금 사진이 끝나면 촬영을 멈춤");
+        Stop(); // 지금 사진까지 찍고 끝낸다 (끝낼 때 가이딩 정지 확인)
+        Note($"지금 사진이 끝나면 촬영을 멈추고 {Astro.Core.Product.Reul} 종료해요", Tone.Busy, 600);
+        try { await run.WaitAsync(TimeSpan.FromSeconds(exposure + 180)); }
+        catch (TimeoutException)
         {
-            bool still;
-            try { still = await devices.ConfirmMountStillAsync(CancellationToken.None); }
-            catch (Exception e) { log.LogWarning(e, "종료: 반전 중 적도의 정지 확인 실패"); still = false; }
-            Set(() => _mountStill = still);
+            log.LogWarning("종료: 지금 사진이 {Seconds}초 안에 끝나지 않음", exposure + 180);
+            return false;
         }
-        Note($"{Astro.Core.Product.Reul} 끄려고 촬영을 멈췄어요", Tone.Warn, 600);
-        await EndAsync("quit", CancellationToken.None);
-        lock (_gate) return _guideStopped && _mountStill;
+        catch (Exception) { /* 촬영 쪽 오류는 그쪽에서 기록·마무리 */ }
+        lock (_gate) return _mode is ShootMode.Ended && _guideStopped && _mountStill;
     }
 
     /// <summary>"촬영 중단": 지금 사진은 끝까지 찍고 멈춘다. 찍고 있지 않으면 이유</summary>
@@ -694,8 +691,10 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
             lostAt ??= DateTimeOffset.Now;
             if (l is GuideLoss.MountStopped or GuideLoss.Disconnected or GuideLoss.Jump || DateTimeOffset.Now - lostAt > limit)
             {
+                // 노출을 중단하지 않고 끝까지 찍은 뒤 이 장을 버린다 (2026-10-11 실기 — Fujifilm X-T5: N.I.N.A. 후지 플러그인의 노출 중단은 벌브 노출만 멈춘다.
+                // 셔터 속도를 정한 일반 노출(예: 30초)에는 "Stop exposure (bulb safety) failed"로 실패하고, N.I.N.A.는 "중단됨"으로 답하며 기다리기만 그만둔다.
+                // 카메라는 끝까지 찍고 사진을 PC로 보내려고 기다려 다음 사진이 꼬이고 전원도 안 꺼졌다 — 그래서 중단하지 않는다)
                 lost = l;
-                await devices.AbortExposureAsync(ct);
                 break;
             }
         }

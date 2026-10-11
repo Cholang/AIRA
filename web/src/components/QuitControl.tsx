@@ -41,7 +41,7 @@ interface ClosingApp {
 type Step = 'tasks' | 'tracking' | 'focuser' | 'equipment' | 'programs'
 
 const STEP_TEXT: Record<Step, string> = {
-  tasks: '진행 중인 작업을 멈추는 중입니다…',
+  tasks: '진행 중인 작업을 멈추는 중입니다… (촬영 중이면 지금 사진이 끝나기를 기다립니다)',
   tracking: '적도의 추적을 끄는 중입니다…',
   focuser: '포커서를 0으로 되돌리는 중입니다…',
   equipment: '장비 연결을 멈추고 연결을 끊는 중입니다…',
@@ -143,8 +143,9 @@ export function QuitProvider({
     (closing?.busy && closing.step
       ? STEP_TEXT[closing.step]
       : stage === '촬영'
-        ? // 촬영 중 종료: 아이라가 한 장씩 시키는 촬영이라 꺼지면 이어 찍을 수 없다 — 지금 사진을 중단하고 평소대로 정리 (CX-30-01)
-          `촬영을 멈추고 ${PRODUCT.reul} 종료합니다. 지금 찍는 사진은 중단해 버리고, 가이딩·추적을 끈 뒤 장비를 정리합니다.`
+        ? // 촬영 중 종료: 아이라가 한 장씩 시키는 촬영이라 꺼지면 이어 찍을 수 없다 — 지금 사진이 끝나면 멈추고 평소대로 정리 (CX-30-01).
+          // 중단하지 않는 이유: X-T5는 일반 노출을 소프트웨어로 중단할 수 없다 (N.I.N.A. 후지 플러그인은 벌브만 멈춤 — 2026-10-11 실기, ShootSession.StopForQuitAsync)
+          `지금 찍는 사진이 끝나면 촬영을 멈추고 ${PRODUCT.reul} 종료합니다. 사진이 끝날 때까지 기다린 뒤 가이딩·추적을 끄고 장비를 정리합니다.`
         : stage
         ? `${stage} 진행을 종료하고 ${PRODUCT.reul} 종료합니다.`
         : `${PRODUCT.reul} 종료합니다.`)
