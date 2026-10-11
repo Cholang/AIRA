@@ -20,9 +20,36 @@
 }
 
 /* 2단계(장비 연결)는 이 크기에서 작아지며 시작한다 — EquipmentScreen의 --engine-ring와 같은 값 */
+/* 원 = 장비 연결 화면의 항성과 같은 크기 (2026-10-11 사용자 결정 — 옮겨 갈 때 크기는 그대로 자리만, equipmentOrbits sunD = 0.66 × min(높이, 폭÷1.97)).
+   글자는 2026-10-11 요청대로 20% 크게 */
 .ring {
-  width: clamp(240px, 34cqh, 340px);
-  --ring-font: clamp(16px, 1.6cqw, 20px);
+  width: calc(0.66 * min(100cqh, 100cqw / 1.97));
+  --ring-font: clamp(19.2px, 1.92cqw, 24px);
+}
+
+/* 엔진 켜기 화면에 처음 나타날 때: 외곽선이 안 보일 만큼 가까이 있던 태양이 멀어지며 제 크기로 (글자는 그 뒤에) */
+.arrive {
+  animation: sunArrive 1.8s cubic-bezier(0.16, 0.7, 0.2, 1) both;
+}
+
+.arrive [data-visible] {
+  animation: arriveText 500ms ease-out 1.3s backwards; /* backwards: 끝난 뒤에는 글자 바꿈(흐려짐)을 막지 않게 */
+}
+
+@keyframes sunArrive {
+  from { transform: scale(5); }
+  to { transform: scale(1); }
+}
+
+@keyframes arriveText {
+  from { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrive,
+  .arrive [data-visible] {
+    animation: none;
+  }
 }
 
 /* 실패 시 해결 방법·다시 시도. 자리는 항상 차지 */

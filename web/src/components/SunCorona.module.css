@@ -1,0 +1,47 @@
+/* 태양 이글거림 (SunCorona.tsx): 원보다 40% 크게 감싼다 (viewBox -40~240) */
+.corona {
+  position: absolute;
+  left: -20%;
+  top: -20%;
+  width: 140%;
+  height: 140%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.halo {
+  fill: none;
+  stroke: var(--conn);
+  stroke-opacity: 0.07;
+}
+
+.rays {
+  transform-origin: 100px 100px;
+  animation: coronaA 120s linear infinite;
+}
+
+.rays[data-dir='1'] {
+  animation: coronaB 170s linear infinite;
+}
+
+.rays ellipse {
+  fill: var(--conn);
+}
+
+@keyframes coronaA {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.03); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes coronaB {
+  0% { transform: rotate(0deg) scale(1.02); }
+  50% { transform: rotate(-180deg) scale(0.99); }
+  100% { transform: rotate(-360deg) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rays {
+    animation: none;
+  }
+}

@@ -21,6 +21,18 @@
   opacity: 1;
 }
 
+/* 카메라 연출(skyPan.ts): 창보다 오른쪽·아래로 1.6배 큰 판을 통째로 민다 — 장비 연결의 항성이 옮겨 가는 0.9초와 같은 움직임 */
+.pan {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 160%;
+  height: 160%;
+  transform: translate(var(--sky-pan-x, 0px), var(--sky-pan-y, 0px));
+  transition: transform 900ms cubic-bezier(0.45, 0, 0.25, 1);
+  will-change: transform;
+}
+
 /* ── 성운 두 층: 예전 그리기 식(사인파)을 CSS로 — 가로 ±11.25%(약 88초 주기) · 세로 ±8.25%(약 113초) · 돌기 ±4.4°(약 133초) · 커짐 1.46±0.085(약 82초).
    한 요소에 transform 애니메이션은 하나뿐이라 층을 겹쳐 나눈다. 둘째 층은 방향을 거꾸로, 시작 시점(위상)을 다르게 ───────── */
 .driftX,
@@ -43,13 +55,14 @@
   animation: turn 66.3s ease-in-out infinite alternate;
 }
 
+/* 판(창의 1.6배)을 흐름(±11%)·작아짐(0.94배)까지 덮게 — 판 가운데에 창의 1.96배 */
 .cloud {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 146vw;
-  height: 146vh;
-  margin: -73vh 0 0 -73vw;
+  width: 196vw;
+  height: 196vh;
+  margin: -98vh 0 0 -98vw;
   opacity: min(1, calc(var(--k) * 0.9));
   will-change: transform;
   animation: grow 41.2s ease-in-out infinite alternate;
@@ -163,7 +176,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sky {
+  .sky,
+  .pan {
     transition: none;
   }
 }

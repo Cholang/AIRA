@@ -43,7 +43,7 @@ export default function EngineStartScreen({ onContinue }: { onContinue: () => vo
 
   return (
     <main className={styles.stage}>
-      <JarvisRing state={state} className={styles.ring}>
+      <JarvisRing state={state} className={`${styles.ring} ${styles.arrive}`} surface corona>
         {line}
       </JarvisRing>
 

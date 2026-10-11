@@ -79,9 +79,14 @@ g[data-on='true'] > .moons {
   stroke-width: 1;
 }
 
-/* 소행성대: 화성과 목성 사이 점들 */
+/* 소행성대: 화성과 목성 사이 점들 — 행성과 같은 차례로 나타나(화성 다음) 흐리게 있다가, 화성·바깥 행성이 연결되면 또렷이 */
+.beltShow {
+  animation: appear 300ms ease-out both;
+  animation-delay: calc(900ms + var(--i) * 90ms);
+}
+
 .belt {
-  opacity: 0;
+  opacity: 0.35;
   transition: opacity 1.6s;
 }
 
@@ -640,7 +645,9 @@ g[data-on='true'] > .moons {
   position: absolute;
   z-index: 4;
   transform: translate(-50%, -50%);
-  animation: appear 300ms ease-out 900ms both;
+  /* 행성이 다 나타난 뒤 마지막에 (--i = 9) */
+  animation: appear 300ms ease-out both;
+  animation-delay: calc(900ms + var(--i) * 90ms);
 }
 
 .scopeButton {
@@ -981,6 +988,19 @@ g[data-on='true'] > .moons {
   }
   .sun[data-ready='true'],
   .sun[data-ready='true'] .fromRing {
+    animation: none;
+  }
+}
+
+/* 행성의 고리·위성(SVG): 행성 원과 같은 차례로 나타난다 (--i, 2026-10-11) */
+.cascade {
+  animation: appear 300ms ease-out both;
+  animation-delay: calc(900ms + var(--i) * 90ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cascade,
+  .beltShow {
     animation: none;
   }
 }

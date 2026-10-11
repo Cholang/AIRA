@@ -1,6 +1,8 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './JarvisRing.module.css'
+import SunCorona from './SunCorona'
+import SunSurface from './SunSurface'
 
 export type RingState = 'working' | 'done' | 'failed'
 
@@ -19,17 +21,28 @@ export default function JarvisRing({
   children,
   className,
   action,
+  surface = false,
+  still = false,
+  corona = false,
 }: {
   state: RingState
   children: ReactNode
   className?: string
   /** 원 안 글자 아래의 버튼 자리 (장비 연결의 "장비 변경"·"변경 완료"). 자리는 항상 확보 */
   action?: ReactNode
+  /** 도는 태양 표면 (SunSurface) — 진행 중이면 테두리 빛 대신 표면이 돈다. 엔진 켜기 원·장비 연결 태양만 (2026-10-11) */
+  surface?: boolean
+  /** 앞 화면의 끝 모습을 이어 보여 주는 자리: 완료 반짝임을 다시 하지 않는다 (2026-10-11 — 엔진 켜기 → 장비 연결에서 두 번 반짝이던 것) */
+  still?: boolean
+  /** 테두리 바깥 이글거림 (SunCorona) — 엔진 켜기 원·장비 연결 항성 */
+  corona?: boolean
 }) {
   // 완료 문장은 기다리지 않고 바로 (완료 순간과 글자가 어긋나 보이지 않게)
   const { shown, visible } = useSmoothContent(children, state === 'done')
   return (
-    <div className={[styles.ring, className].filter(Boolean).join(' ')} data-state={state} role="status" aria-live="polite">
+    <div className={[styles.ring, className].filter(Boolean).join(' ')} data-state={state} data-surface={surface} data-still={still} role="status" aria-live="polite">
+      {corona && <SunCorona />}
+      {surface && <SunSurface state={state} className={styles.surface} />}
       <svg className={styles.arcs} viewBox="0 0 200 200" aria-hidden="true">
         <circle className={styles.track} cx="100" cy="100" r="92" />
         <circle className={styles.outer} cx="100" cy="100" r="92" pathLength="100" />

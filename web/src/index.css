@@ -34,6 +34,7 @@
   --glass-line: rgb(255 255 255 / 0.10);
   /* 장비 연결 상태 (2026-10-10 사용자 선택 B — 노랑·초록 대신 로고의 보라): 연결 중 = 테두리를 도는 빛, 연결됨 = 한 번 반짝인 뒤 은은한 빛 */
   --conn: #a9a6f7;
+  --conn-rgb: 169 166 247; /* 캔버스로 그리는 태양 표면(SunSurface)이 투명도를 섞으려고 */
   --conn-soft: rgb(169 166 247 / 0.55);
   --conn-glow: rgb(169 166 247 / 0.22);
   --conn-flash: rgb(169 166 247 / 0.6);
@@ -74,6 +75,7 @@
   --glass-bg-strong: rgb(23 0 0 / 0.7);
   --glass-line: rgb(60 0 0 / 0.7);
   --conn: #b80000;
+  --conn-rgb: 184 0 0;
   --conn-soft: rgb(184 0 0 / 0.55);
   --conn-glow: rgb(184 0 0 / 0.18);
   --conn-flash: rgb(184 0 0 / 0.45);

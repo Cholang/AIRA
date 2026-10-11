@@ -9,6 +9,7 @@ import ScopeList from '../components/ScopeList'
 import { useCheckStream, type CheckItem } from '../checks'
 import { scaleOf } from '../frame'
 import { useKeepInside } from '../keepInside'
+import { setSkyPan } from '../skyPan'
 import { coordText, type CurrentSite } from '../sites'
 import engineStyles from './EngineStartScreen.module.css'
 import { PLANET_OF, solarLayout, type Planet, type SolarGeo } from './equipmentOrbits'
@@ -66,7 +67,7 @@ export default function EquipmentScreen({ onContinue, site }: { onContinue: Equi
       // 1단계 화면을 그대로 이어 보여 주는 자리라 나타나는 효과 없이 바로
       <main className={engineStyles.stage} style={{ animation: 'none' }}>
         <div ref={holdRing}>
-          <JarvisRing state="done" className={engineStyles.ring}>
+          <JarvisRing state="done" className={engineStyles.ring} surface still corona>
             준비되었습니다
           </JarvisRing>
         </div>
@@ -88,7 +89,8 @@ function EquipmentGraph({
   from: DOMRect | null
   site?: SiteLine
 }) {
-  const { items, done, allPass, failed, restart, recheckOne, patch } = useCheckStream('/api/equipment/connect', plan)
+  const stream = useCheckStream('/api/equipment/connect', plan)
+  const { restart, recheckOne, patch } = stream
   const [picked, setPicked] = useState<string | null>(null)
   const sunRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<HTMLDivElement>(null)
@@ -116,6 +118,14 @@ function EquipmentGraph({
 
   const geo = useMemo(() => solarLayout(box.w, box.h), [box.w, box.h])
 
+  // 연결은 바로 시작하지만 경과는 항성이 자리를 잡고 행성이 다 나타난 뒤에 보여 준다 (2026-10-11 사용자 결정 — 체감 연결 시간이 준다).
+  // 그전에는 모든 장비를 "대기"로 보이고(없는 장비는 그대로), 끝·실패·자동 진행도 기다린다
+  const revealed = useRevealAfter(moveFrom !== null, REVEAL_MS)
+  const items = useMemo(() => (revealed ? stream.items : stream.items.map((i) => (i.status === 'Absent' ? i : { ...i, status: 'Pending' as const, diagnosis: null }))), [revealed, stream.items])
+  const done = revealed && stream.done
+  const allPass = revealed && stream.allPass
+  const failed = revealed && stream.failed
+
   // 1단계 원의 자리·크기에서 항성 자리·크기로 옮겨 가는 것처럼 시작한다 (처음 한 번만)
   useLayoutEffect(() => {
     if (moveFrom !== null || !geo) return
@@ -125,13 +135,14 @@ function EquipmentGraph({
     if (!now.width) return
     // 화면에서 잰 값(확대·축소 적용)을 틀 안의 길이로 바꿔서 옮긴다 — translate는 틀 안에서 다시 확대·축소되므로
     const s = scaleOf(el)
-    const frameH = el.closest<HTMLElement>('[data-frame]')?.clientHeight ?? window.innerHeight
-    const engine = from ? from.width : Math.min(340, Math.max(240, frameH * 0.34)) * s
+    const engine = from ? from.width : now.width // 엔진 켜기 원은 항성과 같은 크기 (EngineStartScreen .ring)
     setMoveFrom({
       scale: engine / now.width,
       dx: from ? (from.left + from.width / 2 - (now.left + now.width / 2)) / s : 0,
       dy: from ? (from.top + from.height / 2 - (now.top + now.height / 2)) / s : 0,
     })
+    // 배경도 태양과 같은 만큼 함께 민다 — 태양은 배경에 붙어 있고 화면이 움직이는 것처럼 (2026-10-11, skyPan.ts. 밀린 자리는 그대로 둔다)
+    if (from) setSkyPan(now.left + now.width / 2 - (from.left + from.width / 2), now.top + now.height / 2 - (from.top + from.height / 2))
   }, [geo, moveFrom, from])
 
   // ── 자동 진행: 모두 되면 4초 동안 항성 테두리 호가 차오른다. 그동안 "장비 변경"을 누르면 변경 모드로 ─────────
@@ -299,17 +310,19 @@ function EquipmentGraph({
           <>
             {/* 궤도·고리·위성·소행성대: 연결된 장비만, 아주 희미하게 (연결선 대신) */}
             <svg className={styles.space} viewBox={`0 0 ${box.w} ${box.h}`} aria-hidden="true">
-              <Corona geo={geo} />
-              <g className={styles.belt} data-on={beltOn}>
-                {geo.belt.map((b, k) => (
-                  <circle key={k} cx={b.x} cy={b.y} r={b.r} opacity={b.o} />
-                ))}
+              <g className={styles.beltShow} style={{ '--i': BELT_ORDER } as CSSProperties}>
+                <g className={styles.belt} data-on={beltOn}>
+                  {geo.belt.map((b, k) => (
+                    <circle key={k} cx={b.x} cy={b.y} r={b.r} opacity={b.o} />
+                  ))}
+                </g>
               </g>
               {planetItems.map((item) => {
                 const p = geo.planets[PLANET_OF[item.id]]
                 const on = item.status === 'Pass'
                 return (
-                  <g key={item.id} data-on={on}>
+                  // 고리·위성도 행성과 같은 차례로 (2026-10-11 — 토성 고리가 먼저 그려지던 것)
+                  <g key={item.id} data-on={on} className={styles.cascade} style={{ ['--i' as string]: cascadeOrder(item.id) } as CSSProperties}>
                     <path className={styles.orbit} d={orbitPath(geo, p)} pathLength={1} />
                     {item.status !== 'Absent' &&
                       p.bands.map((b, k) => (
@@ -343,12 +356,12 @@ function EquipmentGraph({
               }
               data-ready={moveFrom !== null}
             >
-              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`}>
+              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`} surface corona>
                 {null}
               </JarvisRing>
               {/* 1단계 끝 모습을 위에 겹쳐 두고, 옮겨 가는 동안 흐려진다 → 항성으로 크로스페이드 */}
               <div className={styles.fromRing} aria-hidden="true">
-                <JarvisRing state="done" className={styles.ring}>
+                <JarvisRing state="done" className={styles.ring} surface still>
                   준비되었습니다
                 </JarvisRing>
               </div>
@@ -396,9 +409,9 @@ function EquipmentGraph({
               </div>
             </div>
 
-            {planetItems.map((item, i) => {
+            {planetItems.map((item) => {
               const p = geo.planets[PLANET_OF[item.id]]
-              const style = { left: p.x - p.d / 2, top: p.y - p.d / 2, width: p.d, '--d': `${p.d}px`, '--i': i } as CSSProperties
+              const style = { left: p.x - p.d / 2, top: p.y - p.d / 2, width: p.d, '--d': `${p.d}px`, '--i': cascadeOrder(item.id) } as CSSProperties
               if (mode === 'edit')
                 return (
                   <EditNode
@@ -435,7 +448,7 @@ function EquipmentGraph({
             {scope && (
               <div
                 className={styles.scope}
-                style={{ left: geo.scope.x, top: geo.scope.y }}
+                style={{ left: geo.scope.x, top: geo.scope.y, '--i': SCOPE_ORDER } as CSSProperties}
                 data-status={scope.status}
                 data-list-host={listKind === SCOPE ? 'open' : undefined}
               >
@@ -470,48 +483,6 @@ function EquipmentGraph({
   )
 }
 
-/** 항성 테두리 바깥의 이글거리는 빛줄기 (크기·간격·밝기가 고르지 않은 흐린 타원 두 묶음이 서로 반대로 아주 천천히 돈다) */
-function Corona({ geo }: { geo: SolarGeo }) {
-  const R = geo.sunD / 2
-  const rays = useMemo(() => {
-    let s = 11
-    const r = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646
-    return [40, 30].map((n) =>
-      Array.from({ length: n }, (_, k) => ({
-        ang: (k / n) * 360 + r() * 9,
-        len: R * (0.04 + r() * 0.09),
-        wid: R * (0.015 + r() * 0.025),
-        o: 0.07 + r() * 0.14,
-      })),
-    )
-  }, [R])
-  const origin = { transformOrigin: `${geo.cx}px ${geo.cy}px` }
-  return (
-    <g className={styles.corona}>
-      <defs>
-        <filter id="eq-corona-soft" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation={9} />
-        </filter>
-      </defs>
-      <circle cx={geo.cx} cy={geo.cy} r={R * 1.03} className={styles.halo} strokeWidth={R * 0.06} filter="url(#eq-corona-soft)" />
-      {rays.map((set, gi) => (
-        <g key={gi} className={styles.rays} data-dir={gi} style={origin} filter="url(#eq-corona-soft)">
-          {set.map((ray, k) => (
-            <ellipse
-              key={k}
-              cx={geo.cx + R + ray.len * 0.35}
-              cy={geo.cy}
-              rx={ray.len}
-              ry={ray.wid}
-              opacity={ray.o}
-              transform={`rotate(${ray.ang} ${geo.cx} ${geo.cy})`}
-            />
-          ))}
-        </g>
-      ))}
-    </g>
-  )
-}
 
 /** 궤도: 행성 자리에서 시작해 한 바퀴 (그려질 때 행성에서 출발하는 것처럼) */
 function orbitPath(geo: SolarGeo, p: Planet) {
@@ -523,11 +494,41 @@ function orbitPath(geo: SolarGeo, p: Planet) {
   return `M ${sx} ${sy} A ${p.r} ${p.r} 0 1 1 ${ox} ${oy} A ${p.r} ${p.r} 0 1 1 ${sx} ${sy}`
 }
 
-/** 진행 호: 항성 테두리 중 화면 안에 보이는 부분 (오른쪽 끝 → 아래 끝) */
+/**
+ * 나타나는 차례 (2026-10-11 사용자 결정): 항성이 자리를 잡은 뒤 수성 → 금성 → 지구 → 화성 → 소행성대 → 목성 … 해왕성 → 망원경 순서로 촤라락.
+ * CSS가 --i × 간격만큼 늦춘다 (EquipmentScreen.module.css .node·.belt·.scope)
+ */
+const BELT_ORDER = 4
+const SCOPE_ORDER = 9
+const cascadeOrder = (kind: string) => PLANET_OF[kind] + (PLANET_OF[kind] >= BELT_ORDER ? 1 : 0)
+/** 연결 경과를 보여 주기 시작하는 때: 항성이 옮겨 오는 0.9초 + 마지막(망원경)이 나타나기 시작 + 나타나는 0.3초 (CSS와 같게) */
+const REVEAL_MS = 900 + SCOPE_ORDER * 90 + 300
+
+/** 시작(when)한 뒤 ms가 지나면 true. 동작 줄이기면 바로 */
+function useRevealAfter(when: boolean, ms: number) {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (!when || on) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOn(true)
+      return
+    }
+    const t = window.setTimeout(() => setOn(true), ms)
+    return () => clearTimeout(t)
+  }, [when, ms, on])
+  return on
+}
+
+/**
+ * 진행 호: 항성 테두리 중 화면 안에 보이는 부분 전체 — 위 가장자리에서 왼쪽 가장자리까지 (항성 가운데가 화면 안쪽으로 조금 들어와 있어서
+ * 보이는 테두리는 오른쪽 끝·아래 끝보다 조금 더 돈다. 2026-10-11 사용자: 호가 양 끝에 닿지 않고 중간에서 시작해 중간에서 끝남).
+ * 끝은 가장자리 4px 바깥까지 — 둥근 끝이 화면 안에 보이지 않게
+ */
 function sunArcPath(geo: SolarGeo) {
   const r = geo.sunD / 2 + 1
-  const a0 = Math.asin(Math.min(1, Math.max(0, -geo.cy / r)))
-  const a1 = Math.PI / 2 - Math.asin(Math.min(1, Math.max(0, -geo.cx / r)))
+  const clamp = (v: number) => Math.min(1, Math.max(-1, v))
+  const a0 = Math.asin(clamp(-(geo.cy + 4) / r)) // 위 가장자리(y = -4)와 만나는 곳
+  const a1 = Math.acos(clamp(-(geo.cx + 4) / r)) // 왼쪽 가장자리(x = -4)와 만나는 곳
   return `M ${geo.cx + r * Math.cos(a0)} ${geo.cy + r * Math.sin(a0)} A ${r} ${r} 0 0 1 ${geo.cx + r * Math.cos(a1)} ${geo.cy + r * Math.sin(a1)}`
 }
 

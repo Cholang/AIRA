@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import styles from './SkyBackdrop.module.css'
+import { PAN, skyPan } from '../skyPan'
 
 /**
  * 앱 전체 배경의 은은한 효과 (2026-10-09 사용자 선택 — Codex 시안 mockups/aira-background.html "성운과 별", 세기 1.1):
@@ -103,7 +104,7 @@ export default function SkyBackdrop() {
 
     // 고정된 별: 창 크기·테마가 바뀔 때만 한 번 그린다
     const drawStars = () => {
-      const W = window.innerWidth, H = window.innerHeight
+      const W = window.innerWidth * PAN, H = window.innerHeight * PAN // 밀어도 비지 않게 창보다 크게
       const d = Math.min(window.devicePixelRatio || 1, 1.5)
       starCv.width = Math.round(W * d)
       starCv.height = Math.round(H * d)
@@ -144,8 +145,11 @@ export default function SkyBackdrop() {
     // 반짝이는 별: 6개가 각자 다른 길이로 빛났다 사라지고, 한 번 돌 때마다 다른 자리로
     const glints = Array.from(glintBox.children) as HTMLElement[]
     const placeGlint = (g: HTMLElement, first = false) => {
-      g.style.left = `${rand(6, 94)}%`
-      g.style.top = `${rand(8, 92)}%`
+      // 지금 보이는 자리(밀린 만큼 비켜서) 안에 — 판은 창의 PAN배
+      const { x, y } = skyPan()
+      const W = window.innerWidth, H = window.innerHeight
+      g.style.left = `${((-x + (rand(6, 94) / 100) * W) / (W * PAN)) * 100}%`
+      g.style.top = `${((-y + (rand(8, 92) / 100) * H) / (H * PAN)) * 100}%`
       g.style.setProperty('--r', `${rand(0.85, 1.3)}px`)
       g.style.animationDuration = `${rand(5, 9) + rand(1.4, 2.6) * GLINTS}s` // 빛나는 시간 + 쉬는 시간 (평균 2초에 하나꼴)
       if (first) g.style.animationDelay = `${-rand(0, 20)}s`
@@ -157,7 +161,7 @@ export default function SkyBackdrop() {
 
     const resize = () => {
       const W = window.innerWidth, H = window.innerHeight
-      stars = Array.from({ length: Math.min(130, Math.round((W * H) / 15000)) }, () => ({ x: Math.random(), y: Math.random(), r: rand(0.45, 1), a: rand(0.08, 0.25) }))
+      stars = Array.from({ length: Math.min(130 * PAN * PAN, Math.round((W * H * PAN * PAN) / 15000)) }, () => ({ x: Math.random(), y: Math.random(), r: rand(0.45, 1), a: rand(0.08, 0.25) }))
       drawStars()
       newComet()
     }
@@ -208,6 +212,9 @@ export default function SkyBackdrop() {
 
   return (
     <div ref={root} className={styles.sky} aria-hidden="true">
+      {/* 카메라가 움직이는 연출(2026-10-11): 성운·별·반짝이는 별은 창보다 크게(오른쪽·아래로 PAN배) 그려 두고 --sky-pan-x/y만큼 함께 민다 (skyPan.ts).
+          혜성은 밀지 않는다 — 시간 표시 역할 */}
+      <div className={styles.pan}>
       {/* 성운 두 층: 바깥(가로 흐름) → 안(세로 흐름) → 돌기 → 그림(커짐). 모두 transform이라 그래픽 하드웨어가 합성 */}
       {[0, 1].map((i) => (
         <div key={i} className={styles.driftX} data-layer={i}>
@@ -223,6 +230,7 @@ export default function SkyBackdrop() {
         {Array.from({ length: GLINTS }, (_, i) => (
           <span key={i} />
         ))}
+      </div>
       </div>
       <span ref={cometRef} className={styles.comet} />
     </div>

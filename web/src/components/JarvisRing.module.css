@@ -189,3 +189,46 @@
     animation: none !important;
   }
 }
+
+/* ── 도는 태양 표면 (2026-10-11 사용자 결정, SunSurface — 엔진 켜기 원·장비 연결 태양만) ──
+   표면은 바깥 고리(92%) 안에. 진행 중에는 테두리를 도는 빛 대신 표면이 돈다(완료 반짝임·실패 점멸은 그대로).
+   무늬가 글자 뒤를 지나가도 읽히게 글자 뒤만 살짝 어둡게 */
+.surface {
+  position: absolute;
+  left: 4%;
+  top: 4%;
+  width: 92%;
+  height: 92%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ring[data-surface='true'][data-state='working']::before {
+  inset: 4%;
+  background: none;
+  mask: none;
+  -webkit-mask: none;
+  animation: none;
+  box-shadow: inset 0 0 0 1px var(--glass-line);
+}
+
+.ring[data-surface='true'] .line {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.42), rgb(0 0 0 / 0.22) 70%, transparent);
+}
+
+:global(:root[data-theme='night']) .ring[data-surface='true'] .line {
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.35) 70%, transparent);
+}
+
+/* 글자가 없는 원(장비 연결 태양)에는 어두운 바탕도 없게 */
+.ring[data-surface='true'] .line:empty {
+  padding: 0;
+  background: none;
+}
+
+/* 앞 화면에서 이미 반짝인 완료 원을 이어 보여 줄 때: 반짝임 없이 끝 모습 그대로 */
+.ring[data-still='true']::before {
+  animation: none;
+}
