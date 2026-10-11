@@ -539,6 +539,29 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
     }
 
     /// <summary>
+    /// 아이라를 끄기 전 (CX-20-02): 하던 작업과 계속 도는 장비(가이딩)를 멈추고 멈춘 것을 확인한다. 상태(결과·표시)는 건드리지 않는다.
+    /// 시작하지 않았으면 할 일 없음. 정지를 확인하지 못하면 false (화면은 "장비 상태 다시 확인"을 보여 준다)
+    /// </summary>
+    public async Task<bool> StopForQuitAsync()
+    {
+        lock (_gate) if (_ctx is null) return true;
+        Func<Task> again = () => Task.CompletedTask;
+        if (!await StopCurrentAsync(again) || !await StopLingeringAsync(_tasks.Select(t => t.Id).ToList(), again)) return false;
+        // 멈춘 작업은 "다시 확인 필요"로 — 진행 중으로 남으면 종료가 프로그램을 닫지 않는다(PrepareBusy)
+        lock (_gate)
+        {
+            if (_cur is { Finished: false } c && _rows[c.Task.Id].Status is PrepTaskStatus.Running or PrepTaskStatus.Waiting)
+            {
+                _rows[c.Task.Id] = (PrepTaskStatus.NeedsRecheck, null);
+                c.Ask = null;
+                c.Actions = [];
+                Changed();
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
     /// 다른 묶음이 장비를 쓰기 전에 이 묶음을 멈춰 둔다 (PrepareFlow): 하던 작업·계속 도는 장비(가이딩)를 멈추고 확인한 뒤,
     /// ids(영향받는 작업)를 "다시 확인 필요"로 바꾸고 결과를 지운다. handoff = 화면이 갈 묶음. 같은 열쇠로 Start하면 이어서 한다.
     /// 시작하지 않았으면 할 일 없음. 정지를 확인하지 못하면 false.
@@ -643,7 +666,16 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
         Current? cur;
         lock (_gate) cur = _cur;
         if (cur is null || _ctx is null || !TempSkippable.Contains(cur.Task.Id)) return "지금은 넘길 작업이 없습니다";
-        if (!await StopCurrentAsync(() => Task.CompletedTask)) return "장비가 멈췄는지 확인하지 못했습니다";
+        // 정지 확인에 실패했다가 "장비 상태 다시 확인"으로 확인되면 같은 마무리를 한다 (CX-20-09 — 전에는 빈 동작이라 버튼이 돌아오지 않았다)
+        if (!await StopCurrentAsync(() => { FinishTempSkip(cur); return Task.CompletedTask; })) return "장비가 멈췄는지 확인하지 못했습니다";
+        FinishTempSkip(cur);
+        return null;
+    }
+
+    /// <summary>[임시] 건너뛰기 마무리: 건너뜀 결과 · 완료 표시 · 다음 작업 버튼</summary>
+    private void FinishTempSkip(Current cur)
+    {
+        if (_ctx is null) return;
         var now = _ctx.Now();
         object result = cur.Task.Id == "polar"
             ? new PolarResult(null, 0, 0, "건너뜀(임시)", now, Skipped: true)
@@ -652,7 +684,7 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
         log.LogInformation("[임시] 건너뛰기: {Task}", cur.Task.Id);
         lock (_gate)
         {
-            if (_cur != cur) return null;
+            if (_cur != cur) return;
             cur.Finished = true;
             cur.Ask = null;
             cur.Actions = [];
@@ -664,7 +696,6 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
             cur.Actions = next is null ? [_setup.Finish] : [new PrepAction("next", next.StartLabel, true), .. next.StartAlternatives];
             Changed();
         }
-        return null;
     }
 
     private async Task<bool> StopCurrentAsync(Func<Task> then)

@@ -103,7 +103,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                 }
             }
             var moved = await devices.MoveAsync(start, ct);
-            if (!moved.Ok) { if (await FocuserErrorAsync(run, moved.Stalled, moved.Problem, ct)) continue; return ManualDone(ctx); }
+            if (!moved.Ok) { if (await FocuserErrorAsync(run, moved.Stalled, moved.Problem, ct)) continue; await devices.StopAsync(ct); return ManualDone(ctx); }
 
             run.SubStep(1);
             run.Guide("별 크기 측정", "포커서를 조금씩 옮기며 별 크기를 잽니다. 가장 작아지는 위치를 찾습니다.");
@@ -124,7 +124,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                 await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
                 if (await devices.StopAsync(ct)) af = af with { StopUnconfirmed = false };
             }
-            if (af.Stalled) { if (await FocuserErrorAsync(run, true, af.Problem, ct)) continue; return ManualDone(ctx); }
+            if (af.Stalled) { if (await FocuserErrorAsync(run, true, af.Problem, ct)) continue; await devices.StopAsync(ct); return ManualDone(ctx); }
             if (!af.StarsFound)
             {
                 // 별이 안 보임 → 범위 안에서 넓게 훑기
@@ -223,10 +223,12 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {
-        if (!ctx.HasFocuser || ctx.Results.Get<FocusResult>() is { Manual: true }) return EndStateCheck.Pass;
+        if (!ctx.HasFocuser) return EndStateCheck.Pass;
         var s = await devices.ReadEndStateAsync(ct);
         if (s.Error) return EndStateCheck.Fail("포커서가 오류(멈춤 감지) 상태입니다");
         if (s.Moving) return EndStateCheck.Fail("포커서가 아직 움직이고 있습니다");
+        // 손으로 맞춤("지금 초점으로 진행" 포함): 위치는 보지 않지만 모터가 멈춘 것은 확인한다 — 초점을 받아들이는 것과 정지 확인은 별개 (CX-20-04)
+        if (ctx.Results.Get<FocusResult>() is { Manual: true }) return EndStateCheck.Pass;
         if (s.Position != _best) return EndStateCheck.Fail($"포커서가 가장 좋은 위치({_best:N0})에 있지 않습니다");
         return EndStateCheck.Pass;
     }

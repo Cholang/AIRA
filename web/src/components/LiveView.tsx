@@ -181,32 +181,51 @@ function Histogram({ data }: { data: unknown }) {
 }
 
 /**
- * 실제 이미지. refresh면 받기가 끝난 뒤 1초 쉬고 다음 것을 받는다(창 캡처·가이드 사진 — 요청이 겹치지 않게).
- * 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 바뀐 뒤에 늦게 온 응답은 버린다. 받기 전·실패면 하늘색 바탕만
+ * 실제 이미지. refresh(창 캡처·가이드 사진·자동초점 사진)면 1초마다 서버에 묻되, **사진이 바뀌었을 때만** 받는다 —
+ * 지난번 표지(ETag)를 보내 같으면 서버가 304로 아무것도 보내지 않는다 (2026-10-11 Gemini 리뷰: 같은 사진을 1초마다 통째로 받아 다시 그리던 것).
+ * 창이 가려져 있으면 묻지 않는다. 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 받기 전·실패면 하늘색 바탕만
  */
 function RealImage({ url, refresh, stamp }: { url: string; refresh: boolean; stamp: string }) {
   const [shown, setShown] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
     let timer = 0
-    let n = 0
-    const load = () => {
-      const src = `${url}${url.includes('?') ? '&' : '?'}t=${refresh ? n++ : encodeURIComponent(stamp)}`
-      const img = new Image()
-      const next = () => {
-        if (alive && refresh) timer = window.setTimeout(load, 1000)
-      }
-      img.onload = () => {
-        if (alive) setShown(src)
-        next()
-      }
-      img.onerror = next
-      img.src = src
+    let tag: string | null = null
+    let objectUrl: string | null = null
+    const next = () => {
+      if (alive && refresh) timer = window.setTimeout(load, 1000)
     }
-    load()
+    const load = async () => {
+      if (document.hidden) return next() // 창이 가려져 있으면 쉬었다가 다시
+      const src = refresh ? url : `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(stamp)}`
+      try {
+        const res = await fetch(src, { cache: 'no-store', headers: tag ? { 'If-None-Match': tag } : {} })
+        if (res.status === 200) {
+          tag = res.headers.get('ETag')
+          const blobUrl = URL.createObjectURL(await res.blob())
+          // 다 읽은 뒤에 바꾼다 (깜빡이지 않게)
+          const img = new Image()
+          img.src = blobUrl
+          await img.decode().catch(() => undefined)
+          if (!alive) {
+            URL.revokeObjectURL(blobUrl)
+            return
+          }
+          const old = objectUrl
+          objectUrl = blobUrl
+          setShown(blobUrl)
+          if (old) window.setTimeout(() => URL.revokeObjectURL(old), 1000)
+        }
+      } catch {
+        /* 받지 못함 — 다음에 다시 */
+      }
+      next()
+    }
+    void load()
     return () => {
       alive = false
       clearTimeout(timer)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [url, refresh, stamp])
   return shown ? <img className={styles.photo} src={shown} alt="" /> : null

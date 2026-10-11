@@ -35,24 +35,28 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
     /// <summary>아이라(서버)가 켜진 시각 — 이 뒤에 켜진 Wanderer Empire는 아이라의 장비 연결이 켠 것</summary>
     private static readonly DateTime StartedAt = Process.GetCurrentProcess().StartTime;
 
-    /// <summary>지금 떠 있어서 닫을 프로그램 (차례대로). Empire는 아이라가 켜진 뒤에 켜진 것만 — 사용자가 켜 둔 것은 그대로</summary>
+    /// <summary>
+    /// 아이라 종료 때 닫을 프로그램 (차례대로): 지금 떠 있고 **아이라가 켜진 뒤에 켜진 것만** — 아이라보다 먼저 켜져 있던 PHD2·SharpCap·Empire는
+    /// 사용자가 켠 것이라 그대로 둔다 (CX-20-06, 2026-10-11 사용자 동의). 아이라가 켜진 뒤 사용자가 직접 켠 것까지 가리지는 못한다
+    /// </summary>
     public IReadOnlyList<Target> Targets() =>
-        Order.Where(o => Running(o.Id, o.Processes)).Select(o => new Target(o.Id, o.Name)).ToList();
+        Order.Where(o => Running(o.Processes, onlyOurs: true)).Select(o => new Target(o.Id, o.Name)).ToList();
 
     /// <summary>
     /// 프로그램 하나를 닫는다 (창을 닫게 하고 15초 기다림). 다 닫혔으면 true (저장 확인 창 등으로 안 닫히면 false).
-    /// Empire는 N.I.N.A.가 남아 있으면 닫지 않는다 (N.I.N.A.가 파워박스를 잃으면 오류 창)
+    /// N.I.N.A.가 남아 있으면 PHD2·SharpCap·Empire는 닫지 않는다 — N.I.N.A.가 연결을 잃었다는 오류 창을 띄우고, 차례 보장이 깨진다 (CX-20-02).
+    /// onlyOurs면 아이라가 켜진 뒤에 켜진 것만 (아이라 종료). 마무리의 장비 정리는 모두 닫는다(Empire만 아이라가 켠 것)
     /// </summary>
-    public async Task<bool> CloseOneAsync(string id, CancellationToken ct)
+    public async Task<bool> CloseOneAsync(string id, CancellationToken ct, bool onlyOurs = true)
     {
         var entry = Order.FirstOrDefault(o => o.Id == id);
         if (entry.Id is null) return false;
         if (id == "nina") watcher.ExpectExit(); // 정상 종료 — 화면에 "N.I.N.A.가 꺼졌어요"를 띄우지 않는다 (CX-APP-R4)
+        else if (Running(["NINA"], onlyOurs: false)) return false;
         if (id == "empire")
         {
-            if (Running("nina", ["NINA"])) return false;
             CloseEmpireStartedSince(StartedAt, entry.Processes);
-            return !Running(id, entry.Processes);
+            return !Running(entry.Processes, onlyOurs: true);
         }
         var all = true;
         foreach (var name in entry.Processes)
@@ -60,6 +64,7 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
             {
                 try
                 {
+                    if (onlyOurs && StartedBefore(p)) continue; // 아이라보다 먼저 켜져 있던 것 (사용자가 켠 것)
                     p.CloseMainWindow();
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts.CancelAfter(TimeSpan.FromSeconds(15));
@@ -80,13 +85,13 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
         var all = true;
         watcher.ExpectExit();
         foreach (var id in new[] { "nina", "phd2", "sharpcap" })
-            all &= await CloseOneAsync(id, ct);
+            all &= await CloseOneAsync(id, ct, onlyOurs: false);
         if (all) await CloseOneAsync("empire", ct);
         if (all) _launched = false;
         return all;
     }
 
-    private static bool Running(string id, string[] processes)
+    private static bool Running(string[] processes, bool onlyOurs)
     {
         foreach (var name in processes)
             foreach (var p in Process.GetProcessesByName(name))
@@ -95,12 +100,19 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
                     try
                     {
                         if (p.HasExited) continue;
-                        if (id == "empire" && p.StartTime < StartedAt) continue;
+                        if (onlyOurs && StartedBefore(p)) continue;
                         return true;
                     }
                     catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                 }
         return false;
+    }
+
+    /// <summary>아이라(서버)보다 먼저 켜져 있던 프로세스 — 사용자가 켠 것으로 본다. 시각을 못 읽으면 먼저 켜진 것으로 (닫지 않는 쪽)</summary>
+    private static bool StartedBefore(Process p)
+    {
+        try { return p.StartTime < StartedAt; }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
     }
 
     /// <summary>

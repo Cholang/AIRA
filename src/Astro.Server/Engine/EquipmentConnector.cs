@@ -149,7 +149,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     {
         if (options.Value.Simulate || d.Id is null || !DevicePrecheck.CanSee(host, d.Slot.Kind, d.Id)) return false;
         if (!(await DevicePrecheck.CheckAsync(host, d.Slot.Kind, d.Id, d.Slot.Role, TimeSpan.Zero, ct)).Ok) return false;
-        if (_hubNoPower) power?.Learn(d.Slot.Kind, d.Slot.Kind == "mount" ? Profiles.PowerWiring.Dc : null, "파워박스 입력 0V인데 PC에 보임");
+        // 배선은 고치지 않는다: 0V·USB가 보인다는 것만으로는 전원 경로를 알 수 없다 (적도의 출력 꺼짐·케이블 빠짐·USB 전원만 등, CX-20-07)
         return true;
     }
 
@@ -209,9 +209,11 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     {
         Task done;
         List<string> kinds;
+        bool inFlight;
         lock (_gate)
         {
             if (_runCts is null) return [];
+            inFlight = state.InFlight.Count > 0;
             _runCts.Cancel();
             done = _runDone?.Task ?? Task.CompletedTask;
             kinds = [.. _touched];
@@ -220,28 +222,40 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         try { await done.WaitAsync(TimeSpan.FromSeconds(5), ct); } catch (TimeoutException) { }
         if (options.Value.Simulate) return [];
 
-        // 모든 장비를 함께 1초마다 보며 붙어 있으면 끊는다 (허브는 다른 장비가 다 끊긴 뒤에). 3번 연속 모두 끊긴 채면 끝.
-        // 하던 연결이 늦게 붙으면 다시 끊는다 (최대 30초) — 장비마다 차례로 지켜보면 17초 걸렸음 (2026-10-09 시험)
+        // 모든 장비를 함께 1초마다 보며 붙어 있으면 끊는다 (허브는 다른 장비가 다 끊긴 뒤에). 모두 끊긴 채로 몇 번 연속이면 끝.
+        // 하던 연결이 늦게 붙으면 다시 끊는다 (최대 30초) — 장비마다 차례로 지켜보면 17초 걸렸음 (2026-10-09 시험).
+        // CX-20-01: N.I.N.A.에 보낸 연결 요청이 아직 답이 없었으면(취소해도 N.I.N.A.는 끝까지 함) 3초가 아니라 10초 동안 조용해야 끝,
+        // 상태를 읽지 못한 것은 끊긴 것으로 치지 않는다 — 끝까지 모르면 "확인 못 함"으로 돌려준다
         var order = Slots.Select(s => s.Kind).Reverse().Where(kinds.Contains).ToList();
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        var needQuiet = inFlight ? 10 : 3;
         var quiet = 0;
         var still = new List<string>();
-        while (quiet < 3 && DateTime.UtcNow < deadline)
+        var unknown = new List<string>();
+        while (quiet < needQuiet && DateTime.UtcNow < deadline)
         {
             still.Clear();
+            unknown.Clear();
             foreach (var kind in order)
-                if (await nina.IsConnectedAsync(kind, ct)) still.Add(kind);
-            if (still.Count == 0) quiet++;
+                switch (await nina.ConnectedStateAsync(kind, ct))
+                {
+                    case true: still.Add(kind); break;
+                    case null: unknown.Add(kind); break;
+                }
+            if (still.Count == 0 && unknown.Count == 0) quiet++;
             else
             {
                 quiet = 0;
                 var others = still.Where(k => k != Hub).ToList();
-                await Task.WhenAll((others.Count > 0 ? others : still).Select(k => nina.DisconnectAsync(k, ct)));
+                if (still.Count > 0) await Task.WhenAll((others.Count > 0 ? others : still).Select(k => nina.DisconnectAsync(k, ct)));
             }
             await Task.Delay(1000, ct);
         }
-        foreach (var kind in order.Except(still)) live.Forget(kind);
-        return still.Select(k => FindSlot(k)?.Role ?? k).ToList();
+        lock (_gate) state.InFlight.Clear();
+        foreach (var kind in order.Except(still).Except(unknown)) live.Forget(kind);
+        return still.Select(k => FindSlot(k)?.Role ?? k)
+            .Concat(unknown.Select(k => $"{FindSlot(k)?.Role ?? k}(상태를 읽지 못함)"))
+            .ToList();
     }
 
     public async IAsyncEnumerable<CheckResult> RunAsync([EnumeratorCancellation] CancellationToken outer = default)
@@ -280,9 +294,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             var result = await ConnectTimedAsync(d, ct);
             yield return result;
             if (d.Slot.Kind == Hub && result.Status != CheckStatus.Pass) hubFailed = true;
-            // 적도의 먼저(적도의 → 파워박스)인데 파워박스에 전원이 없는 채로 적도의가 연결됨 → 파워박스는 적도의에서 받지 않는다
-            if (_hubNoPower && d.Slot.Kind == "mount" && result.Status == CheckStatus.Pass && wiring.SourceOf(Hub) == Profiles.PowerWiring.Mount)
-                power?.Learn(Hub, Profiles.PowerWiring.Dc, "파워박스 입력 0V인데 적도의가 연결됨");
+            // (예전: 파워박스 0V인데 적도의가 연결되면 "파워박스는 DC 직결"로 저장 — 적도의 출력 꺼짐·케이블 빠짐과 구분할 수 없어 뺐다, CX-20-07)
         }
         ConnectTimingLog.Append($"{DateTime.Now:HH:mm:ss.fff}  === 장비 연결 끝 {runClock.ElapsedMilliseconds}ms");
         }
@@ -331,7 +343,11 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         _timing = new ConnectTimingLog();
         try
         {
+            _learnOnPass = null;
             var result = await ConnectOneAsync(d, ct, forceFail);
+            if (result.Status == CheckStatus.Pass && _learnOnPass is { } learn && learn.Kind == d.Slot.Kind)
+                power?.Learn(learn.Kind, Profiles.PowerWiring.Hub, learn.Evidence);
+            _learnOnPass = null;
             _timing.Write(d.Slot.Kind, result.Status.ToString(), (retry ? "다시 연결 · " : "") + result.Message);
             log.LogInformation("장비 연결 {Kind}: {Status} — {Message}{Retry}", d.Slot.Kind, result.Status, result.Message, retry ? " (다시 연결)" : "");
             return result;
@@ -415,9 +431,11 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                     // 카메라 전원을 허브 출력에서 받으면(장비 변경에서 고르고 전압을 확인받음) 그 출력을 켜고 카메라가 나타나기를 20초 기다린다 (J05, 10/09 실기: 14초 — 2026-10-10 30초에서 줄임)
                     if (!pre.Ok && kind == "camera" && cameraPower.Outlet is { } outlet && await nina.IsConnectedAsync(Hub, ct))
                     {
+                        var before = _switchedOnAt;
                         var turned = await SetHubOutputAsync(n => n == outlet, true, ct);
+                        var switchedNow = _switchedOnAt != before; // 이미 켜져 있던 출력이면 "켜자 나타남"의 증거가 아니다
                         pre = turned == true
-                            ? await DevicePrecheck.CheckAsync(host, kind, d.Id, d.Slot.Role, TimeSpan.FromSeconds(20), ct) is { Ok: true } p ? Learned(p, kind, "파워박스 출력을 켜자 PC에 나타남")
+                            ? await DevicePrecheck.CheckAsync(host, kind, d.Id, d.Slot.Role, TimeSpan.FromSeconds(20), ct) is { Ok: true } p ? LearnIfConnected(p, kind, switchedNow, "파워박스 출력을 켜자 나타나 연결됨")
                                 : new(false, $"카메라 전원(허브 {ShortOutlet(outlet)})을 켰지만 카메라가 PC에 보이지 않습니다",
                                     $"카메라 전원 스위치가 ON인지, 전원 어댑터가 허브 {ShortOutlet(outlet)}에 꽂혀 있는지, USB 케이블을 확인해 주세요.")
                             : new(false, $"카메라 전원(허브 {ShortOutlet(outlet)})을 켜지 못했습니다",
@@ -446,7 +464,9 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                         ? Make(d, CheckStatus.Warn, $"N.I.N.A.가 {d.Slot.Role}{Reul(d.Slot.Role)} 찾지 못해 {d.Slot.Role} 없이 진행합니다", miss)
                         : Make(d, CheckStatus.Fail, $"N.I.N.A.가 {d.Slot.Role}{Reul(d.Slot.Role)} 찾지 못했습니다", miss);
                 }
-                connected = await nina.ConnectAsync(kind, d.Id, ct) && await nina.IsConnectedAsync(kind, ct);
+                lock (_gate) state.InFlight.Add(kind);
+                try { connected = await nina.ConnectAsync(kind, d.Id, ct) && await nina.IsConnectedAsync(kind, ct); }
+                finally { if (!ct.IsCancellationRequested) lock (_gate) state.InFlight.Remove(kind); } // 취소됐으면 남겨 둔다 — 종료가 늦은 연결을 더 오래 지켜보게
                 _timing?.Step("N.I.N.A. 연결");
             }
             // 허브가 USB로만 붙고 전원(DC)이 안 들어오면(10/09: USB만으로도 연결됨) 뒤 장비를 N.I.N.A.에 맡기지 않는다 —
@@ -518,12 +538,18 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     /// <summary>"Regulated 0-13.2V adjustable DC2: DC2" → "DC2"</summary>
     internal static string ShortOutlet(string name) => name.Contains(':') ? name[(name.LastIndexOf(':') + 1)..].Trim() : name;
 
-    /// <summary>파워박스 출력을 켜서 나타난 장비 = 파워박스에서 전원을 받음 (배선을 조용히 고친다)</summary>
-    private DevicePrecheck.Result Learned(DevicePrecheck.Result r, string kind, string evidence)
+    /// <summary>
+    /// 이번에 꺼져 있던 파워박스 출력을 켜서 나타난 장비 = 파워박스에서 전원을 받음 — 다만 배선은 **실제 연결에 성공한 뒤에만** 조용히 고친다
+    /// (CX-20-07, 2026-10-11 사용자 동의). 연결 결과는 ConnectTimedAsync가 본다
+    /// </summary>
+    private DevicePrecheck.Result LearnIfConnected(DevicePrecheck.Result r, string kind, bool switchedNow, string evidence)
     {
-        power?.Learn(kind, Profiles.PowerWiring.Hub, evidence);
+        if (switchedNow) _learnOnPass = (kind, evidence);
         return r;
     }
+
+    /// <summary>연결에 성공하면 배울 것 (장비, 증거)</summary>
+    private (string Kind, string Evidence)? _learnOnPass;
 
     /// <summary>장비가 PC에 안 보일 때 배선에 맞춰 덧붙이는 말 (적도의·장비가 파워박스에서 받으면 그 출력부터)</summary>
     private string WiringHint(string kind) =>
@@ -729,4 +755,6 @@ public sealed class EquipmentRun
     public CancellationTokenSource? Cts { get; set; }
     public TaskCompletionSource? Done { get; set; }
     public List<string> Touched { get; } = [];
+    /// <summary>N.I.N.A.에 연결 요청을 보내고 아직 답을 받지 못한 장비 — 취소해도 N.I.N.A.는 그 연결을 끝까지 할 수 있다 (CX-20-01)</summary>
+    public HashSet<string> InFlight { get; } = [];
 }

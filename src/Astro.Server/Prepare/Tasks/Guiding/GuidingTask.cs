@@ -126,7 +126,8 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {
         var s = await devices.ReadEndStateAsync(ct);
-        if (ctx.Results.Get<GuidingResult>() is { Skipped: true }) return EndStateCheck.Pass; // 가이딩 없이 진행
+        // 가이딩 없이 진행: 가이딩은 없어야 한다 — 멈추지 못했으면 끝으로 치지 않는다 (CX-20-08과 같은 경계)
+        if (ctx.Results.Get<GuidingResult>() is { Skipped: true }) return s.Guiding ? EndStateCheck.Fail("PHD2가 아직 가이딩 중입니다") : EndStateCheck.Pass;
         if (!s.Guiding) return EndStateCheck.Fail("PHD2가 가이딩하고 있지 않습니다");
         if (!s.Settled) return EndStateCheck.Fail("가이딩이 아직 안정되지 않았습니다");
         if (s.StarLostRecently > 0) return EndStateCheck.Fail("방금 가이드 별을 잃었습니다");

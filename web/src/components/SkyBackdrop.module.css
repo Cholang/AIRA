@@ -1,13 +1,19 @@
-/* 앱 전체 배경 효과: 창 전체(틀 바깥 여백 포함)에 깔고, 앱 틀은 그 위에 투명하게 (SkyBackdrop.tsx) */
+/* 앱 전체 배경 효과: 창 전체(틀 바깥 여백 포함)에 깔고, 앱 틀은 그 위에 투명하게 (SkyBackdrop.tsx).
+   움직임은 모두 transform·opacity 애니메이션 — 그래픽 하드웨어가 합성만 하고 자바스크립트·스타일 계산은 프레임마다 돌지 않는다 (2026-10-11) */
 .sky {
+  /* 반짝이는 별·혜성 색 (고정된 별은 그림에 같은 색으로) */
+  --star: 235 232 227;
+  --k: 1.1;
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0;
   transition: opacity 1.6s ease;
+}
+
+:global(:root[data-theme='night']) .sky {
+  --star: 150 0 0;
 }
 
 /* 성운 무늬가 만들어진 뒤 천천히 나타난다 */
@@ -15,6 +21,149 @@
   opacity: 1;
 }
 
+/* ── 성운 두 층: 예전 그리기 식(사인파)을 CSS로 — 가로 ±11.25%(약 88초 주기) · 세로 ±8.25%(약 113초) · 돌기 ±4.4°(약 133초) · 커짐 1.46±0.085(약 82초).
+   한 요소에 transform 애니메이션은 하나뿐이라 층을 겹쳐 나눈다. 둘째 층은 방향을 거꾸로, 시작 시점(위상)을 다르게 ───────── */
+.driftX,
+.driftY,
+.spin {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.driftX {
+  animation: driftX 43.8s ease-in-out infinite alternate;
+}
+
+.driftY {
+  animation: driftY 56.4s ease-in-out infinite alternate;
+}
+
+.spin {
+  animation: turn 66.3s ease-in-out infinite alternate;
+}
+
+.cloud {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 146vw;
+  height: 146vh;
+  margin: -73vh 0 0 -73vw;
+  opacity: min(1, calc(var(--k) * 0.9));
+  will-change: transform;
+  animation: grow 41.2s ease-in-out infinite alternate;
+}
+
+.driftX[data-layer='1'] {
+  animation-direction: alternate-reverse;
+  animation-delay: -20s;
+}
+
+.driftX[data-layer='1'] .driftY {
+  animation-delay: -36s;
+}
+
+.driftX[data-layer='1'] .spin {
+  animation-direction: alternate-reverse;
+  animation-delay: -31s;
+}
+
+.driftX[data-layer='1'] .cloud {
+  opacity: min(1, calc(var(--k) * 0.65));
+  animation-delay: -24s;
+}
+
+@keyframes driftX {
+  from { transform: translateX(-11.25vw); }
+  to { transform: translateX(11.25vw); }
+}
+
+@keyframes driftY {
+  from { transform: translateY(-8.25vh); }
+  to { transform: translateY(8.25vh); }
+}
+
+@keyframes turn {
+  from { transform: rotate(-4.4deg); }
+  to { transform: rotate(4.4deg); }
+}
+
+@keyframes grow {
+  from { transform: scale(0.942); }
+  to { transform: scale(1.058); }
+}
+
+/* 고정된 별: 한 번 그린 그림 */
+.stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── 반짝이는 별: 빛났다 사라지고 쉬다가 다른 자리에서 (JS는 한 바퀴 돌 때 자리만 바꾼다) ───────── */
+.glints {
+  position: absolute;
+  inset: 0;
+  opacity: min(1, var(--k));
+}
+
+.glints span {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--star) / 0.65) 0 var(--r, 1px), rgb(var(--star) / 0.18) calc(var(--r, 1px) + 0.6px), transparent 9px);
+  opacity: 0;
+  will-change: opacity;
+  animation: glint 14s ease-in-out infinite;
+}
+
+/* 앞쪽 절반 동안 빛났다 사라지고(sin² 모양) 나머지는 쉰다 */
+@keyframes glint {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* ── 혜성: 꼬리(오른쪽 끝이 머리) + 머리 빛. 움직임은 JS가 만든 transform 애니메이션(Web Animations — 그래픽 하드웨어가 합성) ───────── */
+.comet {
+  position: absolute;
+  left: calc(-1 * var(--tail, 60px));
+  top: -1.5px;
+  width: var(--tail, 60px);
+  height: 3px;
+  border-radius: 2px;
+  transform-origin: 100% 50%;
+  background: linear-gradient(to right, rgb(var(--star) / 0), rgb(var(--star) / 0.035) 65%, rgb(var(--star) / 0.24));
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.comet::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: -4.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--star) / 0.65) 0 1.2px, rgb(var(--star) / 0.3) 1.8px, transparent 6px);
+}
+
+/* 멈춤(동작 줄이기): 성운은 그 자리에 멈추고, 반짝임·혜성은 없음 */
+.sky[data-still='true'] :is(.driftX, .driftY, .spin, .cloud) {
+  animation-play-state: paused;
+}
+
+.sky[data-still='true'] :is(.glints, .comet) {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sky { transition: none; }
+  .sky {
+    transition: none;
+  }
 }

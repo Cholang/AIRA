@@ -57,4 +57,32 @@ public class FocuserParkTests
         store.Clear(); // 포커서가 0을 떠남 (RealFocusDevices 이동·자동초점)
         Assert.Null(new FocuserParkStore(root).ParkedAt);
     }
+
+    [Fact]
+    public async Task 위치를_읽지_못하면_0에_두었다고_기록하지_않는다_CX_20_05()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "aira-park-" + Guid.NewGuid().ToString("N"));
+        var (park, store, devices) = Make(root);
+        await park.ParkAsync(CancellationToken.None);
+        Assert.NotNull(store.ParkedAt); // 전에 0에 두고 끝냄
+        var blind = new FocuserPark(new PrepareMode(false), new Blind(devices), store,
+            new ServiceCollection().AddSingleton(new PrepareFlow([], NullLogger<PrepareRunner>.Instance, simulated: true)).BuildServiceProvider(),
+            new ShootSession(new SimulatedShootDevices(Fast, new SimFaults()), new PrepareMode(true), NullLogger<ShootSession>.Instance), NullLogger<FocuserPark>.Instance);
+        Assert.NotNull(await blind.ParkAsync(CancellationToken.None)); // 문제로 돌려준다
+        Assert.Null(store.ParkedAt); // 지난 기록도 더는 믿지 않는다
+        Assert.False(await blind.ReadyAsync(CancellationToken.None));
+    }
+
+    /// <summary>연결은 되는데 상태(위치)를 읽지 못하는 포커서</summary>
+    private sealed class Blind(SimulatedFocusDevices inner) : IFocusDevices
+    {
+        public Task<(int Min, int Max)> LimitsAsync(CancellationToken ct) => inner.LimitsAsync(ct);
+        public Task<int> PositionAsync(CancellationToken ct) => Task.FromResult(0); // 예전 "?? 0"처럼 0을 돌려줘도
+        public Task<double?> TemperatureAsync(CancellationToken ct) => inner.TemperatureAsync(ct);
+        public Task<FocuserMove> MoveAsync(int position, CancellationToken ct) => inner.MoveAsync(position, ct);
+        public Task<AutofocusRun> AutofocusAsync(Action<int, double> point, CancellationToken ct) => inner.AutofocusAsync(point, ct);
+        public Task<int?> CoarseSearchAsync(int min, int max, int from, Action<int> visiting, CancellationToken ct) => inner.CoarseSearchAsync(min, max, from, visiting, ct);
+        public Task<bool> StopAsync(CancellationToken ct) => inner.StopAsync(ct);
+        public Task<FocusEndState> ReadEndStateAsync(CancellationToken ct) => Task.FromResult(new FocusEndState(false, -1, true));
+    }
 }

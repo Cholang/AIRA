@@ -29,18 +29,42 @@ public sealed class NinaNotices
     /// <summary>아이라가 마지막으로 알림을 만든 시각 — 이때만 N.I.N.A. 알림 창을 숨긴다 (Codex L09: 해석하지 못한 알림은 그대로 보이게)</summary>
     public DateTimeOffset LastAddedAt { get; private set; } = DateTimeOffset.MinValue;
 
-    /// <summary>해석 규칙이 없는 마지막 N.I.N.A. 오류·경고 (알림 창을 돌려주지 않고 원문으로 알리려고 — 2026-10-10)</summary>
-    public (DateTimeOffset At, string Raw)? LastUnknown { get; private set; }
-    public void NoteUnknown(DateTimeOffset at, string raw) { lock (_gate) LastUnknown = (at, raw); }
+    /// <summary>
+    /// 해석 규칙이 없는 N.I.N.A. 오류·경고 — 하나씩 보관해 아직 전하지 않은 것을 원문으로 알린다 (2026-10-10, CX-20-10: 마지막 한 건만 두면
+    /// 여러 경고 중 앞의 것이 사라지고, 다른 알림이 있었다는 것만으로 전한 것으로 쳤다). 오래된 것은 50건까지만
+    /// </summary>
+    private readonly List<(DateTimeOffset At, string Raw, bool Sent)> _unknown = [];
+    public void NoteUnknown(DateTimeOffset at, string raw)
+    {
+        lock (_gate)
+        {
+            _unknown.Add((at, raw, false));
+            if (_unknown.Count > 50) _unknown.RemoveAt(0);
+        }
+    }
 
     /// <summary>
     /// 숨긴 N.I.N.A. 알림 창을 돌려주지 않고 아이라 알림으로 (해석 규칙이 없으면 원문 그대로). since 뒤의 해석 못 한 로그가 없으면 false — 그때만 창을 돌려준다
     /// </summary>
     public bool AddFallback(DateTimeOffset since)
     {
-        if (LastUnknown is not { } u || u.At < since) return false;
-        Add("nina", "N.I.N.A. 알림", [], "아래 원문이 N.I.N.A.가 띄운 알림입니다. 계속 되풀이되면 N.I.N.A. 창에서 자세히 확인해 주세요.", u.Raw, u.At);
-        return true;
+        List<(DateTimeOffset At, string Raw)> due;
+        lock (_gate)
+        {
+            due = _unknown.Where(u => !u.Sent && u.At >= since).Select(u => (u.At, u.Raw)).ToList();
+            for (var i = 0; i < _unknown.Count; i++)
+                if (!_unknown[i].Sent && _unknown[i].At >= since) _unknown[i] = _unknown[i] with { Sent = true };
+        }
+        // 원문마다 따로 (제목이 같으면 1분 안의 것이 횟수로 묶이므로 원문 앞부분을 제목에 붙인다)
+        foreach (var u in due)
+            Add("nina", $"N.I.N.A. 알림: {Short(u.Raw)}", [], "아래 원문이 N.I.N.A.가 띄운 알림입니다. 계속 되풀이되면 N.I.N.A. 창에서 자세히 확인해 주세요.", u.Raw, u.At);
+        return due.Count > 0;
+    }
+
+    private static string Short(string raw)
+    {
+        var line = raw.Split('\n')[0].Trim();
+        return line.Length > 40 ? line[..40] + "…" : line;
     }
 
     /// <summary>
@@ -337,7 +361,8 @@ public sealed class NinaToastHider(NinaNotices notices) : BackgroundService
         // 다시 보여 주지 않는다 — 돌려준 알림을 닫으면 N.I.N.A.가 아이라 위로 올라옴
         if (_hidden != 0 && DateTimeOffset.Now - _hiddenAt > TimeSpan.FromSeconds(5))
         {
-            if (notices.LastAddedAt < _hiddenAt - TimeSpan.FromSeconds(3)) notices.AddFallback(_hiddenAt - TimeSpan.FromSeconds(5));
+            // 다른 알림이 있었다는 것은 이 창의 경고를 전했다는 증거가 아니다 — 아직 전하지 않은 해석 못 한 경고는 모두 전한다 (CX-20-10)
+            notices.AddFallback(_hiddenAt - TimeSpan.FromSeconds(5));
             _hidden = 0;
         }
         var toast = ToastWindow();

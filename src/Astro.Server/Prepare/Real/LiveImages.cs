@@ -10,14 +10,19 @@ namespace Astro.Server.Prepare.Real;
 public sealed class LiveImages(Phd2Client phd2, Astro.Nina.NinaApiClient nina)
 {
     private readonly Lock _gate = new();
-    private readonly Dictionary<string, (byte[] Bytes, string Type, DateTimeOffset At)> _images = [];
+    private readonly Dictionary<string, (byte[] Bytes, string Type, DateTimeOffset At, string Tag)> _images = [];
 
+    /// <summary>
+    /// 새 이미지. 내용이 지난번과 같으면 표지(Tag)를 그대로 둔다 — 화면은 표지가 같으면 다시 받지 않는다(304) (2026-10-11 Gemini 리뷰: 1초마다 같은 사진을 통째로 다시 받던 것).
+    /// At은 가져온 시각 (guide·nina는 2초에 한 번만 다시 가져오려고)
+    /// </summary>
     public void Set(string kind, byte[] bytes, string contentType = "image/png")
     {
-        lock (_gate) _images[kind] = (bytes, contentType, DateTimeOffset.Now);
+        var tag = "\"" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(bytes))[..16] + "\"";
+        lock (_gate) _images[kind] = (bytes, contentType, DateTimeOffset.Now, tag);
     }
 
-    public async Task<(byte[] Bytes, string Type, DateTimeOffset At)?> GetAsync(string kind, CancellationToken ct)
+    public async Task<(byte[] Bytes, string Type, DateTimeOffset At, string Tag)?> GetAsync(string kind, CancellationToken ct)
     {
         // SharpCap: 스크립트가 저장한 영상만 (창 캡처는 메뉴·패널까지 나와 하늘이 작게 보임 — 2026-10-08 실기). 저장본이 없을 때만 창 캡처
         if (kind == "sharpcap" && (SharpCapBridge.LatestView() ?? WindowCapture.Capture("SharpCap")) is { } shot) Set("sharpcap", shot);

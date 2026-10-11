@@ -4,6 +4,7 @@
 interface HostWebView {
   postMessage(message: unknown): void
   addEventListener(type: 'message', listener: (e: { data: unknown }) => void): void
+  removeEventListener(type: 'message', listener: (e: { data: unknown }) => void): void
 }
 
 function host(): HostWebView | undefined {
@@ -34,3 +35,22 @@ host()?.addEventListener('message', (e) => {
   if (confirmClose) confirmClose()
   else closeApp()
 })
+
+/**
+ * 실행 파일 고르기 창 (설정 화면의 "찾아보기" — 데스크톱 창만). 고른 전체 경로, 취소·브라우저면 null.
+ * 웹 화면의 파일 선택은 전체 경로를 알려 주지 않아서 창(MainWindow.xaml.cs "pick-exe")이 고른다
+ */
+export function pickExe(name: string): Promise<string | null> {
+  const h = host()
+  if (!h) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const onMessage = (e: { data: unknown }) => {
+      const d = e.data as { type?: string; name?: string; path?: string | null } | null
+      if (d?.type !== 'picked-exe' || d.name !== name) return
+      h.removeEventListener('message', onMessage)
+      resolve(d.path ?? null)
+    }
+    h.addEventListener('message', onMessage)
+    h.postMessage({ type: 'pick-exe', name })
+  })
+}

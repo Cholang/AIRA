@@ -21,8 +21,17 @@ public static class InstallLocator
     /// 주의: 설치 정보의 DisplayIcon은 설치 프로그램(Package Cache\...\NINASetupBundle.exe)을 가리킬 수 있다.
     /// 그걸 실행하면 "Modify Setup"(Repair/Uninstall) 창이 뜬다 — 절대 실행하면 안 된다.
     /// </summary>
-    public static string? NinaExe(string? configuredPath)
+    /// <summary>설정 화면에서 직접 지정한 N.I.N.A. 경로 (UserSettings가 넣는다 — 2026-10-11). 있으면 가장 먼저</summary>
+    public static string? UserNinaExe { get; set; }
+
+    /// <summary>자동으로 찾은 N.I.N.A. (설정 화면이 "자동으로 찾은 경로"로 보여 준다)</summary>
+    public static string? AutoNinaExe() => NinaExe(null, auto: true);
+
+    public static string? NinaExe(string? configuredPath) => NinaExe(configuredPath, auto: false);
+
+    private static string? NinaExe(string? configuredPath, bool auto)
     {
+        if (!auto && IsNinaExe(UserNinaExe)) return UserNinaExe;
         if (IsNinaExe(configuredPath)) return configuredPath;
 
         var programFiles = new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
@@ -39,7 +48,7 @@ public static class InstallLocator
         return null;
     }
 
-    private static bool IsNinaExe(string? path) =>
+    public static bool IsNinaExe(string? path) =>
         !string.IsNullOrWhiteSpace(path)
         && string.Equals(Path.GetFileName(path), "NINA.exe", StringComparison.OrdinalIgnoreCase)
         && File.Exists(path);

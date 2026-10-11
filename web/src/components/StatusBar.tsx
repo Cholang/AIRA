@@ -6,6 +6,7 @@ import { profileImageUrl, type ObservingSite, type Profile } from '../profiles'
 import { coordText, type CurrentSite } from '../sites'
 import type { Theme } from '../theme'
 import ProfileAvatar from './ProfileAvatar'
+import { SettingsButton } from './Settings'
 import SiteMenu from './SiteMenu'
 import styles from './StatusBar.module.css'
 import ThemeSwitch from './ThemeSwitch'
@@ -136,6 +137,9 @@ export default function StatusBar({
       <time className={styles.clock} dateTime={now.toISOString()}>
         {now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
       </time>
+
+      {/* 설정 (2026-10-11): 어느 화면에서든 — 문제가 생긴 그 자리에서 진단을 내보낼 수 있게 */}
+      <SettingsButton />
 
       <ThemeSwitch value={theme} onChange={onThemeChange} />
 

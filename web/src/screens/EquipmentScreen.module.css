@@ -263,9 +263,19 @@ g[data-on='true'] > .moons {
   visibility: hidden;
 }
 
+/* 항성 오른쪽, 상태 줄 바로 아래 한 줄: [장비 변경] | 관측지 (2026-10-11) — 자리는 늘 같고 관측지는 진행 중에만 보인다 */
+.sunBar {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: appear 400ms ease-out 900ms both;
+}
+
 .modeRow {
   min-height: 34px;
-  margin-top: 10px;
   display: flex;
   align-items: center;
 }
@@ -278,7 +288,8 @@ g[data-on='true'] > .moons {
 /* 지금 관측지: 자리는 항상 있고 진행 호가 차오를 때만 보인다 */
 .siteLine {
   min-height: 26px;
-  margin-top: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
   display: flex;
   align-items: center;
   gap: 10px;

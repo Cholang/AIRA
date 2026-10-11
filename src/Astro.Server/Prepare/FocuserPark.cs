@@ -75,12 +75,16 @@ public sealed class FocuserPark(PrepareMode mode, IFocusDevices devices, Focuser
         try
         {
             if (!await devices.ConnectedAsync(limit.Token)) return "포커서가 연결되지 않음";
-            if (await devices.PositionAsync(limit.Token) != 0)
+            // 위치는 실제로 읽은 값으로만 판단한다 — 읽지 못한 것을 0으로 치면 "0에 두고 끝냄"을 잘못 기록한다 (CX-20-05)
+            var before = await devices.ReadEndStateAsync(limit.Token);
+            if (before.Error) return Unsure("포커서 위치를 읽지 못함");
+            if (before.Position != 0)
             {
                 var moved = await devices.MoveAsync(0, limit.Token);
-                if (!moved.Ok) return moved.Problem ?? "포커서를 0으로 보내지 못함";
+                if (!moved.Ok) return Unsure(moved.Problem ?? "포커서를 0으로 보내지 못함");
             }
-            if (await devices.PositionAsync(limit.Token) != 0) return "포커서가 0에 있지 않음";
+            var after = await devices.ReadEndStateAsync(limit.Token);
+            if (after.Error || after.Moving || after.Position != 0) return Unsure("포커서가 0에 멈춰 있는 것을 확인하지 못함");
             store.Mark();
             log.LogInformation("포커서를 0에 두고 끝냄");
             return null;
@@ -92,6 +96,13 @@ public sealed class FocuserPark(PrepareMode mode, IFocusDevices devices, Focuser
         }
     }
 
+    /// <summary>0에 두지 못했거나 확인하지 못함: 지난 "0에 두고 끝냄" 기록을 더는 믿지 않는다 (다음 점검이 0점 카드를 묻게)</summary>
+    private string Unsure(string why)
+    {
+        store.Clear();
+        return why;
+    }
+
     /// <summary>
     /// 지난번 0에 두고 끝냈고 포커서가 지금도 0을 가리키는가 → 노브를 손으로 맞추지 않아도 된다.
     /// 기록이 없으면(앱이 갑자기 꺼졌거나 전원을 먼저 뽑음) 또는 포커서가 0이 아니면 false — 지금처럼 묻는다
@@ -99,7 +110,8 @@ public sealed class FocuserPark(PrepareMode mode, IFocusDevices devices, Focuser
     public async Task<bool> ReadyAsync(CancellationToken ct)
     {
         if (mode.Simulate || store.ParkedAt is null) return false;
-        try { return await devices.ConnectedAsync(ct) && await devices.PositionAsync(ct) == 0; }
+        // 연결됨 · 위치 0 · 멈춤을 실제로 읽었을 때만 (읽지 못하면 0점 확인을 건너뛰지 않는다, CX-20-05)
+        try { return await devices.ConnectedAsync(ct) && await devices.ReadEndStateAsync(ct) is { Error: false, Moving: false, Position: 0 }; }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return false; }
     }
 }

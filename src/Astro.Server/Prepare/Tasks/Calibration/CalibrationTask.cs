@@ -22,7 +22,8 @@ public sealed record SlewOutcome(bool Ok, double ArrivalErrorDeg, string? Proble
 public sealed record StarPick(bool Found, double Snr, double ExposureSeconds);
 /// <summary>캘리브레이션 결과. Warnings = PHD2 경고(직교 오차·두 축 속도 차·Dec 백래시)</summary>
 public sealed record CalibrationData(bool Ok, double OrthogonalityErrorDeg, double RaRate, double DecRate, IReadOnlyList<string> Warnings, string? Problem = null);
-public sealed record CalibrationEndState(bool HasCalibration, bool Phd2Guiding, bool Phd2Looping, bool MountMoving, bool Tracking);
+/// <param name="Phd2Unknown">PHD2 상태를 읽지 못함 — 멈춘 것으로 치지 않는다 (CX-20-08)</param>
+public sealed record CalibrationEndState(bool HasCalibration, bool Phd2Guiding, bool Phd2Looping, bool MountMoving, bool Tracking, bool Phd2Unknown = false);
 
 /// <summary>
 /// ② 캘리브레이션 (DESIGN.md ②): 위치로 이동 → 별 선택 → 움직임 측정. 자동.
@@ -112,8 +113,9 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
     /// <summary>가이딩 없이 진행: PHD2 루프·적도의 이동을 멈춰 두고 그날 밤 가이딩을 쓰지 않는다</summary>
     private async Task<TaskOutcome> NoGuideAsync(PrepContext ctx, DateOnly evening, string why, CancellationToken ct)
     {
+        // 멈추지 못했어도 여기서는 넘어가되, "가이딩 없이"는 끝 상태 검사에서 PHD2·적도의가 멈춘 것을 확인한 뒤에 확정한다 (CX-20-08)
         await devices.StopAsync(ct);
-        ctx.Results.Set(new GuiderSkipped(why, ctx.Now()));
+        _skipWhy = why;
         return new Completed(new CalibrationResult(false, null, "", evening, ctx.Now(), Skipped: true), "건너뜀 · 가이딩 없이",
             "가이딩 없이 진행합니다", "오늘 밤은 가이딩 없이 찍습니다. 노출은 대상 단계에서 짧게 고를 수 있어요. 다음은 초점입니다.") { AutoNext = true };
     }
@@ -177,11 +179,24 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         return data;
     }
 
+    /// <summary>"가이딩 없이 진행"의 이유 — 끝 상태 검사가 정지를 확인하면 GuiderSkipped로 확정한다</summary>
+    private string? _skipWhy;
+
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {
         var s = await devices.ReadEndStateAsync(ct);
         if (ctx.Results.Get<CalibrationResult>() is { Skipped: true }) // 건너뜀: 보정값은 없어도 됨, 장비는 멈춰 있어야
-            return s.MountMoving ? EndStateCheck.Fail("적도의가 아직 움직이고 있습니다") : s.Phd2Guiding || s.Phd2Looping ? EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다") : EndStateCheck.Pass;
+        {
+            if (s.MountMoving) return EndStateCheck.Fail("적도의가 아직 움직이고 있습니다");
+            if (s.Phd2Unknown) return EndStateCheck.Fail("PHD2 상태를 읽지 못했습니다. PHD2가 멈췄는지 확인해 주세요");
+            if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다");
+            if (_skipWhy is { } why)
+            {
+                ctx.Results.Set(new GuiderSkipped(why, ctx.Now()));
+                _skipWhy = null;
+            }
+            return EndStateCheck.Pass;
+        }
         if (!s.HasCalibration) return EndStateCheck.Fail("PHD2에 보정값이 없습니다");
         if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다");
         if (s.MountMoving) return EndStateCheck.Fail("적도의가 아직 움직이고 있습니다");

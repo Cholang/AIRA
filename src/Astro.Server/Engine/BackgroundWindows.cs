@@ -96,7 +96,10 @@ public static class BackgroundWindows
                                 // 스스로 "항상 위"인 창(Wanderer Empire 시작 로고 등 — 2026-10-10 사용자: 장비 연결 중 화면을 가림)은 그 표시를 풀어
                                 // 아이라("항상 위") 아래로 보낸다. 나머지 창은 그대로 두고 포커스만 아이라로
                                 var own = Process.GetCurrentProcess().MainWindowHandle;
-                                if ((GetWindowLongPtr(h, GwlExStyle) & WsExTopmost) != 0)
+                                // "항상 위"를 푸는 것은 확인된 시작 로고(제목 "startup")만 — 사용자가 연 다른 "항상 위" 창은 건드리지 않는다.
+                                // 시작 로고는 원래대로("항상 위") 되돌리지 않는다 — 지키기가 끝날 때 아직 떠 있으면 아이라 위로 다시 올라와
+                                // 로고가 두 번 뜬 것처럼 보였다 (2026-10-11 사용자 실행). 사용자 창은 애초에 건드리지 않는다 (CX-20-11)
+                                if ((GetWindowLongPtr(h, GwlExStyle) & WsExTopmost) != 0 && IsSplash(h))
                                 {
                                     SetWindowPos(h, HwndNoTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
                                     if (own != 0) SetWindowPos(own, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
@@ -167,6 +170,15 @@ public static class BackgroundWindows
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, nint lParam);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, System.Text.StringBuilder text, int max);
+
+    /// <summary>Wanderer Empire 시작 로고 창인가 (2026-10-10 실측: 제목 "startup", 숨은 창에 딸린 "항상 위" WinForms 창)</summary>
+    private static bool IsSplash(nint h)
+    {
+        var title = new System.Text.StringBuilder(64);
+        GetWindowText(h, title, title.Capacity);
+        return string.Equals(title.ToString().Trim(), "startup", StringComparison.OrdinalIgnoreCase);
+    }
     [DllImport("user32.dll")] private static extern bool IsIconic(nint hWnd);
     [DllImport("user32.dll")] private static extern nint GetWindow(nint hWnd, uint cmd);
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hWnd, int cmdShow);

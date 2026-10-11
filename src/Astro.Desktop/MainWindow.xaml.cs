@@ -103,6 +103,15 @@ public partial class MainWindow : Window
                         WindowState = WindowState.Minimized;
                         return;
                     }
+                    // 설정 화면의 "찾아보기": 실행 파일 고르기 창 → 고른 경로를 화면에 돌려준다 (웹 화면은 파일의 전체 경로를 알 수 없어서)
+                    if (type == "pick-exe")
+                    {
+                        var name = doc.RootElement.GetProperty("name").GetString() ?? "";
+                        var dialog = new Microsoft.Win32.OpenFileDialog { Title = $"{name} 고르기", Filter = $"{name}|{name}", CheckFileExists = true };
+                        var picked = dialog.ShowDialog(this) == true ? dialog.FileName : null;
+                        Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "picked-exe", name, path = picked }));
+                        return;
+                    }
                     if (type != "theme") return;
                     var theme = doc.RootElement.GetProperty("theme").GetString();
                     if (theme is null || !ThemeBackground.ContainsKey(theme)) return;

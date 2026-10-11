@@ -10,7 +10,7 @@ namespace Astro.Server.Prepare.Real;
 /// 2026-10-06 실기: 상태 단계 이름 첫 단계 = "First", 위치를 못 찾으면 조절량이 0,0으로 옴 → First·Second 단계의 값은 측정으로 쓰지 않는다.
 /// 조절 단계의 실제 이름은 별이 있어야 나와 맑은 날 확인 (그 전에는 First·Second가 아니면 조절 단계로 본다).
 /// </summary>
-public sealed class SharpCapBridge(ILogger<SharpCapBridge> log)
+public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettings? settings = null)
 {
     /// <summary>Background = 배경 밝기 0~1 (SharpCap 히스토그램 평균 ÷ 범위, 모르면 null), Gain = 지금 게인</summary>
     public sealed record Report(string Stage, bool Active, bool CanAdvance, double X, double Y, double ExposureMs, string Camera, DateTimeOffset At,
@@ -96,7 +96,8 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log)
     /// <summary>SharpCap을 그 카메라와 AA 스크립트로 켜고, 스크립트의 첫 보고가 올 때까지 기다린다. 실패면 이유</summary>
     public async Task<string?> LaunchAsync(string cameraName, string reportUrl, CancellationToken ct)
     {
-        var exe = FindExe();
+        // 설정에서 직접 지정한 경로가 있으면 그것 (자동으로 못 찾는 설치 위치 — 2026-10-11 설정 화면)
+        var exe = settings?.SharpCapExe is { } chosen && File.Exists(chosen) ? chosen : FindExe();
         if (exe is null) return "SharpCap을 찾지 못했습니다. SharpCap 4.1을 설치해 주세요.";
         if (Running) return "SharpCap이 이미 켜져 있습니다. SharpCap을 닫은 뒤 다시 시도해 주세요.";
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder);
@@ -170,7 +171,8 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log)
         return !Running;
     }
 
-    private static string? FindExe()
+    /// <summary>자동으로 찾은 SharpCap (Program Files의 SharpCap* 폴더). 설정 화면도 "자동으로 찾은 경로"로 보여 준다</summary>
+    public static string? FindExe()
     {
         foreach (var root in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
         {

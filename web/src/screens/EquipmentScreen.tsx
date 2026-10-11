@@ -351,12 +351,16 @@ function EquipmentGraph({
               </div>
             </div>
 
-            {/* 항성 안(보이는 1/4)의 글자·버튼: 상태 문장 · 개수 · 장비 변경 · 관측지 */}
+            {/* 항성 안(보이는 1/4): 상태 문장 · 개수 */}
             <div className={styles.sunInfo} style={{ left: geo.cx + geo.sunD * 0.075, top: geo.cy + geo.sunD * 0.07 }} role="status" aria-live="polite">
               <p className={styles.headline}>{headline}</p>
               <p className={styles.count} data-shown={mode === 'connect'}>
                 {count}
               </p>
+            </div>
+
+            {/* 항성 오른쪽, 상태 줄 바로 아래 한 줄: 장비 변경 | 관측지 (2026-10-11 사용자 — 항성 안에서는 관측지 설명이 테두리에 겹쳤다) */}
+            <div className={styles.sunBar} style={{ left: geo.cx + geo.sunD / 2 + 28 }}>
               <div className={styles.modeRow}>
                 {mode === 'connect' ? (
                   // 진행 호가 차오르는 동안 가리키면 시간이 느리게 흐른다. 버튼이 꺼져도 가리킨 상태를 놓치지 않게 감싼 칸에서 받는다

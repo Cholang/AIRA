@@ -54,6 +54,13 @@ public sealed class NinaApiClient(HttpClient http)
         GetResponseAsync($"equipment/{kind}/info", QueryTimeout, ct);
 
     /// <summary>장비가 연결되어 있는지. 응답이 없으면 false.</summary>
+    /// <summary>연결 상태: true 연결됨 · false 끊김 · null 읽지 못함(응답 없음·실패) — 끊김과 구분해야 할 때 (CX-20-01)</summary>
+    public async Task<bool?> ConnectedStateAsync(string kind, CancellationToken ct = default) =>
+        await GetResponseAsync($"equipment/{kind}/info", QueryTimeout, ct) is { ValueKind: JsonValueKind.Object } info
+        && info.TryGetProperty("Connected", out var c) && c.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? c.ValueKind == JsonValueKind.True
+            : null;
+
     public async Task<bool> IsConnectedAsync(string kind, CancellationToken ct = default) =>
         await GetResponseAsync($"equipment/{kind}/info", QueryTimeout, ct) is { ValueKind: JsonValueKind.Object } info
         && info.TryGetProperty("Connected", out var c) && c.ValueKind == JsonValueKind.True;

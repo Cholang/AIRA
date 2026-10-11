@@ -73,6 +73,8 @@ public static class AppServer
         builder.Services.AddSingleton(new DsoCatalog(builder.Configuration["Sky:NinaDatabase"] is { Length: > 0 } db ? db : null));
         builder.Services.AddSingleton<TonightService>();
         builder.Services.AddSingleton<PlanTools>();
+        // 앱 전체 설정 (설정 화면 — AI 비서·프로그램 경로). 시험은 App:DataDir로 다른 폴더를 쓴다
+        builder.Services.AddSingleton(_ => new Setup.UserSettings(builder.Configuration["App:DataDir"]));
         builder.Services.AddSingleton<ChatModelFactory>();
         builder.Services.AddSingleton<PlanAssistant>();
         // 촬영 준비: 작업별로 나눈 구조, 지금은 모의 장비만 (docs/PREPARE_IMPLEMENTATION.md — 실제 장비는 P3)
@@ -93,6 +95,7 @@ public static class AppServer
         builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         var app = builder.Build();
+        app.Services.GetRequiredService<Setup.UserSettings>(); // 처음에 읽어 둔다 — 지정한 N.I.N.A. 경로를 엔진 켜기 전에 쓰도록
         // 새 버전 확인은 앱이 켜지자마자 시작한다 — 프로필 화면이 열릴 때 결과가 준비돼 있게 (오늘 이미 받았으면 기억한 값)
         _ = Task.Run(() => app.Services.GetRequiredService<UpdateChecker>().CheckAsync(CancellationToken.None));
         // 서버를 멈출 때 끝나지 않는 실시간 연결(SSE, 화면의 EventSource)을 바로 끊는다 — 안 그러면 Kestrel이 이 연결들이 끝나길
@@ -165,10 +168,19 @@ public static class AppServer
         api.MapGet("/focuser/parked", async (Prepare.FocuserPark park, CancellationToken ct) => Results.Ok(new { ready = await park.ReadyAsync(ct) }));
         // 아이라 종료 마지막: 아이라가 켠 N.I.N.A.면 PHD2와 함께 닫는다 (촬영 중이면 두기). 사용자가 켜 둔 N.I.N.A.는 그대로
         // 아이라 종료: 닫을 프로그램 목록(아이라가 N.I.N.A.를 켰고 촬영 중이 아닐 때만) → 화면이 하나씩 닫으며 체크 (2026-10-10)
-        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot) =>
-            Results.Ok(new { apps = programs.LaunchedNina && !shoot.Active ? programs.Targets() : [] }));
-        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, CancellationToken ct) =>
-            Results.Ok(new { closed = programs.LaunchedNina && !shoot.Active && await programs.CloseOneAsync(id, ct) }));
+        // 준비 작업이 돌고 있으면 닫지 않는다 — 종료 화면이 먼저 /prepare/stop-for-quit로 멈춘다 (CX-20-02)
+        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow) =>
+            Results.Ok(new { apps = programs.LaunchedNina && !shoot.Active && !PrepareBusy(flow) ? programs.Targets() : [] }));
+        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, CancellationToken ct) =>
+            Results.Ok(new { closed = programs.LaunchedNina && !shoot.Active && !PrepareBusy(flow) && await programs.CloseOneAsync(id, ct) }));
+        // 아이라 종료 전: 진행 중인 준비 작업과 계속 도는 가이딩을 멈추고 확인 (CX-20-02). 촬영 중이면 그대로 — 촬영은 N.I.N.A.가 이어 간다
+        api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Shoot.ShootSession shoot) =>
+        {
+            if (shoot.Active) return Results.Ok(new { stopped = true, shooting = true });
+            foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
+                if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false });
+            return Results.Ok(new { stopped = true, shooting = false });
+        });
         // 화면의 단계 이동·버튼 기록 (같은 로그 파일에 "화면"으로)
         api.MapPost("/log", (ClientLog input) =>
         {
@@ -178,6 +190,11 @@ public static class AppServer
         api.MapPost("/focuser/park", async (Prepare.FocuserPark park, CancellationToken ct) => Results.Ok(new { problem = await park.ParkAsync(ct) }));
         // 진행 표시 아래 "적도의 홈": 지금 보낼 수 있는지(이유) · 보내기
         api.MapGet("/mount/home", async (Prepare.MountHome home, CancellationToken ct) => Results.Ok(await home.StateAsync(ct)));
+        // 홈이 실패해 적도의가 멈췄는지도 확인하지 못했을 때: 사용자가 직접 확인했다고 알림 (CX-20-03)
+        // 아이라 종료 전: 적도의 추적 끄기 (촬영 중·미연결이면 할 일 없음). ok=false면 끄지 못함
+        api.MapPost("/mount/tracking-off-for-quit", async (Prepare.MountHome home, CancellationToken ct) =>
+            Results.Ok(new { ok = await home.TrackingOffForQuitAsync(ct) != false }));
+        api.MapPost("/mount/home/confirm", (Prepare.MountHome home) => { home.Confirm(); return Results.NoContent(); });
         api.MapPost("/mount/home", async (Prepare.MountHome home, CancellationToken ct) =>
             await home.StartAsync(ct) is { } why ? Results.Conflict(new { error = why }) : Results.Accepted());
         // 카메라 전원: 배터리(outlet=null) 또는 전원 허브 출력. 고를 수 있는 출력은 허브가 연결돼 있을 때의 쓰기 가능한 출력들
@@ -240,6 +257,7 @@ public static class AppServer
 
         MapPlan(api.MapGroup("/plan"));
         MapPrepare(api.MapGroup("/prepare"));
+        MapSettings(api.MapGroup("/settings"));
         MapShoot(api.MapGroup("/shoot"), api.MapGroup("/night"));
         MapProfiles(api.MapGroup("/profiles"));
         MapSession(api.MapGroup("/session"));
@@ -307,20 +325,10 @@ public static class AppServer
         // 마무리 (플랫 · 다크 · 장비 정리 — 촬영이 끝난 뒤, 그날 밤 하나)
         // 장비 준비가 끝나 계획으로 갈 때: 적도의를 홈에 두고 추적을 끈다 (2026-10-08 사용자 결정 — 계획·기다리는 시간이 길어도 한계로 흘러가지 않게).
         // 기다리지 않는다 — 대상 이동은 적도의 잠금을 기다리므로 홈이 끝난 뒤에 움직인다. Set Home은 쓰지 않는다(Go Home만)
-        prepare.MapPost("/rig/rest", (Prepare.Tasks.Wrap.IWrapDevices wrap, Prepare.Flow.MountLock mount, ILogger<Prepare.Flow.PrepareFlow> log) =>
+        // 장비 준비 끝: 적도의를 홈에 두고 추적을 끈다 — "적도의 홈" 버튼과 같은 절차(홈 실패면 멈춤·정지 확인, CX-20-03)
+        prepare.MapPost("/rig/rest", async (Prepare.MountHome home, CancellationToken ct) =>
         {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await using (await mount.AcquireAsync(CancellationToken.None))
-                    {
-                        if (!await wrap.HomeAsync(CancellationToken.None)) log.LogWarning("장비 준비 뒤 홈으로 보내지 못함");
-                        if (!await wrap.TrackingOffAsync(CancellationToken.None)) log.LogWarning("장비 준비 뒤 추적을 끄지 못함");
-                    }
-                }
-                catch (Exception e) { log.LogWarning(e, "장비 준비 뒤 쉬게 하기 실패"); }
-            });
+            await home.RestAfterRigAsync(ct);
             return Results.NoContent();
         });
         prepare.MapPost("/wrap/start", async (Prepare.PrepareStarter starter, Prepare.Flow.PrepareFlow flow, CancellationToken ct) =>
@@ -359,12 +367,66 @@ public static class AppServer
             return Results.NoContent();
         });
         // 실장비: 하늘 화면 이미지 (sharpcap 창 캡처 · guide PHD2 사진 · photo 솔빙 사진 · test 시험 사진)
-        prepare.MapGet("/live/{kind}", async (string kind, Prepare.Real.LiveImages images, CancellationToken ct) =>
-            await images.GetAsync(kind, ct) is { } img ? Results.File(img.Bytes, img.Type) : Results.NotFound());
+        // 화면이 가진 것과 같은 이미지면(If-None-Match = 표지) 다시 보내지 않는다 (304) — 1초마다 묻는 실시간 사진이 같은 사진을 통째로 받지 않게
+        prepare.MapGet("/live/{kind}", async (string kind, HttpContext http, Prepare.Real.LiveImages images, CancellationToken ct) =>
+        {
+            if (await images.GetAsync(kind, ct) is not { } img) return Results.NotFound();
+            http.Response.Headers.ETag = img.Tag;
+            http.Response.Headers.CacheControl = "no-cache";
+            return http.Request.Headers.IfNoneMatch.ToString() == img.Tag ? Results.StatusCode(304) : Results.File(img.Bytes, img.Type);
+        });
         // SharpCap 스크립트가 극축 정렬 상태를 보내고, 답으로 AA의 명령(advance · exposure:ms · quit)을 받는다
         prepare.MapPost("/sharpcap/report", (System.Text.Json.JsonElement body, Prepare.Real.SharpCapBridge bridge) => Results.Text(bridge.Receive(body)));
         prepare.MapPost("/sim/speed/{speed:double}", (double speed, Prepare.Sim.SimOptions sim) => { sim.Speed = Math.Clamp(speed, 0, 5); return Results.NoContent(); });
     }
+
+    /// <summary>
+    /// 설정 화면 (2026-10-11 사용자 결정): AI 비서 켜기·키 · 프로그램 경로(N.I.N.A.·SharpCap — PHD2는 N.I.N.A.가 켠다) · 기록 폴더 열기·진단 내보내기.
+    /// 키 자체는 화면에 돌려주지 않는다 (있는지와 어디서 왔는지만)
+    /// </summary>
+    private static void MapSettings(RouteGroupBuilder settings)
+    {
+        settings.MapGet("", (Setup.UserSettings user, IOptions<Assistant.AssistantOptions> ai) => Results.Ok(new
+        {
+            aiEnabled = user.AiEnabled,
+            keyFrom = user.GeminiKey is not null ? "settings" : string.IsNullOrWhiteSpace(ai.Value.ApiKeys.GetValueOrDefault("gemini")) ? null : "system",
+            ninaExe = user.NinaExe,
+            ninaAuto = InstallLocator.AutoNinaExe(),
+            sharpCapExe = user.SharpCapExe,
+            sharpCapAuto = Prepare.Real.SharpCapBridge.FindExe(),
+            logsDir = Setup.Diagnostics.LogsDir,
+        }));
+        settings.MapPut("/ai", (SettingsAi input, Setup.UserSettings user) => { user.SetAiEnabled(input.Enabled); return Results.NoContent(); });
+        settings.MapPut("/ai-key", (SettingsKey input, Setup.UserSettings user) => { user.SetGeminiKey(input.Key); return Results.NoContent(); });
+        // 경로: 비우면 자동으로 찾기. 지정하면 그 파일이 있어야 하고 이름이 맞아야 한다 (다른 프로그램을 잘못 켜지 않게 — NINA 설치 프로그램 등)
+        settings.MapPut("/paths/{which}", (string which, SettingsPath input, Setup.UserSettings user) =>
+        {
+            var path = string.IsNullOrWhiteSpace(input.Path) ? null : input.Path.Trim().Trim('"');
+            var name = which switch { "nina" => "NINA.exe", "sharpcap" => "SharpCap.exe", _ => null };
+            if (name is null) return Results.NotFound();
+            if (path is not null && (!File.Exists(path) || !string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase)))
+                return Results.BadRequest(new { error = $"{name} 파일이 아닙니다. 설치 폴더의 {name}를 골라 주세요." });
+            if (which == "nina") user.SetNinaExe(path); else user.SetSharpCapExe(path);
+            return Results.NoContent();
+        });
+        settings.MapPost("/open-logs", () =>
+        {
+            Directory.CreateDirectory(Setup.Diagnostics.LogsDir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Setup.Diagnostics.LogsDir}\"") { UseShellExecute = true });
+            return Results.NoContent();
+        });
+        // 진단 묶음을 바탕 화면에 만들고 탐색기에서 그 파일을 골라 보여 준다
+        settings.MapPost("/diagnostics", (Setup.UserSettings user) =>
+        {
+            var path = Setup.Diagnostics.Export(user);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+            return Results.Ok(new { path });
+        });
+    }
+
+    private sealed record SettingsAi(bool Enabled);
+    private sealed record SettingsKey(string? Key);
+    private sealed record SettingsPath(string? Path);
 
     /// <summary>버튼. Step은 예전 화면 호환용(쓰지 않음)</summary>
     private sealed record PrepAct(string? Step, string Action);
@@ -529,4 +591,8 @@ public static class AppServer
         profiles.MapGet("/{id}/image", (string id, ProfileStore store) =>
             store.ImageFile(id) is { } path ? Results.File(path, "image/webp") : Results.NotFound());
     }
+
+    /// <summary>준비 작업이 진행 중인가 (종료 때 프로그램을 닫기 전에 본다)</summary>
+    private static bool PrepareBusy(Prepare.Flow.PrepareFlow flow) =>
+        new[] { flow.Rig, flow.Target, flow.Wrap }.Any(r => r.ActiveTaskTitle is not null);
 }

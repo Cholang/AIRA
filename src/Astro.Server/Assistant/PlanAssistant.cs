@@ -27,8 +27,12 @@ public sealed class AssistantOptions
 }
 
 /// <summary>설정의 Provider 값으로 AI 구현을 고른다. 회사를 바꾸려면 설정 한 줄만 바꾼다.</summary>
-public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpClientFactory httpFactory)
+public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpClientFactory httpFactory, Setup.UserSettings? settings = null)
 {
+    /// <summary>쓸 키: 설정 화면에서 넣은 키가 먼저, 없으면 사용자 비밀 저장소·환경 변수 (2026-10-11 설정 화면)</summary>
+    private string Key(AssistantOptions o) =>
+        (o.Provider == "gemini" ? settings?.GeminiKey : null) ?? o.ApiKeys.GetValueOrDefault(o.Provider) ?? "";
+
     /// <summary>실제 AI를 쓸 수 없는 이유 (설정이 연습 대화이거나 키가 없음). 쓸 수 있으면 null</summary>
     public string? PracticeReason
     {
@@ -36,7 +40,8 @@ public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpCl
         {
             var o = options.Value;
             if (o.Provider == "scripted") return "지금은 연습 대화입니다. AI 없이 정해진 순서로 묻습니다.";
-            if (string.IsNullOrWhiteSpace(o.ApiKeys.GetValueOrDefault(o.Provider))) return "AI 키가 없어 연습 대화로 진행합니다.";
+            if (settings is { AiEnabled: false }) return "설정에서 AI 비서를 꺼 두어 연습 대화로 진행합니다.";
+            if (string.IsNullOrWhiteSpace(Key(o))) return "AI 키가 없어 연습 대화로 진행합니다. 설정에서 키를 넣을 수 있어요.";
             return null;
         }
     }
@@ -44,7 +49,7 @@ public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpCl
     public IChatModel Create()
     {
         var o = options.Value;
-        var key = o.ApiKeys.GetValueOrDefault(o.Provider) ?? "";
+        var key = Key(o);
         switch (o.Provider)
         {
             case "gemini":

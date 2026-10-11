@@ -109,6 +109,9 @@ export function solarLayout(w: number, h: number): SolarGeo | null {
   const rStart = rFirst + (rMax - rFirst) / (slots - 1)
   const slotR = (k: number) => rStart + (rMax - rStart) * Math.pow(k / (slots - 1), 1.45)
 
+  // 항성 오른쪽 위 한 줄(장비 변경 | 관측지, EquipmentScreen .sunBar)의 자리는 비워 둔다
+  const bar = { x0: cx + R + 16, x1: cx + R + 480, y1: 64 }
+  const onBar = (x: number, y: number, r: number) => x + r > bar.x0 && x - r < bar.x1 && y - r < bar.y1
   const rand = rng(sessionSeed)
   const placed: { x: number; y: number; fp: number; d: number }[] = []
   const planets = PLANETS.map((p, i): Planet => {
@@ -134,12 +137,12 @@ export function solarLayout(w: number, h: number): SolarGeo | null {
       const gap = Math.min(Infinity, ...placed.map((q) => Math.hypot(q.x - x, q.y - y) - q.fp - fp))
       const prev = placed[placed.length - 1]
       const near = prev ? Math.hypot(prev.x - x, prev.y - y) / (2 * Math.max(prev.d, d)) : 9
-      const score = Math.min(gap / 22, near)
+      const score = Math.min(gap / 22, near) - (onBar(x, y, fp) ? 100 : 0)
       if (score > bestScore) {
         bestScore = score
         best = { a, x, y }
       }
-      if (gap > 22 && near >= 1) break
+      if (gap > 22 && near >= 1 && !onBar(x, y, fp)) break
     }
     placed.push({ x: best.x, y: best.y, fp, d })
     const mr = rng(sessionSeed * 97 + i * 13)
@@ -175,7 +178,7 @@ export function solarLayout(w: number, h: number): SolarGeo | null {
   for (let x = SCOPE_HALF; x < w - SCOPE_HALF; x += 8)
     for (let y = SCOPE_HALF; y < h - SCOPE_HALF; y += 8) {
       const rr = Math.hypot(x - cx, y - cy)
-      if (rr < R + SCOPE_HALF || rr > rOut - SCOPE_HALF) continue
+      if (rr < R + SCOPE_HALF || rr > rOut - SCOPE_HALF || onBar(x, y, SCOPE_HALF)) continue
       const clear = Math.min(rr - R, rOut - rr, x, y, w - x, h - y, ...placed.map((q) => Math.hypot(q.x - x, q.y - y) - q.fp))
       if (clear > scope.clear) scope = { x, y, clear }
     }

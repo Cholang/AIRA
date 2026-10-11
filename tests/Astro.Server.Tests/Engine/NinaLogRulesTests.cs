@@ -86,4 +86,17 @@ public class NinaLogRulesTests
         Assert.Single(all);
         Assert.Equal(2, all[0].Count);
     }
+
+    [Fact]
+    public void 해석_못_한_경고는_다른_알림이_있어도_하나씩_한_번만_전한다_CX_20_10()
+    {
+        var notices = new NinaNotices();
+        var t = DateTimeOffset.Now;
+        notices.Add("mount", "적도의와 통신이 끊겼습니다", [], "", "", t); // 해석한 알림이 먼저 있어도
+        notices.NoteUnknown(t.AddSeconds(1), "WARNING A");
+        notices.NoteUnknown(t.AddSeconds(2), "WARNING B");
+        Assert.True(notices.AddFallback(t));
+        Assert.Equal(3, notices.Since(0).Count); // 해석한 것 1 + 원문 2
+        Assert.False(notices.AddFallback(t)); // 이미 전한 것은 다시 전하지 않는다
+    }
 }
