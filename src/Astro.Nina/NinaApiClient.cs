@@ -91,7 +91,9 @@ public sealed class NinaApiClient(HttpClient http)
             if (body.ValueKind != JsonValueKind.Object) return new NinaReply(false, null, null) { Answered = false };
             var ok = res.IsSuccessStatusCode && body.TryGetProperty("Success", out var s) && s.ValueKind == JsonValueKind.True;
             var error = body.TryGetProperty("Error", out var e) && e.ValueKind == JsonValueKind.String && e.GetString() is { Length: > 0 } msg ? msg : null;
-            return new NinaReply(ok, body.TryGetProperty("Response", out var r) ? r.Clone() : null, error);
+            // 답했다 = Success가 참/거짓으로 있음. 없거나 다른 형식이면 N.I.N.A.의 답으로 치지 않는다 (CX-25-01 — 연결 중단이 "끝남"으로 오해하지 않게)
+            var answered = body.TryGetProperty("Success", out var sv) && sv.ValueKind is JsonValueKind.True or JsonValueKind.False;
+            return new NinaReply(ok, body.TryGetProperty("Response", out var r) ? r.Clone() : null, error) { Answered = answered };
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {

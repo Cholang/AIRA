@@ -8,7 +8,19 @@
 
 ---
 
-## 2026-10-11 · [Claude] Codex 24절 반영, SharpCap 영상을 DWM 썸네일로 비추기, 빛 테두리 GlowFrame, 켜져 있던 SharpCap 닫고 다시 켜기
+## 2026-10-11 · [Claude] Codex 25절 반영 — 답 없는 연결 요청의 미확인을 중단 재시도에서 잃지 않게
+
+**요청**: CX-25-01(P1·장비 안전) 수정 후 커밋·푸시.
+
+**변경**: `EquipmentRun.Unanswered` 추가 — `EquipmentConnector.AbortAsync`가 답 없는 요청 장비를 여기 남기고, 이번 중단에서 연결된 것을 본 뒤 끊김을 확인했을 때만 지운다(그 전엔 매번 "(연결 요청이 끝나지 않음)"). 연결 쪽은 그 장비 요청이 답을 받으면 지운다. `BeginRun(only)`: 장비 하나 다시 연결은 그 장비의 Unresolved만. `NinaApiClient.RequestAsync`: `Answered`는 Success가 참/거짓일 때만.
+
+**확인**: 새 `Engine/AbortUnansweredTests`(가짜 HTTP로 첫·두 번째 중단 모두 미확인, 연결된 뒤 끊으면 풀림) 포함 서버 테스트 189 통과·1 건너뜀, 데스크톱 빌드. 실장비 미확인.
+
+**남은 것**: 답을 끝내 못 받은 장비가 실제로는 연결 실패로 끝났다면 종료 창이 계속 알린다 — 그때는 사용자가 "그래도 종료"로 정한다.
+
+---
+
+## 2026-10-11 · d72d1b4 [Claude] Codex 24절 반영, SharpCap 영상을 DWM 썸네일로 비추기, 빛 테두리 GlowFrame, 켜져 있던 SharpCap 닫고 다시 켜기
 
 **요청**: Codex 24절 7건 모두 수정. SharpCap 화면이 깨져 보임 → 사용자 아이디어("아이라를 창문처럼 투명하게") → DWM 썸네일 + UI Automation으로 영상 칸만, 가운데에. 칼 같은 외곽선에 빛 테두리(참고 그림 "Glowing Border Animation V2", 공통 모듈로). 사용자가 켜 둔 SharpCap은 "닫고 다시 켜기"로(다른 프로그램도 같은 경우가 있으면 같이 — 없었음). 효과 요청은 코드·링크를 주면 더 정확하다고 답함
 

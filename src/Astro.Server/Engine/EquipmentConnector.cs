@@ -175,12 +175,15 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     private TaskCompletionSource? _runDone { get => state.Done; set => state.Done = value; }
     private List<string> _touched => state.Touched;
 
-    private CancellationToken BeginRun(CancellationToken ct, bool fresh)
+    private CancellationToken BeginRun(CancellationToken ct, bool fresh, string? only = null)
     {
         lock (_gate)
         {
             if (fresh) _touched.Clear();
-            state.Unresolved.Clear(); // 새 연결이 이 장비들을 다시 맡는다 — 끝난 뒤 정상 연결을 종료가 끊지 않게
+            // 새 연결이 그 장비들을 다시 맡는다 — 끝난 뒤 정상 연결을 종료가 끊지 않게. 장비 하나만 다시 연결하면 그 장비만 (CX-25-01).
+            // 답을 못 받은 요청 기록(Unanswered)은 여기서 지우지 않는다 — 그 장비의 새 요청이 답을 받아야 지운다
+            if (fresh) state.Unresolved.Clear();
+            else if (only is not null) state.Unresolved.Remove(only);
             _runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             _runDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             return _runCts.Token;
@@ -213,16 +216,17 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         List<string> kinds;
         lock (_gate)
         {
-            if (_runCts is null && state.InFlight.Count == 0 && state.Unresolved.Count == 0) return [];
+            if (_runCts is null && state.InFlight.Count == 0 && state.Unresolved.Count == 0 && state.Unanswered.Count == 0) return [];
             // 연결이 진행 중이면 이번에 시도한 장비 전체, 끝났으면 답을 못 받은 요청과 지난번에 확인 못 한 장비만 (끝난 연결은 정상 연결 — 촬영 중일 수 있다)
-            kinds = _runCts is null ? [.. state.InFlight.Keys.Union(state.Unresolved)] : [.. _touched.Union(state.InFlight.Keys).Union(state.Unresolved)];
+            var leftover = state.InFlight.Keys.Union(state.Unresolved).Union(state.Unanswered);
+            kinds = _runCts is null ? [.. leftover] : [.. _touched.Union(leftover)];
             _runCts?.Cancel();
             done = _runDone?.Task ?? Task.CompletedTask;
         }
         try { await done.WaitAsync(TimeSpan.FromSeconds(5), ct); } catch (TimeoutException) { }
         if (options.Value.Simulate)
         {
-            lock (_gate) { _touched.Clear(); state.InFlight.Clear(); state.Unresolved.Clear(); }
+            lock (_gate) { _touched.Clear(); state.InFlight.Clear(); state.Unresolved.Clear(); state.Unanswered.Clear(); }
             return [];
         }
 
@@ -253,6 +257,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         var quiet = 0;
         var still = new List<string>();
         var unknown = new List<string>();
+        var sawConnected = new HashSet<string>(); // 연결된 것을 본 장비 — 그 뒤 끊긴 것을 확인하면 하던 연결이 끝났다는 증거
         while (quiet < needQuiet && DateTime.UtcNow < deadline)
         {
             still.Clear();
@@ -260,7 +265,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             foreach (var kind in order)
                 switch (await nina.ConnectedStateAsync(kind, ct))
                 {
-                    case true: still.Add(kind); break;
+                    case true: still.Add(kind); sawConnected.Add(kind); break;
                     case null: unknown.Add(kind); break;
                 }
             if (still.Count == 0 && unknown.Count == 0) quiet++;
@@ -272,8 +277,17 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             }
             await Task.Delay(1000, ct);
         }
-        // 끊긴 것을 확인한 장비만 목록에서 뺀다. 답이 없던 요청은 지금 끊겨 보여도 확인한 것이 아니다
-        var unsure = unknown.Union(unanswered).ToList();
+        // 끊긴 것을 확인한 장비만 목록에서 뺀다. 답을 못 받은 요청은 지금 끊겨 보여도 확인한 것이 아니다 —
+        // 그 기록(Unanswered)은 다시 중단해도 "끊겨 보임"만으로 지우지 않고, 이번에 연결된 것을 본 뒤 끊긴 것을 확인했을 때만 지운다 (CX-25-01).
+        // 그 전에는 종료 창이 계속 알리고 "그래도 종료"는 사용자가 정한다
+        List<string> stillUnanswered;
+        lock (_gate)
+        {
+            state.Unanswered.UnionWith(unanswered);
+            state.Unanswered.RemoveWhere(k => sawConnected.Contains(k) && !still.Contains(k) && !unknown.Contains(k));
+            stillUnanswered = [.. state.Unanswered.Where(order.Contains)];
+        }
+        var unsure = unknown.Union(stillUnanswered).ToList();
         var confirmed = order.Except(still).Except(unsure).ToList();
         lock (_gate)
         {
@@ -284,7 +298,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         foreach (var kind in confirmed) live.Forget(kind);
         return still.Select(k => FindSlot(k)?.Role ?? k)
             .Concat(unknown.Select(k => $"{FindSlot(k)?.Role ?? k}(상태를 읽지 못함)"))
-            .Concat(unanswered.Except(still).Except(unknown).Select(k => $"{FindSlot(k)?.Role ?? k}(연결 요청이 끝나지 않음)"))
+            .Concat(stillUnanswered.Except(still).Except(unknown).Select(k => $"{FindSlot(k)?.Role ?? k}(연결 요청이 끝나지 않음)"))
             .ToList();
     }
 
@@ -341,7 +355,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         if (d is null) return null;
         // [임시] 시뮬레이션: 사용자가 원인을 해결하고 "다시 연결"을 눌렀다고 보고, 이 장비는 이제 성공한다
         if (options.Value.Simulate && !simulateFail) sim.Fix(id);
-        var token = BeginRun(ct, fresh: false);
+        var token = BeginRun(ct, fresh: false, only: id);
         try { return await ConnectTimedAsync(d, token, simulateFail && options.Value.Simulate, retry: true); }
         finally { EndRun(); }
     }
@@ -499,7 +513,16 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                 var request = nina.ConnectAnsweredAsync(kind, d.Id, CancellationToken.None);
                 lock (_gate) state.InFlight[kind] = request;
                 try { connected = await request.WaitAsync(ct) == true && await nina.IsConnectedAsync(kind, ct); }
-                finally { if (request is { IsCompletedSuccessfully: true, Result: not null }) lock (_gate) if (state.InFlight.GetValueOrDefault(kind) == request) state.InFlight.Remove(kind); }
+                finally
+                {
+                    // 답을 받았으면 이 장비의 "답 없음" 기록도 끝 (N.I.N.A.가 이 장비 연결을 마쳤다)
+                    if (request is { IsCompletedSuccessfully: true, Result: not null })
+                        lock (_gate)
+                        {
+                            if (state.InFlight.GetValueOrDefault(kind) == request) state.InFlight.Remove(kind);
+                            state.Unanswered.Remove(kind);
+                        }
+                }
                 _timing?.Step("N.I.N.A. 연결");
             }
             // 허브가 USB로만 붙고 전원(DC)이 안 들어오면(10/09: USB만으로도 연결됨) 뒤 장비를 N.I.N.A.에 맡기지 않는다 —
@@ -795,4 +818,6 @@ public sealed class EquipmentRun
     public Dictionary<string, Task<bool?>> InFlight { get; } = [];
     /// <summary>지난 연결 중단(종료)에서 끊긴 것을 확인하지 못한 장비 — 다시 중단하면 이 장비들만 다시 본다 (CX-24-02: 이번에 시도한 장비 전체를 다시 보면 촬영 중 정상 연결까지 끊는다)</summary>
     public HashSet<string> Unresolved { get; } = [];
+    /// <summary>연결 요청의 답을 끝내 받지 못한 장비 (시간 초과·통신 오류) — N.I.N.A.가 그 연결을 아직 하고 있을 수 있다. 연결된 것을 본 뒤 끊김을 확인하거나, 그 장비의 새 요청이 답을 받아야 지운다 (CX-25-01)</summary>
+    public HashSet<string> Unanswered { get; } = [];
 }
