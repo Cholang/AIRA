@@ -175,14 +175,20 @@ public sealed class NightSessionStore
 }
 
 /// <summary>진행 중인 동안 20초마다 기록한다 (갑자기 꺼져도 마지막 상태가 남게)</summary>
-public sealed class NightSessionRecorder(NightSessionStore store, PlanAssistant planner, PrepareFlow flow, IPrepMemory memory) : BackgroundService
+public sealed class NightSessionRecorder(NightSessionStore store, PlanAssistant planner, PrepareFlow flow, IPrepMemory memory, ILogger<NightSessionRecorder> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
-        do
+        try
         {
-            if (store.Recording) store.Save(planner, flow, memory);
-        } while (await timer.WaitForNextTickAsync(ct));
+            do
+            {
+                // 한 번 못 써도 다음 기록 때 다시 — 예외가 이 서비스(와 서버)를 멈추지 않게 (H2)
+                try { if (store.Recording) store.Save(planner, flow, memory); }
+                catch (Exception e) { log.LogWarning(e, "밤 진행 기록을 쓰지 못함"); }
+            } while (await timer.WaitForNextTickAsync(ct));
+        }
+        catch (OperationCanceledException) { }
     }
 }

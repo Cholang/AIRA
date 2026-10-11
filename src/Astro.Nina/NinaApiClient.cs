@@ -15,6 +15,8 @@ public sealed class NinaApiClient(HttpClient http)
 
     /// <summary>장비 연결. 적도의·카메라는 드라이버를 올리느라 5초를 넘기는 경우가 흔하다.</summary>
     public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(60);
+    /// <summary>요청 하나에 주는 가장 긴 대기 시간 (부르는 쪽이 이보다 길게 주면 HttpClient 안전선에 잘린다)</summary>
+    public static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMinutes(3);
 
     /// <summary>플러그인 버전. NINA가 꺼져 있거나 API가 꺼져 있으면 null.</summary>
     public async Task<string?> GetVersionAsync(CancellationToken ct = default)

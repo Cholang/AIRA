@@ -32,6 +32,8 @@ export function onCloseRequest(fn: (() => void) | null) {
 
 host()?.addEventListener('message', (e) => {
   if ((e.data as { type?: string } | null)?.type !== 'confirm-close') return
+  // 받았다고 바로 알린다 — 답이 없으면 창이 화면이 멈춘 것으로 보고 직접 묻는다 (자체 점검 H4)
+  tellHost({ type: 'confirm-ack' })
   if (confirmClose) confirmClose()
   else closeApp()
 })

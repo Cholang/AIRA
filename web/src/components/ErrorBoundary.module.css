@@ -1,0 +1,49 @@
+/* 화면 오류 대신 그림 (ErrorBoundary.tsx). 색·간격은 토큰 */
+.screen,
+.app {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 32px var(--gutter, 24px);
+  text-align: center;
+  color: var(--text);
+}
+
+.screen {
+  flex: 1;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+}
+
+.screen h2,
+.app h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.screen p,
+.app p {
+  margin: 0;
+  max-width: 560px;
+  color: var(--muted);
+}
+
+.screen small,
+.app small {
+  max-width: 560px;
+  color: var(--muted);
+  opacity: 0.7;
+  font-size: var(--size-small);
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}

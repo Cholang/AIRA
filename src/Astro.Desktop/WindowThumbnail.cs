@@ -32,6 +32,14 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
     private bool _locating;
     private (bool Shown, Rect? Rect)? _reported;
 
+    /// <summary>모두 멈춘다 (창을 닫을 때): 확인 타이머를 끄고 썸네일을 놓는다</summary>
+    public void Stop()
+    {
+        _timer.Stop();
+        Release();
+        _target = null;
+    }
+
     /// <summary>화면이 보낸 자리. rect가 null이면 감춘다</summary>
     public void Set(string target, Rect? cssRect, double dpr)
     {

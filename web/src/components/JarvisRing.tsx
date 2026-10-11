@@ -24,6 +24,7 @@ export default function JarvisRing({
   surface = false,
   still = false,
   corona = false,
+  spin = true,
 }: {
   state: RingState
   children: ReactNode
@@ -36,13 +37,15 @@ export default function JarvisRing({
   still?: boolean
   /** 테두리 바깥 이글거림 (SunCorona) — 엔진 켜기 원·장비 연결 항성 */
   corona?: boolean
+  /** 태양 표면을 돌릴지 (surface일 때) — 장비 변경 모드에서는 멈춘다 */
+  spin?: boolean
 }) {
   // 완료 문장은 기다리지 않고 바로 (완료 순간과 글자가 어긋나 보이지 않게)
   const { shown, visible } = useSmoothContent(children, state === 'done')
   return (
     <div className={[styles.ring, className].filter(Boolean).join(' ')} data-state={state} data-surface={surface} data-still={still} role="status" aria-live="polite">
       {corona && <SunCorona />}
-      {surface && <SunSurface state={state} className={styles.surface} />}
+      {surface && <SunSurface state={state} spin={spin} className={styles.surface} />}
       <svg className={styles.arcs} viewBox="0 0 200 200" aria-hidden="true">
         <circle className={styles.track} cx="100" cy="100" r="92" />
         <circle className={styles.outer} cx="100" cy="100" r="92" pathLength="100" />

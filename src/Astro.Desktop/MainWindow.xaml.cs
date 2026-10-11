@@ -78,6 +78,8 @@ public partial class MainWindow : Window
             // 디스크 캐시를 비운다: 예전에 no-cache 없이 받아 둔 index.html이 남아 있으면 WebView2가 새 빌드 대신 옛 화면을 띄운다
             // (2026-10-09 이름을 바꾼 뒤 "AA v0.1.58" 화면이 뜸). 화면 파일은 내 PC의 내부 서버에서 오므로 비워도 느려지지 않는다. 설정(localStorage)은 남음
             await Web.CoreWebView2.Profile.ClearBrowsingDataAsync(Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache);
+            // 화면 프로세스가 죽거나 멈추면 다시 불러온다 — 그대로 두면 회색 창에서 ×도 듣지 않았다 (2026-10-11 자체 점검 H4)
+            Web.CoreWebView2.ProcessFailed += (_, args) => OnWebProcessFailed(args.ProcessFailedKind);
             // 바깥 링크(설치 안내 등)는 창 안이 아니라 기본 브라우저로 연다.
             Web.CoreWebView2.NewWindowRequested += (_, args) =>
             {
@@ -96,6 +98,12 @@ public partial class MainWindow : Window
                     {
                         _closeConfirmed = true; // 화면이 확인했다 (또는 묻지 않아도 되는 화면)
                         Close();
+                        return;
+                    }
+                    // 화면이 창 × 확인을 받았다 (H4 — 답이 없으면 창이 직접 묻는다)
+                    if (type == "confirm-ack")
+                    {
+                        _closeAck = true;
                         return;
                     }
                     // 상태 줄의 "창 내리기" (전체 화면이라 창 버튼이 없다)
@@ -122,13 +130,21 @@ public partial class MainWindow : Window
                             rect = new Rect(r.GetProperty("x").GetDouble(), r.GetProperty("y").GetDouble(), r.GetProperty("w").GetDouble(), r.GetProperty("h").GetDouble());
                         var dpr = doc.RootElement.TryGetProperty("dpr", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetDouble() : 1;
                         _thumbnail ??= new WindowThumbnail(this, Web, (t, shown, at) =>
-                            Web.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                        {
+                            // 화면이 닫히는 중이거나 죽었으면 보내지 않는다 (M5)
+                            if (_stopping || _stopped || _webDead) return;
+                            try
                             {
-                                type = "window-view-state",
-                                target = t,
-                                shown,
-                                rect = at is { } v ? new { x = v.X, y = v.Y, w = v.Width, h = v.Height } : null,
-                            })));
+                                Web.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                                {
+                                    type = "window-view-state",
+                                    target = t,
+                                    shown,
+                                    rect = at is { } v ? new { x = v.X, y = v.Y, w = v.Width, h = v.Height } : null,
+                                }));
+                            }
+                            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException or ObjectDisposedException) { }
+                        });
                         _thumbnail.Set(target, rect, dpr);
                         return;
                     }
@@ -213,15 +229,63 @@ public partial class MainWindow : Window
 
     private bool _stopping, _stopped;
 
+    // 화면이 창 × 확인을 받았는지 · 화면(WebView2)이 다시 쓸 수 없게 죽었는지 (H4)
+    private bool _closeAck, _webDead;
+    private readonly List<DateTime> _webFailures = [];
+
+    /// <summary>
+    /// 창 ×를 화면에 물었는데 3초 안에 화면이 받았다는 답이 없으면(화면이 멈춤·죽음) 창이 직접 묻는다 — 그대로 두면 창을 닫을 수 없었다 (H4).
+    /// 이때는 화면의 종료 절차(작업 멈춤·추적 끄기·프로그램 닫기)를 거치지 못하므로 그렇다고 알린다
+    /// </summary>
+    private async Task AskIfPageSilentAsync()
+    {
+        await Task.Delay(3000);
+        if (_closeAck || _closeConfirmed || _stopping || _stopped) return;
+        var answer = MessageBox.Show(this,
+            "화면이 응답하지 않습니다. 그래도 닫을까요?\n\n화면의 종료 절차(작업 멈춤 · 적도의 추적 끄기 · 프로그램 닫기)를 거치지 않습니다. " +
+            "적도의 추적이 켜져 있으면 N.I.N.A.에서 직접 꺼 주세요.",
+            Product.Name, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return;
+        _closeConfirmed = true;
+        Close();
+    }
+
+    /// <summary>화면 프로세스가 죽거나 멈춤: 다시 불러온다. 1분 안에 세 번째면(또는 브라우저 전체가 죽음) 다시 켜 달라고 알리고 바로 닫을 수 있게 (H4)</summary>
+    private void OnWebProcessFailed(Microsoft.Web.WebView2.Core.CoreWebView2ProcessFailedKind kind)
+    {
+        Astro.Server.Engine.FileLogProvider.Write("ERROR", "창", $"화면 프로세스 문제: {kind}");
+        var now = DateTime.UtcNow;
+        _webFailures.RemoveAll(t => now - t > TimeSpan.FromMinutes(1));
+        _webFailures.Add(now);
+        var browserGone = kind == Microsoft.Web.WebView2.Core.CoreWebView2ProcessFailedKind.BrowserProcessExited;
+        if (!browserGone && _webFailures.Count < 3)
+        {
+            try
+            {
+                Web.CoreWebView2.Reload();
+                return;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException) { }
+        }
+        _webDead = true;
+        MessageBox.Show(this,
+            $"{Product.Ga} 화면을 다시 띄우지 못했습니다. {Product.Reul} 다시 켜 주세요.\n\n장비는 그대로이고, 다시 켜면 오늘 밤 진행 기록에서 이어서 할 수 있습니다. " +
+            "적도의 추적이 켜져 있으면 N.I.N.A.에서 직접 꺼 주세요.",
+            Product.Name, MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
     // 창의 × 버튼·Alt+F4: 진행 중이면 화면에 "종료할까요?"를 띄운다 (2026-10-08 사용자 결정). 화면이 답("close")하면 닫는다
     private bool _closeConfirmed;
 
     private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!_closeConfirmed && !_stopping && !_stopped && Web.CoreWebView2 is { } web)
+        if (!_closeConfirmed && !_stopping && !_stopped && !_webDead && Web.CoreWebView2 is { } web)
         {
             e.Cancel = true;
-            web.PostWebMessageAsJson("{\"type\":\"confirm-close\"}");
+            _closeAck = false;
+            try { web.PostWebMessageAsJson("{\"type\":\"confirm-close\"}"); }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException) { }
+            _ = AskIfPageSilentAsync();
             return;
         }
         if (_stopped) return;
@@ -230,6 +294,7 @@ public partial class MainWindow : Window
         e.Cancel = true;
         _stopping = true;
         Hide(); // 종료를 확인했으니 창은 바로 감춘다 — 서버가 멈추는 동안 남아 보이지 않게 (2026-10-10)
+        _thumbnail?.Stop(); // 비추던 다른 프로그램 영상도 멈춘다 — 닫힌 화면에 상태를 보내지 않게 (M5)
         var server = _server;
         _server = null;
         try

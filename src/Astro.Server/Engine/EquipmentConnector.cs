@@ -94,7 +94,7 @@ public sealed class EquipmentChoices
 ///   단 전원 허브는 다른 장비에 전원을 주므로, 있으면 맨 먼저 연결하고 실패하면 뒤 장비는 보류한다
 /// 돔·안전 모니터·날씨 장치는 다루지 않는다.
 /// </summary>
-public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOptions> options, EquipmentSimulation sim, EquipmentChoices choices, RigOverrides overrides, LiveDevices live, OpticsStore optics, EquipmentRun state, DevicePrecheck.IHostDevices host, CameraPowerStore cameraPower, ILogger<EquipmentConnector> log, Profiles.PowerWiringStore? power = null)
+public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOptions> options, EquipmentSimulation sim, EquipmentChoices choices, RigOverrides overrides, LiveDevices live, OpticsStore optics, EquipmentRun state, DevicePrecheck.IHostDevices host, CameraPowerStore cameraPower, ILogger<EquipmentConnector> log, Profiles.PowerWiringStore? power = null, Prepare.Real.AscomAxis? axis = null)
 {
     private const CheckSeverity Required = CheckSeverity.Required;
     private const CheckSeverity Recommended = CheckSeverity.Recommended;
@@ -524,6 +524,8 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                         }
                 }
                 _timing?.Step("N.I.N.A. 연결");
+                // 적도의가 연결되면 그 ASCOM 드라이버를 기억 — N.I.N.A.가 답하지 않을 때 직접 멈추는 비상 정지가 이 적도의 드라이버를 쓰게 (자체 점검 M2)
+                if (connected && kind == "mount" && axis is not null && d.Id.StartsWith("ASCOM.", StringComparison.OrdinalIgnoreCase)) axis.DriverId = d.Id;
             }
             // 허브가 USB로만 붙고 전원(DC)이 안 들어오면(10/09: USB만으로도 연결됨) 뒤 장비를 N.I.N.A.에 맡기지 않는다 —
             // 허브 입력 전압이 곧 장비 전원 (사용자 배선: 외부 전원 → 적도의 → 새들 → 허브). 전압 칸을 모르면 그냥 진행

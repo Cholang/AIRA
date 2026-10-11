@@ -8,7 +8,30 @@
 
 ---
 
-## 2026-10-11 · [Claude] 도는 태양·이글거림·다가왔다 멀어지는 시작, 행성 차례로 나타나기, 연결 경과는 다 그린 뒤에, 배경 카메라 연출, 진행 호 끝
+## 2026-10-11 · [Claude] 자체 점검(Deep Self-Audit) High·Med·Low 15건 수정
+
+**요청**: 프로세스 수명·장비 연동·동시성·SSE·화면 자원·오류 격리·스타일 토큰 7개 영역의 잠재 크래시·데드락·누수·상태 불일치 점검 → H(4)·M(5)·L(6) 차례로 모두 수정.
+
+**변경**
+- H1 `Phd2Client.CallAsync`: 답 시간 초과를 취소 예외가 아니라 `Phd2Exception`으로 — 촬영 감시가 PHD2 10초 무응답 한 번에 "예상하지 못한 오류"로 끝나던 것
+- H2 `AppServer`: `BackgroundServiceExceptionBehavior.Ignore`, `NightSessionRecorder`·`NinaLogWatcher`·`NinaToastHider`·`NinaAutofocusWindowHider`는 예외를 기록하고 계속
+- H3 새 `ErrorBoundary.tsx`(`ScreenError`·`AppError`): 화면 영역·상태 줄·진행 표시(실패해도 종료 버튼)·앱 전체(main.tsx, 다시 불러오기 + 종료 절차)
+- H4 `MainWindow`: `ProcessFailed` → 다시 불러오기(1분에 세 번째·브라우저 전체면 다시 켜 달라는 안내 후 바로 닫을 수 있게), 창 ×에 3초 안에 화면 응답(`confirm-ack`, host.ts) 없으면 창이 직접 묻기
+- M1 `Phd2Client`: 호출마다 자기 연결, `Drop(stream)`은 지금 연결일 때만, 끊기면 구독 끝냄(받는 쪽이 다시 구독), `_readerStop` 해제
+- M2 `AscomAxis`: COM 해제(`FinalReleaseComObject`, 아이라가 연결했으면 연결 풀기), `Stop` 실제 결과, `EmergencyStopAsync`(AbortSlew + 두 축 멈춤, 15초 한도). `NinaRig.StopSlewAndConfirmAsync`는 N.I.N.A. 정지 실패 시 비상 정지, `EquipmentConnector`가 연결한 적도의 드라이버를 기억
+- M3 `checks.ts`: 결과 전에 끊기면 남은 항목을 실패로
+- M4 `NinaProcesses`(NinaNotices.cs): N.I.N.A. 프로세스·아이라 창을 2초에 한 번만 (측정: 목록 한 번 약 6ms × 초당 13번 ≈ 한 코어 8% → 약 0.3%)
+- M5 `App.xaml.cs` 전역 예외 기록(창 예외는 앱을 끄지 않음), `WindowThumbnail.Stop`·상태 보고 보호
+- L1 `PrepareRunner`: 다음 계열 버튼 받는 즉시 지움, 새 실행 전 앞 실행 취소 후 끝나면 정리 · L2 `UserSettings` 임시 파일 후 바꾸기 · L3 `NinaApiClient.MaxRequestTimeout`(3분) + HttpClient 안전선 · L4 `BackgroundWindows`가 캐시한 아이라 창 · L5 장비 변경 모드에서 태양 멈춤(`JarvisRing spin`), 폰·태블릿은 `--glass-blur: none` · L6 `--scrim-*`·`--label-shade` 토큰, 새 `render/sunSurface.ts`(그리기 순수 함수)
+- DESIGN.md 화면이 고장 났을 때의 종료 규칙, 덧씌움 토큰·폰 흐림
+
+**확인**: 서버 테스트 194 통과·1 건너뜀 — 새 `Phd2ClientTests` 3개(H1 시간 초과·취소 구분, M1 끊김→구독 끝·새 연결·옛 정리가 새 연결 안 끊음; 고치기 전 코드면 H1·M1 실패), `SelfAuditLowTests` 2개(L1은 동시 경합까지는 재현 못 함). 웹 타입 검사·빌드, 데스크톱 빌드, 아이라를 띄워 화면·토큰 확인. 확인 못 함: 화면 고장·WebView2 프로세스 죽음 실제 재현, 비상 정지 실장비, 폰 흐림 실기, 태양 표면(코드 이동만)
+
+**남은 것**: 없음 (점검 보고는 대화에만 — 필요하면 docs/codex에 남김)
+
+---
+
+## 2026-10-11 · cc3ab99 [Claude] 도는 태양·이글거림·다가왔다 멀어지는 시작, 행성 차례로 나타나기, 연결 경과는 다 그린 뒤에, 배경 카메라 연출, 진행 호 끝
 
 **요청**: 태양 자전 시안 적용(엔진 켜기 원·장비 연결 태양 두 곳). 장비 연결 끝 진행 호가 양 끝에 닿지 않음. 엔진 원·글자 20% 크게 → 이어서 엔진 원을 장비 태양과 같은 크기로, 처음엔 외곽선이 안 보일 만큼 가까이서 멀어지며 나타나기. 엔진 켜기부터 이글거림. 넘어갈 때 두 번 반짝임. 행성은 태양이 다 옮겨 간 뒤 수성→해왕성(소행성대 포함)→망원경 순서로(토성 고리가 먼저 나옴). 연결은 바로 시작하되 경과는 다 그린 뒤 표시. 태양 대신 화면이 움직이는 연출(혜성은 밀지 않음, 밀린 자리는 유지)
 

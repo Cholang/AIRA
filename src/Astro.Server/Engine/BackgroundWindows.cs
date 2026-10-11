@@ -45,7 +45,7 @@ public static class BackgroundWindows
         {
             _topCount += on ? 1 : -1;
             if (on ? _topCount != 1 : _topCount != 0) return;
-            if (Process.GetCurrentProcess().MainWindowHandle is var own and not 0)
+            if (NinaProcesses.OwnWindow() is var own and not 0)
                 SetWindowPos(own, on ? HwndTopmost : HwndNoTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
         }
     }
@@ -95,7 +95,7 @@ public static class BackgroundWindows
                             {
                                 // 스스로 "항상 위"인 창(Wanderer Empire 시작 로고 등 — 2026-10-10 사용자: 장비 연결 중 화면을 가림)은 그 표시를 풀어
                                 // 아이라("항상 위") 아래로 보낸다. 나머지 창은 그대로 두고 포커스만 아이라로
-                                var own = Process.GetCurrentProcess().MainWindowHandle;
+                                var own = NinaProcesses.OwnWindow(); // 2초마다 한 번만 새로 읽은 값 (자체 점검 L4 — 0.15초마다 프로세스 객체를 만들고 놓지 않았다)
                                 // "항상 위"를 푸는 것은 확인된 시작 로고(제목 "startup")만 — 사용자가 연 다른 "항상 위" 창은 건드리지 않는다.
                                 // 시작 로고는 원래대로("항상 위") 되돌리지 않는다 — 지키기가 끝날 때 아직 떠 있으면 아이라 위로 다시 올라와
                                 // 로고가 두 번 뜬 것처럼 보였다 (2026-10-11 사용자 실행). 사용자 창은 애초에 건드리지 않는다 (CX-20-11)
@@ -109,7 +109,7 @@ public static class BackgroundWindows
                             else if (GetForegroundWindow() == h)
                             {
                                 SetWindowPos(h, HwndBottom, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
-                                if (Process.GetCurrentProcess().MainWindowHandle is var own and not 0) SetForegroundWindow(own);
+                                if (NinaProcesses.OwnWindow() is var own and not 0) SetForegroundWindow(own);
                             }
                         }
                         await Task.Delay(150, _stop.Token);

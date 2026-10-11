@@ -13,10 +13,11 @@ namespace Astro.Server.Prepare.Real;
 /// - 촬영: capture?duration= (시작) → capture?getResult= ("Capture already in progress"가 끝날 때까지). 실패해도 이전 사진을 줄 수 있음
 /// - 가이딩: guider/start는 별이 없어도 2분쯤 뒤 "started"로 답함 → PHD2 상태로 확인해야 함
 /// </summary>
-public sealed class NinaRig(NinaApiClient nina)
+/// axis: N.I.N.A.가 정지 명령에 답하지 않을 때 드라이버에 직접 멈추라고 할 길 (자체 점검 M2, 없으면 N.I.N.A.만)
+public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
 {
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan Long = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan Long = NinaApiClient.MaxRequestTimeout;
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     /// <summary>Pier = ASCOM SideOfPier ("pierEast" · "pierWest" · "pierUnknown")</summary>
@@ -80,7 +81,9 @@ public sealed class NinaRig(NinaApiClient nina)
     /// <summary>이동 멈춤 + 멈춘 것 확인 (이동 중 아님 + 좌표가 연속 두 번 같음)</summary>
     public async Task<bool> StopSlewAndConfirmAsync(CancellationToken ct)
     {
-        await nina.RequestAsync("equipment/mount/slew/stop", Short, ct);
+        var stop = await nina.RequestAsync("equipment/mount/slew/stop", Short, ct);
+        // N.I.N.A.가 정지 명령을 받지 못하면(멈춤·꺼짐·적도의 연결 끊김) 드라이버에 직접 — 멈춘 것을 확인하지 못해도 적도의는 실제로 멈추게 (M2)
+        if (!stop.Ok && axis is not null) await axis.EmergencyStopAsync();
         return await ConfirmStillAsync(ct);
     }
 

@@ -54,6 +54,13 @@ export function useCheckStream(url: string, initial: CheckItem[]) {
     source.onerror = () => {
       source.close()
       setClosed(true)
+      // 결과를 다 받기 전에 끊겼으면(서버 쪽 오류 등) 남은 항목을 실패로 — "확인 중"인 채 다시 시도 버튼도 없이 멈춰 있지 않게 (자체 점검 M3).
+      // 다 받은 뒤 서버가 닫은 정상 끝에는 남은 항목이 없어 바뀌는 것이 없다
+      setItems((prev) =>
+        prev.some((i) => !isFinal(i.status))
+          ? prev.map((i) => (isFinal(i.status) ? i : { ...i, status: 'Fail' as const, message: '결과를 받지 못했습니다. 다시 시도해 주세요.', diagnosis: null }))
+          : prev,
+      )
     }
     return () => source.close()
   }, [url, run])

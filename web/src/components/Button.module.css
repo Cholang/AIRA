@@ -64,7 +64,7 @@
 /* 하늘 화면(사진) 위: 사진이 비치지 않게 어두운 반투명 바탕 + 별빛 글자 */
 .quiet[data-surface='sky'] {
   border-color: var(--sky-line);
-  background: rgb(0 0 0 / 0.4);
+  background: var(--scrim-mid);
   color: var(--star);
   text-shadow: none;
 }

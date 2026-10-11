@@ -316,6 +316,12 @@ public sealed class NinaLogWatcher(NinaNotices notices, ILogger<NinaLogWatcher> 
             {
                 log.LogDebug(e, "N.I.N.A. 로그를 읽지 못함");
             }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // 해석 규칙의 예상 못 한 오류 등 — 이 줄들은 건너뛰고 계속 따라 읽는다 (H2)
+                log.LogWarning(e, "N.I.N.A. 로그를 해석하지 못함");
+                pending = "";
+            }
             try { await Task.Delay(1000, ct); } catch (OperationCanceledException) { return; }
         }
     }
@@ -338,6 +344,50 @@ public sealed class NinaLogWatcher(NinaNotices notices, ILogger<NinaLogWatcher> 
 }
 
 /// <summary>
+/// N.I.N.A. 프로세스 번호와 아이라 창 — 창 숨기기·창 지키기(BackgroundWindows)가 0.1~0.3초마다 묻는다. 프로세스 목록 만들기(PC의 모든 프로세스 정보)는 무거워서 2초에 한 번만
+/// (2026-10-11 자체 점검 M4: 밤새 초당 10번 모든 프로세스를 훑어 노트북 배터리·CPU를 썼다). N.I.N.A.를 새로 켜면 2초 안에 알아챈다
+/// </summary>
+internal static class NinaProcesses
+{
+    private static readonly Lock Gate = new();
+    private static HashSet<uint> _ids = [];
+    private static nint _own;
+    private static long _at = -10_000; // 처음 물을 때 바로 읽게
+
+    /// <summary>지금 켜져 있는 N.I.N.A. 프로세스 번호 (읽기만 — 2초마다 새 묶음으로 바꾼다)</summary>
+    public static HashSet<uint> Ids()
+    {
+        Refresh();
+        lock (Gate) return _ids;
+    }
+
+    /// <summary>아이라 창 (없으면 0)</summary>
+    public static nint OwnWindow()
+    {
+        Refresh();
+        lock (Gate) return _own;
+    }
+
+    private static void Refresh()
+    {
+        var now = Environment.TickCount64;
+        lock (Gate) if (now - _at < 2000) return;
+        var ids = new HashSet<uint>();
+        foreach (var p in Process.GetProcessesByName("NINA"))
+            using (p)
+                ids.Add((uint)p.Id);
+        nint own;
+        using (var me = Process.GetCurrentProcess()) own = me.MainWindowHandle;
+        lock (Gate)
+        {
+            _ids = ids;
+            _own = own;
+            _at = now;
+        }
+    }
+}
+
+/// <summary>
 /// N.I.N.A. 알림(토스트) 창 숨기기 (2026-10-09 사용자 요청 — 같은 내용을 아이라가 진단 카드로 보여 준다).
 /// 알림은 N.I.N.A. 프로세스의 "NotificationsWindow" 창 하나에 쌓인다(2026-10-09 확인) — 그 창만 숨기고 다른 대화창은 건드리지 않는다.
 /// 아이라 창이 앞에 있을 때만 숨긴다: 사용자가 N.I.N.A.로 가 있으면 N.I.N.A. 알림을 그대로 본다.
@@ -354,7 +404,7 @@ public sealed class NinaToastHider(NinaNotices notices) : BackgroundService
         if (!OperatingSystem.IsWindows()) return;
         while (!ct.IsCancellationRequested)
         {
-            try { Tick(); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { Tick(); } catch (Exception e) when (e is not OperationCanceledException) { /* 창·프로세스가 막 사라짐 등 — 다음에 다시 (H2) */ }
             try { await Task.Delay(100, ct); } catch (OperationCanceledException) { return; }
         }
     }
@@ -385,14 +435,13 @@ public sealed class NinaToastHider(NinaNotices notices) : BackgroundService
         var fg = GetForegroundWindow();
         if (fg == 0) return false;
         GetWindowThreadProcessId(fg, out var pid);
-        try { using var p = Process.GetProcessById((int)pid); return p.ProcessName == "NINA"; }
-        catch (ArgumentException) { return false; }
+        return NinaProcesses.Ids().Contains(pid);
     }
 
     /// <summary>보이는 N.I.N.A. 알림 창 (없으면 0)</summary>
     private static nint ToastWindow()
     {
-        var pids = Process.GetProcessesByName("NINA").Select(p => { using (p) return (uint)p.Id; }).ToHashSet();
+        var pids = NinaProcesses.Ids();
         if (pids.Count == 0) return 0;
         nint found = 0;
         var title = new StringBuilder(64);
@@ -435,16 +484,16 @@ public sealed class NinaAutofocusWindowHider : BackgroundService
         if (!OperatingSystem.IsWindows()) return;
         while (!ct.IsCancellationRequested)
         {
-            try { HideOnce(); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { HideOnce(); } catch (Exception e) when (e is not OperationCanceledException) { /* 다음에 다시 (H2) */ }
             try { await Task.Delay(300, ct); } catch (OperationCanceledException) { return; }
         }
     }
 
     private static void HideOnce()
     {
-        var own = Process.GetCurrentProcess().MainWindowHandle;
+        var own = NinaProcesses.OwnWindow();
         if (own == 0 || GetForegroundWindow() != own) return;
-        var pids = Process.GetProcessesByName("NINA").Select(p => { using (p) return (uint)p.Id; }).ToHashSet();
+        var pids = NinaProcesses.Ids();
         if (pids.Count == 0) return;
         var title = new StringBuilder(64);
         EnumWindows((h, _) =>

@@ -54,7 +54,10 @@ public sealed class UserSettings
         {
             _data = change(_data);
             Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
-            File.WriteAllText(_file, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
+            // 임시 파일에 다 쓴 뒤 바꾼다 — 쓰는 도중 꺼져도 반쯤 쓴 파일 때문에 설정 전체(경로·AI 켜기)가 조용히 사라지지 않게 (2026-10-11 자체 점검 L2)
+            var tmp = _file + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
+            File.Move(tmp, _file, overwrite: true);
         }
     }
 

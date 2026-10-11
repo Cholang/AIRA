@@ -6,6 +6,13 @@
 :root,
 :root[data-theme='dark'] {
   --glass-blur: blur(18px) saturate(1.2);
+  /* (폰·태블릿은 아래 미디어 쿼리에서 흐림을 뺀다 — 자체 점검 L5) */
+  /* 어두운 덧씌움(사진·하늘 위 글자 바탕, 대화 창 뒤): 두 테마 모두 검정 — 값은 여기서만 (자체 점검 L6) */
+  --scrim-soft: rgb(0 0 0 / 0.35);
+  --scrim-mid: rgb(0 0 0 / 0.4);
+  --scrim-strong: rgb(0 0 0 / 0.55);
+  /* 도는 태양 위 글자 뒤만 살짝 어둡게 (JarvisRing surface) */
+  --label-shade: radial-gradient(closest-side, rgb(0 0 0 / 0.42), rgb(0 0 0 / 0.22) 70%, transparent);
   /* [임시] 기본: 푸른 기 없는 짙은 회색 + 보라 강조 (2026-10-10 호박색 → 로고·연결 표현의 보라). 경고(--warn)는 호박색 그대로 */
   --bg: #1e1f21;
   --surface: #27292c;
@@ -46,7 +53,9 @@
   color-scheme: dark;
 }
 
+/* 촬영용: 글자 뒤 그늘을 더 짙게 (무늬가 붉은 글자를 덜 가리게) */
 :root[data-theme='night'] {
+  --label-shade: radial-gradient(closest-side, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.35) 70%, transparent);
   /* [임시] 촬영용: 적색 외의 빛을 내지 않는다 — 모든 색의 초록·파랑 값은 00.
      가장 밝은 요소도 어두운 빨강. 구분은 명도 차이와 모양으로. */
   --bg: #000000;
@@ -145,4 +154,14 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* 폰·태블릿(손가락 입력, 가리키기 없음): 글래스 뒤 흐림을 뺀다 — 행성·태양마다 있는 뒤 흐림이 휴대 기기 그래픽에 가장 무겁다 (2026-10-11 자체 점검 L5).
+   반투명 면·테두리는 그대로라 모양은 같고 뒤가 흐려 보이지만 않는다 */
+@media (hover: none) and (pointer: coarse) {
+  /* 테마 선택자([data-theme])보다 약하지 않게 같은 세기로, 뒤에 둔다 */
+  :root,
+  :root[data-theme] {
+    --glass-blur: none;
+  }
 }

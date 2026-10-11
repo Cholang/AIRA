@@ -313,7 +313,13 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
         CancellationToken ct;
         lock (_gate)
         {
-            _runCts?.Dispose();
+            // 앞 실행이 아직 돌고 있으면 멈추라고 알린 뒤 바꾼다 — 예전에는 취소 없이 버려서 앞 작업이 그대로 돌 수 있었다 (L1).
+            // 앞 실행이 아직 이 토큰을 쓰고 있을 수 있어 바로 버리지 않고, 그 실행이 끝난 뒤에 정리한다
+            if (_runCts is { } old)
+            {
+                old.Cancel();
+                _ = _runTask.ContinueWith(_ => old.Dispose(), TaskScheduler.Default);
+            }
             _runCts = new CancellationTokenSource();
             ct = _runCts.Token;
             cur = new Current(task, ++_runId);
@@ -471,6 +477,13 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
                 Changed();
                 ask.TrySetResult(actionId);
                 return null;
+            }
+            // 다음 작업을 시작하는 버튼은 받는 즉시 지운다 — 거의 동시에 두 번 들어와도 같은 작업이 두 번 돌지 않게 (2026-10-11 자체 점검 L1).
+            // 새 작업이 시작되면(또는 다음이 없으면 끝 버튼) 버튼이 다시 채워진다
+            if (actionId is "next" or "restart" || actionId.StartsWith("next:", StringComparison.Ordinal))
+            {
+                cur.Actions = [];
+                Changed();
             }
         }
         if (actionId == _setup.Finish.Id)

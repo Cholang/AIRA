@@ -356,7 +356,7 @@ function EquipmentGraph({
               }
               data-ready={moveFrom !== null}
             >
-              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`} surface corona>
+              <JarvisRing state={mode === 'edit' ? 'working' : state} className={`${styles.ring} ${styles.sunRing}`} surface corona spin={mode !== 'edit'}>
                 {null}
               </JarvisRing>
               {/* 1단계 끝 모습을 위에 겹쳐 두고, 옮겨 가는 동안 흐려진다 → 항성으로 크로스페이드 */}

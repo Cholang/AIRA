@@ -44,8 +44,9 @@ public static class AppServer
         builder.Services.AddHttpClient<NinaApiClient>((sp, http) =>
         {
             http.BaseAddress = new Uri(sp.GetRequiredService<IOptions<NinaOptions>>().Value.BaseUrl);
-            // 요청별 대기 시간은 NinaApiClient가 정한다 (조회 5초, 장비 연결 60초). 여기는 그보다 넉넉한 안전선
-            http.Timeout = NinaApiClient.ConnectTimeout + TimeSpan.FromSeconds(30);
+            // 요청별 대기 시간은 부르는 쪽이 정한다 (조회 5초, 장비 연결 60초, 사진 받기·반전·가이딩 시작 3분 — NinaRig.Long). 여기는 그보다 넉넉한 안전선.
+            // 예전 90초는 3분짜리 요청을 90초에 잘랐다 (2026-10-11 자체 점검 L3)
+            http.Timeout = NinaApiClient.MaxRequestTimeout + TimeSpan.FromSeconds(30);
         });
         builder.Services.Configure<NetworkOptions>(builder.Configuration.GetSection("Network"));
         builder.Services.AddHttpClient<InternetCheck>();
@@ -85,6 +86,9 @@ public static class AppServer
         builder.Services.AddSingleton<PowerWiringStore>();
         // 그날 밤 진행 기록: 중간에 꺼져도 다시 켜면 이어서 할지 묻는다 (2026-10-08)
         builder.Services.AddSingleton(new Session.NightSessionStore(builder.Configuration["App:DataDir"]));
+        // 백그라운드 서비스(기록·N.I.N.A. 로그·창 숨기기)의 예외 하나가 서버 전체를 멈추지 않게 (.NET 기본은 서버 정지 — 2026-10-11 자체 점검 H2).
+        // 각 서비스는 예외를 기록하고 계속 돈다
+        builder.Services.Configure<HostOptions>(o => o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
         builder.Services.AddHostedService<Session.NightSessionRecorder>();
         // N.I.N.A. 오류를 아이라 말로 (로그를 따라 읽음) · N.I.N.A. 알림 창은 아이라가 앞에 있을 때 숨김
         builder.Services.AddSingleton<NinaNotices>();

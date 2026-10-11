@@ -31,7 +31,8 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
     /// <summary>명령 하나. PHD2 오류면 Phd2Exception(이유 문장)</summary>
     public async Task<JsonElement> CallAsync(string method, object? @params = null, CancellationToken ct = default, TimeSpan? timeout = null)
     {
-        await EnsureConnectedAsync(ct);
+        // 이번 호출이 쓸 연결을 받아 둔다 — 그사이 다른 호출이 끊고 다시 연결해도 비어 있는 연결을 쓰지 않게 (자체 점검 M1)
+        var stream = await EnsureConnectedAsync(ct);
         var tcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         int id;
         lock (_gate)
@@ -43,7 +44,7 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
         try
         {
             await _writeGate.WaitAsync(ct);
-            try { await _stream!.WriteAsync(Encoding.UTF8.GetBytes(line), ct); }
+            try { await stream.WriteAsync(Encoding.UTF8.GetBytes(line), ct); }
             finally { _writeGate.Release(); }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout ?? CallTimeout);
@@ -54,8 +55,15 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
         }
         catch (Exception e) when (e is IOException or SocketException or ObjectDisposedException)
         {
-            Drop();
+            Drop(stream);
             throw new Phd2Exception("PHD2에 연결하지 못했습니다. PHD2가 켜져 있는지 확인해 주세요.");
+        }
+        // 답을 기다리다 시간 초과 (부른 쪽이 취소한 것이 아님): 취소 예외 그대로 두면 PHD2 오류만 처리하는 곳을 지나쳐
+        // 촬영 전체가 "예상하지 못한 오류"로 끝났다 (2026-10-11 자체 점검 H1) → PHD2 오류로 알려 그 자리에서 처리하게
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            log.LogWarning("PHD2가 {Method}에 {Seconds}초 동안 답하지 않음", method, (timeout ?? CallTimeout).TotalSeconds);
+            throw new Phd2Exception("PHD2가 답하지 않습니다. PHD2 창에 열린 대화 상자가 있는지 확인해 주세요.");
         }
         finally
         {
@@ -65,7 +73,9 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
 
     public async Task<string> AppStateAsync(CancellationToken ct) => (await CallAsync("get_app_state", ct: ct)).GetString() ?? "";
 
-    /// <summary>이벤트를 받는다. 다 쓰면 Dispose (구독 해제)</summary>
+    /// <summary>
+    /// 이벤트를 받는다. 다 쓰면 Dispose (구독 해제). 연결이 끊기면 이 구독은 끝난다(읽기가 false) — 받는 쪽이 다시 구독하면 다시 연결된다 (M1)
+    /// </summary>
     public async Task<Phd2Events> SubscribeAsync(CancellationToken ct)
     {
         await EnsureConnectedAsync(ct);
@@ -74,14 +84,15 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
         return new Phd2Events(ch.Reader, () => { lock (_gate) _subscribers.Remove(ch); ch.Writer.TryComplete(); });
     }
 
-    private async Task EnsureConnectedAsync(CancellationToken ct)
+    /// <summary>연결해 두고 그 연결을 돌려준다 (이미 연결돼 있으면 그것)</summary>
+    private async Task<NetworkStream> EnsureConnectedAsync(CancellationToken ct)
     {
-        if (_tcp is { Connected: true }) return;
+        lock (_gate) if (_tcp is { Connected: true } && _stream is { } open) return open;
         await _connectGate.WaitAsync(ct);
         try
         {
-            if (_tcp is { Connected: true }) return;
-            Drop();
+            lock (_gate) if (_tcp is { Connected: true } && _stream is { } open) return open;
+            Drop(null);
             var tcp = new TcpClient();
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
@@ -93,10 +104,16 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
                     throw new Phd2Exception("PHD2에 연결하지 못했습니다. PHD2가 켜져 있는지 확인해 주세요.");
                 }
             }
-            _tcp = tcp;
-            _stream = tcp.GetStream();
-            _readerStop = new CancellationTokenSource();
-            _ = Task.Run(() => ReadLoopAsync(_stream, _readerStop.Token));
+            var stream = tcp.GetStream();
+            var stop = new CancellationTokenSource();
+            lock (_gate)
+            {
+                _tcp = tcp;
+                _stream = stream;
+                _readerStop = stop;
+            }
+            _ = Task.Run(() => ReadLoopAsync(stream, stop.Token));
+            return stream;
         }
         finally
         {
@@ -115,10 +132,10 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
                 JsonElement msg;
                 try { using var doc = JsonDocument.Parse(line); msg = doc.RootElement.Clone(); }
                 catch (JsonException) { continue; }
-                if (msg.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number)
+                if (msg.TryGetProperty("id", out var id) && id.TryGetInt32(out var n))
                 {
                     TaskCompletionSource<JsonElement>? tcs;
-                    lock (_gate) _pending.TryGetValue(id.GetInt32(), out tcs);
+                    lock (_gate) _pending.TryGetValue(n, out tcs);
                     tcs?.TrySetResult(msg);
                 }
                 else if (msg.TryGetProperty("Event", out _))
@@ -133,26 +150,38 @@ public sealed class Phd2Client(ILogger<Phd2Client> log) : IAsyncDisposable
         {
             log.LogInformation("PHD2 연결 끊김: {Message}", e.Message);
         }
-        Drop();
+        // 이 읽기 루프의 연결만 끊는다 — 그사이 새로 연결됐으면 새 연결은 그대로 (M1: 늦게 끝난 옛 루프가 새 연결을 끊던 것)
+        Drop(stream);
     }
 
-    private void Drop()
+    /// <summary>
+    /// 연결을 끊는다. which가 있으면 그 연결이 지금 연결일 때만 (옛 연결의 정리가 새 연결을 건드리지 않게).
+    /// 기다리던 답은 실패로, 이벤트 구독은 끝낸다 — 구독한 쪽이 다시 구독하며 다시 연결하게 (M1: 끊긴 뒤 이벤트가 조용히 멈추던 것)
+    /// </summary>
+    private void Drop(NetworkStream? which)
     {
+        Channel<JsonElement>[] subs;
         lock (_gate)
         {
+            if (which is not null && !ReferenceEquals(which, _stream)) return;
             _readerStop?.Cancel();
+            _readerStop?.Dispose();
+            _readerStop = null;
             _stream?.Dispose();
             _tcp?.Dispose();
             _stream = null;
             _tcp = null;
             foreach (var p in _pending.Values) p.TrySetException(new IOException("PHD2 연결 끊김"));
             _pending.Clear();
+            subs = [.. _subscribers];
+            _subscribers.Clear();
         }
+        foreach (var s in subs) s.Writer.TryComplete();
     }
 
     public ValueTask DisposeAsync()
     {
-        Drop();
+        Drop(null);
         return ValueTask.CompletedTask;
     }
 }

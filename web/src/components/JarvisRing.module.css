@@ -215,11 +215,7 @@
 .ring[data-surface='true'] .line {
   padding: 10px 18px;
   border-radius: 999px;
-  background: radial-gradient(closest-side, rgb(0 0 0 / 0.42), rgb(0 0 0 / 0.22) 70%, transparent);
-}
-
-:global(:root[data-theme='night']) .ring[data-surface='true'] .line {
-  background: radial-gradient(closest-side, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.35) 70%, transparent);
+  background: var(--label-shade);
 }
 
 /* 글자가 없는 원(장비 연결 태양)에는 어두운 바탕도 없게 */

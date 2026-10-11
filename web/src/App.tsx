@@ -29,6 +29,7 @@ import type { ObservingSite } from './profiles'
 import { PRODUCT } from './product'
 import { useTheme } from './theme'
 import ConfirmDialog from './components/ConfirmDialog'
+import { ErrorBoundary, ScreenError } from './components/ErrorBoundary'
 import { dismissSession, pendingSession, reportPhase, resumeSession, type PendingSession } from './session'
 import styles from './App.module.css'
 
@@ -353,6 +354,7 @@ export default function App() {
     >
       {phase !== 'boot' && (
         <div className={styles.bar}>
+          <ErrorBoundary name="상태 줄" fallback={() => null}>
           <StatusBar
             profile={profile}
             profiles={profiles ?? []}
@@ -376,6 +378,7 @@ export default function App() {
             theme={theme}
             onThemeChange={setTheme}
           />
+          </ErrorBoundary>
         </div>
       )}
       {/* 전환 중(settled=false)에는 화면 전체를 누를 수 없고 초점도 받지 않는다 (inert) */}
@@ -385,6 +388,8 @@ export default function App() {
       <ScreenSkyProvider onChange={setSky}>
       <RailProvider onChange={setRailExtra}>
       <div className={styles.screen} data-shown={shown} data-boot={phase === 'boot'} inert={!settled}>
+      {/* 화면 하나가 그리다 실패해도 그 자리만 대신 그린다 — 상태 줄·레일·종료는 그대로 (자체 점검 H3). 다른 화면으로 넘어가면 다시 그려 본다 */}
+      <ErrorBoundary name={phase} resetKey={phase} fallback={(e, reset) => <ScreenError error={e} onRetry={reset} />}>
         {phase === 'boot' && <BootScreen error={loadError ? `${PRODUCT.name} 내부 서버에 연결하지 못했습니다. ${PRODUCT.reul} 다시 실행해 주세요.` : null} />}
         {phase === 'profiles' && (
           <ProfileScreen
@@ -447,6 +452,7 @@ export default function App() {
         {phase === 'shoot' && <ShootScreen onWrap={toWrap} onRetarget={toPlan} />}
         {phase === 'wrap' && <PrepareScreen key="wrap" group="wrap" onDone={toSummary} />}
         {phase === 'summary' && <SummaryScreen />}
+      </ErrorBoundary>
       </div>
       </RailProvider>
       </ScreenSkyProvider>
@@ -455,6 +461,8 @@ export default function App() {
       {STAGE_OF[phase] && (
         // 관측지 목록 화면에서는 숨긴다: 지도·목록을 레일이 가렸다 (2026-10-10 사용자 요청). 종료는 QuitProvider가 맡으니 상관없고, 빼지 않고 숨겨서 단계별 작업 목록 기억은 그대로
         <div className={styles.rail} hidden={phase === 'site'}>
+          {/* 진행 표시가 실패해도 종료 버튼은 남긴다 (자체 점검 H3) */}
+          <ErrorBoundary name="진행 표시" fallback={() => <QuitButton />}>
           <StepRail
             current={STAGE_OF[phase]}
             extra={railExtra}
@@ -466,6 +474,7 @@ export default function App() {
               </>
             }
           />
+          </ErrorBoundary>
         </div>
       )}
       </div>

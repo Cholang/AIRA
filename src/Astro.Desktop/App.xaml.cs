@@ -16,6 +16,18 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // 처리하지 못한 예외: 창 쪽은 기록하고 앱을 끄지 않는다(밤새 켜 두는 앱 — 메시지 하나 처리 실패로 꺼지지 않게), 나머지는 기록만 (자체 점검 M5)
+        DispatcherUnhandledException += (_, ev) =>
+        {
+            Astro.Server.Engine.FileLogProvider.Write("ERROR", "창", $"처리하지 못한 오류: {ev.Exception}");
+            ev.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) => Astro.Server.Engine.FileLogProvider.Write("ERROR", "앱", $"처리하지 못한 오류(종료): {ev.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, ev) =>
+        {
+            Astro.Server.Engine.FileLogProvider.Write("WARN", "앱", $"기다리지 않은 작업의 오류: {ev.Exception.GetBaseException().Message}");
+            ev.SetObserved();
+        };
         Product.MoveDataFromPreviousName(); // 이름을 바꾸기 전 데이터 폴더 → 새 폴더 (창이 테마 파일을 읽기 전에)
         _single = new Mutex(initiallyOwned: true, $@"Local\{Product.DataFolder}-single-instance", out var first);
         if (!first)

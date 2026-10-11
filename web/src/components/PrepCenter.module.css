@@ -167,7 +167,7 @@
   place-items: center;
   border: 1.5px solid var(--sky-line);
   border-radius: var(--radius);
-  background: rgb(0 0 0 / 0.35);
+  background: var(--scrim-soft);
   color: var(--star);
   cursor: pointer;
 }
