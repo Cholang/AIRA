@@ -230,3 +230,312 @@
 3. **3순위 (성능 안정화)**:
    - `SkyBackdrop` 캔버스를 정적 1회 렌더링으로 제한하고 배터리 소모 방지.
    - `RealImage` 및 장비 감시 루프의 1~2초 폴링을 SSE 이벤트 기반 통지로 일원화.
+
+---
+
+## 6. 구조·단순화 리뷰 (커밋 38e1744)
+
+### 확인 항목
+- **본 커밋 해시**: `38e1744f809b281804b42229d03e8c7358c78374` (`38e1744`)
+- **`src/Astro.Server/Engine/EquipmentConnector.cs` 줄 수**: 855줄
+- **`web/src/screens/EquipmentScreen.tsx` 줄 수 및 레이아웃 함수**: 862줄, `solarLayout` (`import { PLANET_OF, solarLayout, type Planet, type SolarGeo } from './equipmentOrbits'`)
+- **`src/Astro.Server/Prepare/Flow/PrepareRunner.cs` 줄 수**: 928줄
+- **`docs/` 폴더 파일 목록**:
+  - `docs/DECISION_HISTORY.md`
+  - `docs/FIELD_TEST_CHECKLIST.md`
+  - `docs/OPERATION_PROCEDURE.md`
+  - `docs/codex/ERROR_VERIFICATION_CODEX.md`
+  - `docs/codex/IMPLEMENTATION_REQUEST_CODEX.md`
+  - `docs/codex/REVIEW_CODEX.md`
+  - `docs/codex/REVIEW_GEMINI.md`
+  - `docs/implementation/ARCHITECTURE.md`
+  - `docs/implementation/POWER_WIRING.md`
+  - `docs/implementation/PRECHECK.md`
+  - `docs/implementation/PREPARE.md`
+  - `docs/implementation/SHOOT.md`
+  - `docs/reference/NINA_API_COVERAGE.md`
+  - `docs/reference/NINA_SETUP.md`
+
+---
+
+### 1. 너무 큰 파일·클래스 분리 방안
+
+#### 1-1. `EquipmentConnector.cs` 내 복합 클래스 및 하위 도메인 분리
+- **무엇을**: `EquipmentConnector.cs` 파일 하나(855줄) 안에 함께 정의된 독립 옵션·상태 클래스들(`EquipmentOptions`, `EquipmentSimulation`, `EquipmentChoices`, `EquipmentRun`)을 각각 독립 파일로 분리하고, 전원 허브 제어 및 PHD2 검증 책임을 도메인 서비스로 추출합니다.
+- **왜**: 현재 한 파일 안에서 5개 클래스가 선언되어 있고, `EquipmentConnector` 내부에는 망원경 N.I.N.A. 프로필 주입(412~425줄), 전원 허브 포트/전압 스위칭(627~702줄), PHD2 프로세스/카메라 검증 및 리포인팅(719~759줄, 815~824줄), 비동기 연결 중단 제어(213~304줄)까지 단일 클래스가 도메인 전반을 모두 떠안고 있습니다. 특히 `EquipmentChoices`는 `PlanTools`나 `PrepareStarter` 등 외부에서 주입받는 독립 싱글톤 서비스임에도 `EquipmentConnector.cs` 내부에 끼어 있어 탐색이 어렵습니다.
+- **근거**:
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:10`: `public sealed class EquipmentOptions`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:28`: `public sealed class EquipmentSimulation`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:62`: `public sealed class EquipmentChoices`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:840`: `public sealed class EquipmentRun`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:627`: `private async Task<double?> HubInputVoltsAsync(CancellationToken ct)`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:719`: `private async Task<Phd2Check.Problem?> CheckPhd2Async(CancellationToken ct)`
+- **작업 크기**: 중간
+- **나눌 때 주의할 점**: 
+  - `AbortAsync`(213~304줄)와 `ConnectOneAsync`(407~589줄)에서 `lock (_gate)`를 통해 `state.InFlight`, `state.Unresolved`, `state.Unanswered`, `_runCts`를 조작합니다.
+  - 비동기 대기(`await request.WaitAsync(ct)`) 동안 락을 잡지 않고 완료 후 `finally`에서 상태를 정리하는 락 경계 및 취소 토큰 무시(`CancellationToken.None`으로 보낸 요청을 `AbortAsync`에서 65초간 끝까지 기다려 주는 정책)가 깨지지 않도록 해야 합니다.
+- **하지 않으면 생기는 실제 불편**: 전원 허브나 PHD2 연동 로직을 점검·수정할 때 850줄이 넘는 연결 오케스트레이션 코드 전체를 뒤져야 하고, 락 경계 실수로 인한 동시성 이슈를 파악하기 어렵습니다.
+
+---
+
+#### 1-2. `EquipmentScreen.tsx` 컴포넌트 및 모달 분리
+- **무엇을**: `EquipmentScreen.tsx` 파일 하나(862줄)에 모여 있는 `EditNode` 및 `DeviceList` 팝오버, `CameraPower` 선택 폼, `TempFailButtons`, 4초 자동 진행 타이머를 별도 파일로 분리합니다.
+- **왜**: 이 화면은 상위 화면 틀(`EquipmentScreen`, 49~78줄), 태양계 궤도 렌더링 그래프(`EquipmentGraph`, 80~486줄), 행성 노드(`PlanetNode`, 540~629줄), 드라이버 변경 팝오버(`EditNode`·`DeviceList`, 631~744줄), 카메라 전원 배선 팝업(`CameraPower`, 746~785줄), 모의 실패 버튼(`TempFailButtons`, 814~861줄)이 한 파일에 누적되어 있습니다. 태양계 궤도 UI라는 시각적 핵심과, 드라이버를 변경하고 전원 콘센트를 지정하는 폼 조작 책임이 섞여 있습니다.
+- **근거**:
+  - `web/src/screens/EquipmentScreen.tsx:80`: `function EquipmentGraph({`
+  - `web/src/screens/EquipmentScreen.tsx:540`: `function PlanetNode({`
+  - `web/src/screens/EquipmentScreen.tsx:631`: `function EditNode({`
+  - `web/src/screens/EquipmentScreen.tsx:687`: `function DeviceList({`
+  - `web/src/screens/EquipmentScreen.tsx:746`: `function CameraPower() {`
+  - `web/src/screens/EquipmentScreen.tsx:814`: `function TempFailButtons({`
+- **작업 크기**: 중간
+- **나눌 때 주의할 점**: 
+  - `solarLayout`으로 계산된 행성 위치(`p.x`, `p.y`)와 `LIST_ROOM`(310px)을 기준으로 드라이버 목록 팝오버의 화면 이탈 방지(`useKeepInside`)가 동작합니다.
+  - 4초 자동 진행 타이머(`ADVANCE_MS = 4000`, 174~185줄)는 장비 변경 버튼에 마우스가 호버될 때 감속(`SLOW_RATE = 0.3`)되는 상호작용 상태(`slowRef`, `isNearChange`)와 직결되어 있으므로 커스텀 훅(`useEquipmentAutoAdvance`)으로 추출 시 의존성 누락을 주의해야 합니다.
+- **하지 않으면 생기는 실제 불편**: 행성 궤도 렌더링이나 스타일을 수정하려 해도 860줄짜리 화면 파일 전체를 스크롤하며 장비 목록 선택 팝업과 전원 폼 코드를 함께 유지보수해야 합니다.
+
+---
+
+#### 1-3. `PrepareRunner.cs`에서 정지 조정 및 뷰 발행 책임 분리
+- **무엇을**: `PrepareRunner.cs`(928줄)에서 장비 정지 및 중단 확인 로직(`StopCurrentAsync`, `TryStopAsync`, `RecheckStopAsync`, `StopLingeringAsync`)을 `PrepStopCoordinator`로 분리하고, SSE 스트리밍 및 뷰 생성 로직(`WatchAsync`, `Snapshot`, `CheckStaleNow`)을 분리하며, 파일 하단의 `RunHandle`(868~927줄)을 별도 클래스로 분리합니다.
+- **왜**: `PrepareRunner`는 준비 단계의 상태 머신(작업 순서, 결과 기록, 다음 작업 자동 진행)을 담당해야 하지만, 실제로는 장비 정지 시 15초 타임아웃 및 미확인 상태(`_stopUnconfirmed`)를 관리하는 안전 정지 로직(560~686줄, 743~812줄)과, SSE 클라이언트 알림 및 3초 데이터 신선도(Heartbeat/Stale) 감시(133~191줄, 832~855줄), 그리고 `ITaskRun` 구현체인 `RunHandle`까지 모두 단일 파일에 결합되어 있습니다.
+- **근거**:
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:63`: `private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(15);`
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:82`: `private (IPrepTask Task, Func<Task> Then)? _stopUnconfirmed;`
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:153`: `public async IAsyncEnumerable<PrepView> WatchAsync([EnumeratorCancellation] CancellationToken ct)`
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:743`: `private async Task<bool> StopCurrentAsync(Func<Task> then)`
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:868`: `private sealed class RunHandle(PrepareRunner r, int runId) : ITaskRun`
+- **작업 크기**: 중간 ~ 큼
+- **나눌 때 주의할 점**: 
+  - 취소 토큰 분리 원칙: 작업을 취소할 때는 `cur.Cts.Cancel()`을 호출하지만, 장비 멈춤(`task.StopAsync`)은 취소된 토큰의 영향을 받지 않도록 독립된 15초 제한 토큰(`StopTimeout`, 782줄)을 사용해야 합니다.
+  - 정지 확인 실패 시 `_stopUnconfirmed` 클로저를 걸어 두고 사용자가 "직접 확인"(`device-check`)을 누르기 전까지 모든 전진 액션을 차단하는 상태 순서가 유지되어야 합니다.
+  - `_runId`를 통한 이전 실행 콜백 무효화(CX-PREP-IMPL-04)가 `RunHandle` 분리 시에도 완벽히 동기화되어야 합니다.
+- **하지 않으면 생기는 실제 불편**: 작업 실행 순서나 버튼 액션 분기를 고치다가 복잡한 15초 정지 확인 타임아웃이나 SSE 알림 로직과 엉켜 회귀 버그가 발생하기 쉽습니다.
+
+---
+
+### 2. 여러 곳에 분산·중복된 로직 통합
+
+#### 2-1. `NinaRig.cs` 내 적도의 정지 확인 루프 중복 (`ConfirmStillAsync` vs `WaitStillAsync`)
+- **무엇을**: `NinaRig.ConfirmStillAsync`를 별도의 루프로 유지하지 않고, 이미 존재하는 `WaitStillAsync`를 재사용하도록 일원화합니다.
+- **왜**: `ConfirmStillAsync`와 `WaitStillAsync`는 "Slewing이 false이고 RA/Dec 좌표 변화량이 0.005도 미만인 상태가 2회 연속 유지되는지"를 검사하는 알고리즘이 토씨 하나 다르지 않고 완전히 동일합니다. `ConfirmStillAsync`는 단순히 12회 루프(약 14.4초), `WaitStillAsync`는 `timeout` 기반 루프일 뿐입니다.
+- **근거**:
+  - `src/Astro.Server/Prepare/Real/NinaRig.cs:44-46`:
+    ```csharp
+    if (m is null) return false;
+    if (!m.Slewing && last is { } l && Math.Abs(l.Item1 - m.RaDeg) < 0.005 && Math.Abs(l.Item2 - m.DecDeg) < 0.005) return true;
+    last = (m.RaDeg, m.DecDeg);
+    ```
+  - `src/Astro.Server/Prepare/Real/NinaRig.cs:96-98`:
+    ```csharp
+    if (m is null) return false;
+    if (!m.Slewing && last is { } l && Math.Abs(l.Item1 - m.RaDeg) < 0.005 && Math.Abs(l.Item2 - m.DecDeg) < 0.005) return true;
+    last = (m.RaDeg, m.DecDeg);
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: 좌표 안정 판정 임계치(0.005도)나 폴링 간격(1200ms)을 현장 테스트 후 조정할 때 두 메서드 중 한쪽을 누락하여 불일치가 발생합니다.
+
+---
+
+#### 2-2. Win32 창 열거 P/Invoke 중복 선언 (`BackgroundWindows` vs `Phd2Windows`)
+- **무엇을**: `BackgroundWindows.cs`와 `Phd2Windows.cs`에 중복 선언된 `user32.dll` 창 열거 API(`EnumWindows`, `GetWindowThreadProcessId`, `IsWindowVisible`, `GetWindowText`)를 단일 Win32 유틸리티 클래스로 일원화합니다.
+- **왜**: 동일한 서명의 P/Invoke 메서드가 서로 다른 네임스페이스에 복사-붙여넣기되어 있습니다. 창 핸들 탐색 및 프로세스 ID 매핑 방식이 파편화되어 유지보수 부담을 가중시킵니다.
+- **근거**:
+  - `src/Astro.Server/Engine/BackgroundWindows.cs:175-178`:
+    ```csharp
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, nint lParam);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, System.Text.StringBuilder text, int max);
+    ```
+  - `src/Astro.Server/Prepare/Real/Phd2Windows.cs:37-40`:
+    ```csharp
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, nint lParam);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint pid);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, StringBuilder text, int max);
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: Win32 P/Invoke 마샬링 옵션이나 유니코드 버퍼 처리 규칙을 고칠 때 여러 파일을 일일이 찾아서 고쳐야 합니다.
+
+---
+
+#### 2-3. N.I.N.A. JSON 파싱 헬퍼 중복 (`EquipmentConnector` vs `NinaRig`)
+- **무엇을**: `JsonElement`에서 안전하게 숫자/문자열을 추출하는 `Num`, `Text` 헬퍼 메서드를 `Astro.Nina` 또는 공통 유틸리티로 승격하여 재사용합니다.
+- **왜**: N.I.N.A. 응답에서 속성을 안전하게 읽어오는 헬퍼 메서드가 `EquipmentConnector`와 `NinaRig`에 각자 `private static`/`internal static`으로 중복 정의되어 있습니다.
+- **근거**:
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:594`: `private static double Num(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : double.NaN;`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:825`: `private static string? Text(JsonElement obj, string key) => obj.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;`
+  - `src/Astro.Server/Prepare/Real/NinaRig.cs:476`: `internal static string? Text(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;`
+  - `src/Astro.Server/Prepare/Real/NinaRig.cs:478`: `internal static double Num(JsonElement e, string key)` (문자열 파싱 지원 포함)
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: N.I.N.A. API 응답 형식(숫자가 문자열로 반환되는 경우 등)에 대응하는 파싱 보정이 파일마다 제각각 적용되어 예외가 발생할 위험이 있습니다.
+
+---
+
+### 3. OPERATION_PROCEDURE.md 흐름과 코드 구조 대조 및 추적성 개선
+
+#### 3-1. 2단계 장비 연결의 4초 자동 진행 규칙 위치 불일치
+- **무엇을**: OPERATION_PROCEDURE.md 2장에 명시된 "모두 연결되면 4초 뒤 다음 단계로, 3.5초까지 취소 가능" 규칙이 서버에는 전혀 없고 웹 클라이언트 RAF 애니메이션에만 존재하는 구조적 격차를 문서에 명기하거나 서버 완료 상태 모델과 동기화합니다.
+- **왜**: OPERATION_PROCEDURE.md 1장에는 "진행은 서버가 하고 화면은 상태만 그린다 → 화면을 다시 열어도 이어서"라는 핵심 원칙이 명시되어 있습니다. 그러나 2단계 장비 연결 완료 후 다음 단계로의 천이(`onContinue`)는 서버에 아무런 타이머나 완료 상태가 없으며 오직 `EquipmentScreen.tsx`의 브라우저 RAF 루프(174~185줄)에만 의존하고 있습니다. 브라우저를 새로고침하면 4초 타이머가 처음부터 다시 돕니다.
+- **근거**:
+  - `docs/OPERATION_PROCEDURE.md:46`: `모두 연결되면(준필수 "없이 진행"·선택 경고 포함) 4초 뒤 다음 단계. 그동안 "장비 변경"·관측지 "변경"을 누르면 멈춘다(3.5초까지).`
+  - `web/src/screens/EquipmentScreen.tsx:23-24`:
+    ```typescript
+    const ADVANCE_MS = 4000
+    const CHANGE_UNTIL_MS = 3500
+    ```
+  - `web/src/screens/EquipmentScreen.tsx:174-184`:
+    ```typescript
+    const tick = (now: number) => {
+      const dt = now - last
+      last = now
+      const rate = slowRef.current ? SLOW_RATE : 1
+      elapsed += dt * rate
+      setProgress(Math.min(1, elapsed / ADVANCE_MS))
+      if (elapsed >= ADVANCE_MS) {
+        onContinue(items, { changeSite: false })
+      } else {
+        raf = requestAnimationFrame(tick)
+      }
+    }
+    ```
+- **작업 크기**: 작음 (문서 보완 또는 설명 주석 추가)
+- **하지 않으면 생기는 실제 불편**: "서버가 진행하고 화면은 그리기만 한다"는 원칙을 믿고 서버 API만 검토하던 개발자가 장비 연결 완료 전진 조건을 서버 코드에서 찾지 못해 혼선을 겪습니다.
+
+---
+
+#### 3-2. 장비 준비 끝 홈 이동 및 추적 끄기 경로 분산
+- **무엇을**: 장비 준비(rig) 완료 후 적도의 홈 이동 및 추적 끄기 절차가 `AppServer.cs`의 인라인 엔드포인트 `/api/prepare/rig/rest`에 파편화되어 있는 것을 `PrepareFlow` 내부 또는 `PrepareRunner`의 명시적 단계 완료 훅으로 통합합니다.
+- **왜**: OPERATION_PROCEDURE.md 5장 공통에는 "장비 준비가 끝나면 계획으로 가고, 그동안 적도의는 홈에서 추적을 끄고 기다린다"고 규정되어 있습니다. 하지만 이 동작은 `PrepareFlow`가 총괄하는 것이 아니라, 클라이언트가 `/api/prepare/rig/rest`라는 별도 엔드포인트를 수동 호출하고, 그 엔드포인트가 `MountHome.HomeAndTrackingOffAsync`를 직접 호출하는 방식으로 구현되어 있어 흐름 추적이 끊깁니다.
+- **근거**:
+  - `docs/OPERATION_PROCEDURE.md:65`: `장비 준비가 끝나면 계획으로 가고, 그동안 적도의는 홈에서 추적을 끄고 기다린다.`
+  - `src/Astro.Server/AppServer.cs:348-351`:
+    ```csharp
+    prepare.MapPost("/rig/rest", async (Prepare.MountHome home, CancellationToken ct) =>
+    {
+        var homed = await home.HomeAndTrackingOffAsync(ct);
+        return homed ? Results.NoContent() : Results.BadRequest(new { error = "적도의를 홈에 두고 추적을 끄지 못했습니다" });
+    });
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: 준비 묶음(rig)에서 대상 묶음(target)으로 넘어가는 경계에서 적도의 안전 처리가 어디서 일어나는지 한눈에 파악하기 어렵습니다.
+
+---
+
+### 4. 정리 가능한 불필요·모의·임시 코드
+
+#### 4-1. 미사용 레거시 `RunnerSetup.Single` 제거
+- **무엇을**: `PrepareRunner.cs`에 선언된 미사용 정적 필드 `RunnerSetup.Single`을 삭제합니다.
+- **왜**: 7개 작업을 한 묶음으로 처리하던 2026-10-07 이전(단일 묶음 시절)의 시험용 설정이며, 현재 프로젝트 전체(테스트 코드 포함)에서 단 한 번도 참조되지 않는 완전한 데드 코드입니다.
+- **검색 결과**: 저장소 전체 검색 시 `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:38` 선언 1곳 외 호출처 0건.
+- **근거**:
+  - `src/Astro.Server/Prepare/Flow/PrepareRunner.cs:38-40`:
+    ```csharp
+    public static readonly RunnerSetup Single = new("all", new Dictionary<string, string[]>
+    {
+        ["polar"] = ["calibration", "slew", "focus", "center", "guiding", "test"],
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: 신규 개발자가 의존성 맵(`Rig`, `Target`, `Wrap`, `Single`)을 읽을 때 4개 묶음이 존재하는 것으로 오해하고 분석 시간을 낭비합니다.
+
+---
+
+#### 4-2. 미사용 엔드포인트 `/api/nina/simulate-exit` 및 메서드 정리
+- **무엇을**: `AppServer.cs`의 `POST /api/nina/simulate-exit` 엔드포인트와 `NinaWatcher.SimulateExit()` 메서드를 삭제합니다.
+- **왜**: 초기에 N.I.N.A. 종료 감지 화면을 테스트하기 위해 임시로 추가되었으나, 현재 프론트엔드 및 테스트 코드 어디에서도 호출되지 않는 죽은 코드입니다.
+- **검색 결과**: `POST /nina/simulate-exit` 및 `SimulateExit()` 호출처 0건 (선언부 외 사용처 없음).
+- **근거**:
+  - `src/Astro.Server/AppServer.cs:136-138`:
+    ```csharp
+    api.MapPost("/nina/simulate-exit", (NinaWatcher watcher, IOptions<EquipmentOptions> eq) =>
+    {
+        if (!eq.Value.Simulate) return Results.NotFound();
+        watcher.SimulateExit();
+        return Results.NoContent();
+    });
+    ```
+  - `src/Astro.Server/Engine/NinaWatcher.cs:83`:
+    ```csharp
+    /// <summary>[임시] 화면 설계용: N.I.N.A.가 꺼진 것처럼 (Equipment:Simulate일 때만 엔드포인트가 부른다)</summary>
+    public void SimulateExit()
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: 실장비 모드와 무관한 모의 전용 진입점이 서버 API 표면에 불필요하게 남아 보안 및 유지보수 혼선을 유발합니다.
+
+---
+
+#### 4-3. 미사용 엔드포인트 `/api/prepare/sim/speed/{speed}` 정리
+- **무엇을**: `AppServer.cs`의 `POST /api/prepare/sim/speed/{speed:double}` 엔드포인트를 정리합니다.
+- **왜**: 모의 속도 배율을 HTTP로 바꾸기 위해 열어둔 엔드포인트이나, 단위 테스트에서는 `SimOptions.Speed`를 직접 설정(`new SimOptions { Speed = 0 }`)하고 웹 화면에서는 이 API를 전혀 호출하지 않습니다.
+- **검색 결과**: `/sim/speed` 검색 시 `src/Astro.Server/AppServer.cs:399` 선언 1건 외 호출처 0건.
+- **근거**:
+  - `src/Astro.Server/AppServer.cs:399`:
+    ```csharp
+    prepare.MapPost("/sim/speed/{speed:double}", (double speed, Prepare.Sim.SimOptions sim) => { sim.Speed = Math.Clamp(speed, 0, 5); return Results.NoContent(); });
+    ```
+- **작업 크기**: 작음
+- **하지 않으면 생기는 실제 불편**: 쓰이지 않는 HTTP API 라우팅이 컨트롤러 영역에 남아 관리 포인트만 늘어납니다.
+
+---
+
+#### 4-4. 장비 연결 화면의 `TempFailButtons` 및 `forceFail` 매개변수 연쇄 정리
+- **무엇을**: `EquipmentScreen.tsx`의 `TempFailButtons`(814~861줄)와 `AppServer.cs`의 `simulateFail` 쿼리 파라미터, `EquipmentConnector.cs`의 `forceFail` 파라미터 연쇄를 정리합니다.
+- **왜**: 2026-10-08 시뮬레이터 시험 주석에 적혀 있듯 실장비 모드에서는 헷갈림을 유발하여 이미 숨김 처리(`if (!simulated) return null`)된 임시 UI입니다. 이 임시 버튼 하나 때문에 `AppServer.cs:234`의 `simulateFail` 파라미터, `EquipmentConnector.cs:352`의 `RetryAsync(..., bool simulateFail)`, `ConnectTimedAsync(..., bool forceFail)`, `ConnectOneAsync(..., bool forceFail)`까지 불필요한 실패 주입용 인수가 3단계에 걸쳐 관통하고 있습니다.
+- **검색 결과**:
+  - `web/src/screens/EquipmentScreen.tsx:481`: `{mode === 'connect' && <TempFailButtons items={items} done={done} patch={patch} />}`
+  - `web/src/screens/EquipmentScreen.tsx:836`: `const res = await fetch(`/api/equipment/connect/${id}?simulateFail=true`)`
+  - `src/Astro.Server/AppServer.cs:234`: `api.MapGet("/equipment/connect/{id}", async (string id, bool? simulateFail, ...)`
+  - `src/Astro.Server/Engine/EquipmentConnector.cs:433-436`:
+    ```csharp
+    bool connected;
+    if (forceFail)
+    {
+        connected = false;
+    }
+    ```
+- **작업 크기**: 중간 (웹 1곳, 서버 1곳, 엔진 1곳)
+- **하지 않으면 생기는 실제 불편**: 실장비 연결 오케스트레이션 함수(`ConnectOneAsync`) 내부에 임시 UI용 실패 플래그 분기가 침투해 있어 코드 흐름을 복잡하게 만듭니다.
+
+---
+
+### 5. 안전한 리팩터링 순서 (동작 보존)
+
+기존 동작을 100% 보존하면서 안전하게 진행하기 위해 아래 4단계로 나누어 커밋 단위로 진행할 것을 권장합니다.
+
+```
+[1단계: 안전한 잔재 제거] ──> [2단계: 중복 헬퍼 일원화] ──> [3단계: 서버 클래스 분리] ──> [4단계: 화면 컴포넌트 분리]
+ (데드코드·임시버튼)           (Win32, JSON, 정지루프)       (Connector, Runner)          (EquipmentScreen)
+```
+
+1. **1단계: 완전한 데드 코드 및 미사용 임시 엔드포인트 제거 (영향도 0, 커밋 1개)**
+   - `PrepareRunner.cs`에서 `RunnerSetup.Single` 삭제.
+   - `AppServer.cs`에서 `/nina/simulate-exit` 및 `/sim/speed/{speed}` 라우트 삭제, `NinaWatcher.SimulateExit()` 삭제.
+   - `EquipmentScreen.tsx`에서 `TempFailButtons` 제거 및 `EquipmentConnector`의 `forceFail` 파라미터 제거.
+   - *검증*: 서버 빌드(`dotnet build`), 서버 단위 테스트 통과, 웹 타입 검사(`tsc --noEmit`).
+
+2. **2단계: 중복 유틸리티 일원화 (동작 불변 순수 리팩터링, 커밋 1~2개)**
+   - `Win32Windows` 공통 클래스를 생성하여 `BackgroundWindows.cs`와 `Phd2Windows.cs`의 `EnumWindows` 등 P/Invoke 통합.
+   - `NinaRig.ConfirmStillAsync`가 `WaitStillAsync(TimeSpan.FromSeconds(15), ct)`를 호출하도록 단일화.
+   - `JsonElement` 파싱 헬퍼(`Num`, `Text`) 공통화.
+   - *검증*: `TaskIsolationTests`, `SimulatorRigTests` 통과.
+
+3. **3단계: `EquipmentConnector.cs` 및 `PrepareRunner.cs` 파일 분리 (C# 내부 구조 개선, 커밋 2개)**
+   - 1차: `EquipmentOptions.cs`, `EquipmentSimulation.cs`, `EquipmentChoices.cs`, `EquipmentRun.cs`를 별도 파일로 이동.
+   - 2차: `PrepareRunner.cs`에서 `RunHandle`을 `PrepTaskRunHandle.cs`로 추출하고, 정지 조정 로직(`StopCurrentAsync` 등)을 `PrepStopCoordinator`로 분리.
+   - *주의*: 락(`_gate`) 범위와 `CancellationToken` 격리(작업 토큰 vs 15초 정지 토큰)를 그대로 유지.
+   - *검증*: `ReviewFixTests`, `SelfAuditLowTests`, `FocuserParkTests` 전체 통과.
+
+4. **4단계: `EquipmentScreen.tsx` 컴포넌트 분리 (프론트엔드 모듈화, 커밋 1~2개)**
+   - `EditNode` / `DeviceList` / `CameraPower`를 `EquipmentEditModal.tsx`로 추출.
+   - 태양계 궤도 SVG 드로잉을 `EquipmentOrbitCanvas.tsx`로 추출.
+   - 4초 자동 진행 타이머를 `useEquipmentAutoAdvance.ts`로 분리.
+   - *검증*: 웹 린트, 타입 검사, 브라우저 화면 렌더링 확인.
+
+
+#### Claude 대조 메모 (2026-10-12)
+
+- 확인 질문(줄 수·`solarLayout`·문서 목록)과 인용한 줄 번호는 38e1744 코드와 맞음 → 최신 코드를 본 리뷰로 인정.
+- 3-1: 인용한 코드(`setProgress`·`slowRef`)는 실제와 다르나(`elapsed.current`·`slow.current`), "자동 진행 4초가 클라이언트에만 있다"는 지적은 맞음.
+- 4-1: `RunnerSetup.Single`은 쓰이지 않는 것이 아니라 생성자 기본값(`setup ?? RunnerSetup.Single`)이고 테스트가 그 기본값에 기댐.
+- 안전 메모: PHD2 쓰기는 이미 `_writeGate`로 직렬화돼 있음. `OnClosing`(async void)은 먼저 `e.Cancel = true` 후 10초 제한으로 서버를 멈추고 닫으므로 문제 아님.

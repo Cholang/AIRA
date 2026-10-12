@@ -4,11 +4,51 @@
 세부는 커밋 diff, 화면 규칙은 [DESIGN.md](DESIGN.md), 대화 맥락은 [conversations/](conversations/)에 있다.
 
 항목 형식: 날짜 · 커밋 제목 / **요청** / **변경** / **확인** / **남은 것**(있으면). 짧게.
-작성자 표시: 제목에 `[Claude]` 또는 `[Codex]`. 리뷰(REVIEW_CODEX.md)를 반영한 커밋은 반영한 리뷰 ID와 반영하지 않은 이유를 적는다.
+작성자 표시: 제목에 `[Claude]`·`[Codex]`·`[Gemini]`(Gemini 답변은 Claude가 옮겨 넣음). 리뷰(REVIEW_CODEX.md)를 반영한 커밋은 반영한 리뷰 ID와 반영하지 않은 이유를 적는다.
 
 ---
 
-## 2026-10-12 · [Claude] docs/ 이름·폴더 정리(대문자 + 밑줄, implementation/·reference/), AGENTS.md 문서 지도
+## 2026-10-12 · [Claude] Gemini 6절 리뷰 넣기, 작성자 표시에 [Gemini]
+
+**요청**: Gemini 구조 리뷰(38e1744 기준) 답변을 문서에 넣고 검토. 판단은 Claude 제안대로.
+
+**변경**: `docs/codex/REVIEW_GEMINI.md` 6절 + Claude 대조 메모. HISTORY의 [Gemini] 항목은 Gemini 제안 문구 그대로. CLAUDE.md·HISTORY 머리말 작성자 표시에 `[Gemini]`. Codex 34절 리뷰(REVIEW_CODEX.md·[Codex] 항목)도 함께 커밋.
+
+**확인**: Gemini가 인용한 줄 수·줄 번호를 코드와 대조 — 맞음. 틀린 곳: 4-1 `RunnerSetup.Single`은 생성자 기본값(유지), 3-1 인용 코드 모양, 안전 메모 2건(PHD2 쓰기는 이미 `_writeGate`, `OnClosing`은 취소 후 10초 제한 정지).
+
+**남은 것**: 2-1·2-2·2-3·4-2·4-3 + 3-1 문서 한 줄은 다음 커밋. 4-4는 배포 준비 때(개발 모드에서만). 1-1~1-3 큰 클래스 쪼개기는 2026-10-17~18 주말. 3-2는 그대로.
+
+---
+
+## 2026-10-12 · [Codex] aa94dde..38e1744 리뷰 — 32절 수정 재확인·미리 켜기·사진 표시
+
+**요청**: 새 문서 지도와 HISTORY를 먼저 읽고 `aa94dde..HEAD` 중 `0ba12fb`·`e8fe931`·`daa27c3`의 동작 변경 리뷰. 33절 재리뷰 칸·새 34절 작성, 코드·기존 테스트 수정 및 실장비 조작 없이 확인.
+
+**변경**: `docs/codex/REVIEW_CODEX.md` 33절 4건 재리뷰 기록과 34절 추가. **P1/장비 안전 1건**(CX-34-01: 시간 초과된 정지 worker가 다음 회전에 끼어듦), **P2/겪음 2건**(CX-34-02: 프로필 화면 × 종료 시 미리 켠 프로그램 정리 누락, CX-34-03: 촬영 사진 전체 화면의 아래쪽 잘림). 운영 절차의 허브 실패 보류 범위·종료 홈 선택 문장도 문서 갱신 필요로 구분.
+
+**확인**: HEAD `38e1744f809b281804b42229d03e8c7358c78374`를 저장소 밖에 내보냄. 기존 모의 테스트 32건 통과·웹 타입 오류 0. 실제 AscomAxis + 가짜 드라이버로 늦은 정지/새 회전 교차, host.ts + 가짜 브리지로 즉시 닫기 경로, 실제 CSS + headless Edge의 가짜 사진으로 화면 넘침 재현. 지난 32절 원 증상 검사 모두 통과하나 정지 worker 추적은 보완 필요. 앱 코드·기존 테스트·실장비·촬영 프로그램은 수정·조작하지 않음.
+
+**남은 것**: 새 지적 3건의 반영 판단·수정. 실제 COM 지연, 외부 프로그램 종료, DWM·사진 수신·화면 움직임은 재시험하지 않았으며 미검증 자체를 결함으로 세지 않음.
+
+---
+
+## 2026-10-12 · [Gemini] 구조·단순화 리뷰 (커밋 38e1744 기준)
+
+**요청**: 최신 코드(커밋 38e1744) 기준 대형 파일(EquipmentConnector·EquipmentScreen·PrepareRunner) 분리 방안, 분산 중복 로직 통합, OPERATION_PROCEDURE.md 대비 구조 정합성, 정리 대상 코드 검토.
+
+**변경**: 리뷰 문서 작성(코드 수정 없음). 
+- 대형 파일 분리: EquipmentConnector(독립 옵션/상태 클래스 4개 분리, 허브 전원·PHD2 검증 서비스 분리), EquipmentScreen(장비 목록/전원 모달 및 궤도 렌더링 분리), PrepareRunner(15초 정지 조정자 및 RunHandle 분리, 락/토큰 주의사항 명시).
+- 중복 로직 통합: NinaRig 정지 확인 루프 단일화, Win32 창 열거 P/Invoke 통합, N.I.N.A. JSON 파싱 헬퍼 공통화.
+- 미사용 코드 확인: RunnerSetup.Single 데드코드 발굴, /nina/simulate-exit 및 /sim/speed 미사용 엔드포인트 확인, TempFailButtons 및 forceFail 인자 연쇄 정리 제안.
+- 4단계 점진적 안전 리팩터링 로드맵 수립.
+
+**확인**: 실제 소스 파일 줄 수(EquipmentConnector 855줄, EquipmentScreen 862줄, PrepareRunner 928줄) 및 임포트 함수(solarLayout), docs 파일 14개 전수 대조 완료. 모든 지적에 파일 경로, 줄 번호, 코드 1~3줄 인용 근거 부합.
+
+**남은 것**: 제안된 리팩터링 1단계(미사용 코드·임시 버튼 제거)부터 사용자 승인 후 순차 적용.
+
+---
+
+## 2026-10-12 · 38e1744 [Claude] docs/ 이름·폴더 정리(대문자 + 밑줄, implementation/·reference/), AGENTS.md 문서 지도
 
 **요청**: 문서 이름을 검토해 알맞게 바꾸고 필요하면 폴더로 나누고 대소문자 규칙을 맞추기 → Codex가 헤매지 않게 알려 줄 것.
 
