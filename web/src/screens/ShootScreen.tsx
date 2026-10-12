@@ -132,7 +132,7 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
 
   const target = view.target ?? ''
   let title = `${target} 촬영 중`
-  let text = `계획대로 ${view.exposureSeconds}초씩 찍고 있어요. 사진마다 등급을 매겨 실패한 사진은 제외 폴더로 옮겨요. 자오선 반전·디더링·초점 다시 맞추기는 자동이에요.`
+  let text = `계획대로 ${view.exposureSeconds}초씩 찍고 있어요. 사진마다 등급을 매겨 실패한 사진은 제외 폴더로 옮겨요. 자오선 반전·디더링·초점 다시 맞추기는 자동이에요. 자오선 반전 때는 적도의가 반대편으로 크게 도니 케이블이 걸리지 않게 해 주세요.`
   let actions: PrepAction[] = []
   let custom: ReactNode = <ShootGauges v={view} />
   if (asking && !ended) {

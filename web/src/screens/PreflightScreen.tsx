@@ -4,8 +4,6 @@ import Button from '../components/Button'
 import styles from './PreflightScreen.module.css'
 
 interface Item {
-  /** 포커서 0점 카드 — 지난번 포커서를 0에 두고 끝냈으면 묻지 않는다 */
-  focuser?: boolean
   title: string
   question: string
   pic: ReactNode
@@ -15,7 +13,7 @@ interface Item {
 const ITEMS: Item[] = [
   {
     title: '적도의 시작 위치',
-    question: '망원경은 북극성 쪽, 균형추는 아래를 향하게 두었나요?',
+    question: '적도의를 북쪽으로 향하게 세우고 홈 자세로 두었나요?',
     pic: (
       <>
         <path className={styles.acc} d="M50 8l1.6 3.4 3.7.4-2.8 2.5.8 3.7-3.3-1.9-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z" />
@@ -25,6 +23,24 @@ const ITEMS: Item[] = [
         <rect x="30" y="12" width="20" height="8" rx="3" transform="rotate(-45 40 16)" />
         <path d="M32 30v12" />
         <circle cx="32" cy="46" r="4" />
+      </>
+    ),
+  },
+  // 포커서 0점 (2026-10-09 사용자 결정 — 이슬 방지 열선 자리. 열선은 전원 허브 자동에 맡김):
+  // 포커서를 다시 달면 기어가 맞물리며 노브가 조금 돌아가므로, 노브를 0에 맞춰 달고 AA가 장비 준비의 초점 작업에서 0점을 잡는다.
+  // 매번 묻는다 (2026-10-12 사용자 — 포커서는 늘 떼어 케이스에 넣고, WIDF 노브를 돌리면 드로튜브가 움직인다. 0이 어긋나면 안쪽은 못 가고 바깥 끝을 밀게 된다)
+  {
+    title: '포커서 0점',
+    question: '포커서를 달 때 초점 노브를 끝까지 넣어 0에 맞췄나요?',
+    pic: (
+      <>
+        <rect x="6" y="24" width="30" height="16" rx="3" />
+        <rect x="36" y="27" width="12" height="10" rx="1.5" />
+        <circle cx="42" cy="46" r="5" />
+        <path d="M42 41v-4" />
+        <path className={styles.acc} d="M58 32h-8" />
+        <path className={styles.acc} d="M53 28l-4 4 4 4" />
+        <path className={styles.acc} d="M54 14v8" />
       </>
     ),
   },
@@ -42,67 +58,6 @@ const ITEMS: Item[] = [
       </>
     ),
   },
-  {
-    title: '케이블 정리',
-    question: '적도의가 한 바퀴 돌아도 케이블이 당기거나 걸리지 않나요?',
-    pic: (
-      <>
-        <path d="M8 44c8 0 8-14 16-14s8 14 16 14 8-14 16-14" />
-        <rect className={styles.acc} x="20" y="26" width="8" height="8" rx="2" />
-        <rect className={styles.acc} x="36" y="40" width="8" height="8" rx="2" />
-        <path d="M8 44v8" />
-        <path d="M56 30v-8" />
-      </>
-    ),
-  },
-  {
-    title: '망원경 밸런스',
-    question: '클러치를 풀었을 때 망원경이 어느 쪽으로도 쏠리지 않나요?',
-    pic: (
-      <>
-        <path d="M32 40l-7 12h14z" />
-        <path d="M8 38h48" />
-        <rect x="10" y="28" width="12" height="10" rx="2" />
-        <circle cx="48" cy="32" r="6" />
-        <path className={styles.acc} d="M32 14v8" />
-        <path className={styles.acc} d="M28 18h8" />
-      </>
-    ),
-  },
-  {
-    title: '삼각대 수평',
-    question: '삼각대의 수평계 기포가 가운데에 있나요?',
-    pic: (
-      <>
-        <rect x="8" y="24" width="48" height="16" rx="8" />
-        <path d="M26 24v16" />
-        <path d="M38 24v16" />
-        <circle className={styles.acc} cx="32" cy="32" r="3.5" />
-        <path d="M20 48l-6 10" />
-        <path d="M44 48l6 10" />
-        <path d="M32 48v10" />
-      </>
-    ),
-  },
-  // 포커서 0점 (2026-10-09 사용자 결정 — 이슬 방지 열선 자리. 열선은 전원 허브 자동에 맡김):
-  // 포커서를 다시 달면 기어가 맞물리며 노브가 조금 돌아가므로, 노브를 0에 맞춰 달고 AA가 장비 준비의 초점 작업에서 0점을 잡는다.
-  // 지난번 아이라가 포커서를 0에 두고 끝냈고 지금도 0이면 이 카드는 빠진다 (2026-10-09 — 서버 FocuserPark)
-  {
-    focuser: true,
-    title: '포커서 0점',
-    question: '포커서를 달 때 초점 노브를 끝까지 넣어 0에 맞췄나요?',
-    pic: (
-      <>
-        <rect x="6" y="24" width="30" height="16" rx="3" />
-        <rect x="36" y="27" width="12" height="10" rx="1.5" />
-        <circle cx="42" cy="46" r="5" />
-        <path d="M42 41v-4" />
-        <path className={styles.acc} d="M58 32h-8" />
-        <path className={styles.acc} d="M53 28l-4 4 4 4" />
-        <path className={styles.acc} d="M54 14v8" />
-      </>
-    ),
-  },
 ]
 
 // 동작 시간 (DESIGN.md 3장 "사용자가 직접 확인하는 체크리스트")
@@ -116,7 +71,7 @@ const DEPTH = 5
 /**
  * 출발 전 점검: AA가 스스로 알 수 없는 것만 사용자에게 묻는다 (2026-10-09 카드덱으로 바꿈).
  * 가운데 카드덱의 맨 위 카드를 누르면 V가 붙고 눌렸다가 떠오르며 사라져 다음 카드가 보인다. 오른쪽은 맨 위 카드의 설명.
- * 사용자가 직접 체크하는 화면이라 6장을 다 넘기면 "다음" 없이 자동 진행 (DESIGN.md 1장).
+ * 사용자가 직접 체크하는 화면이라 카드를 다 넘기면 "다음" 없이 자동 진행 (DESIGN.md 1장).
  */
 export default function PreflightScreen({ onContinue }: { onContinue: () => void }) {
   /** 넘긴 카드 수 = 맨 위 카드의 번호 */
@@ -126,19 +81,8 @@ export default function PreflightScreen({ onContinue }: { onContinue: () => void
   const [leaving, setLeaving] = useState(false)
   const timers = useRef<number[]>([])
   const finished = useRef(false)
-  // 카드 목록: 포커서를 0에 두고 끝냈는지 물어본 뒤 정한다 (그 전에는 덱을 보이지 않음 — 장 수가 바뀌어 보이지 않게). 답이 늦으면 6장
-  const [items, setItems] = useState<Item[] | null>(null)
-  useEffect(() => {
-    const decide = (list: Item[]) => setItems((prev) => prev ?? list)
-    const slow = window.setTimeout(() => decide(ITEMS), 1500)
-    fetch('/api/focuser/parked')
-      .then((r) => (r.ok ? (r.json() as Promise<{ ready: boolean }>) : null))
-      .then((b) => decide(b?.ready ? ITEMS.filter((i) => !i.focuser) : ITEMS))
-      .catch(() => decide(ITEMS))
-      .finally(() => clearTimeout(slow))
-    return () => clearTimeout(slow)
-  }, [])
-  const list = items ?? ITEMS
+  const items: Item[] = ITEMS
+  const list = items
 
   const later = useCallback((fn: () => void, ms: number) => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -147,9 +91,9 @@ export default function PreflightScreen({ onContinue }: { onContinue: () => void
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
-  // 6장을 다 넘기면: 마지막 카드가 사라진 뒤 화면이 투명해지고 다음 단계로 (한 장씩·"모두 확인 완료" 공통)
+  // 카드를 다 넘기면: 마지막 카드가 사라진 뒤 화면이 투명해지고 다음 단계로 (한 장씩·"모두 확인 완료" 공통)
   useEffect(() => {
-    if (!items || done < items.length || finished.current) return
+    if (done < items.length || finished.current) return
     finished.current = true
     setLocked(true)
     setSunk(true)
@@ -158,13 +102,13 @@ export default function PreflightScreen({ onContinue }: { onContinue: () => void
   }, [done, items, later, onContinue])
 
   const check = () => {
-    if (locked || !items) return
+    if (locked) return
     setDone((d) => Math.min(d + 1, list.length))
   }
 
   // "모두 확인 완료": 버튼이 가라앉아 사라지고, 남은 카드가 차례로 넘어간다
   const skip = () => {
-    if (locked || !items) return
+    if (locked) return
     setLocked(true)
     setSunk(true)
     for (let k = 0; k < list.length - done; k++) later(() => setDone((d) => Math.min(d + 1, list.length)), SINK_MS + k * SKIP_STEP_MS)
@@ -174,7 +118,7 @@ export default function PreflightScreen({ onContinue }: { onContinue: () => void
   const current = list[top]
 
   return (
-    <main className={styles.stage} data-leaving={leaving} data-ready={items !== null}>
+    <main className={styles.stage} data-leaving={leaving} data-ready>
       <div className={styles.intro}>
         <h1>촬영 시작 전에 장비를 한 번 둘러봐 주세요</h1>
       </div>

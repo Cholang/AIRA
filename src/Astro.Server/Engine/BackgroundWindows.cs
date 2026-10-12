@@ -84,6 +84,10 @@ public static class BackgroundWindows
                             _userSwitchedAt = DateTime.UtcNow;
                             break;
                         }
+                        // 아이라 "항상 위"를 지켜보는 내내 확인한다 — 시작할 때 아이라 창을 아직 못 찾았으면(0) 아무것도 안 하고 지나가
+                        // N.I.N.A.가 아이라를 덮었다 (2026-10-11 실기: 아이라가 켜질 때 미리 켜기). 창이 잡히는 대로 건다
+                        if (_onTop && NinaProcesses.OwnWindow() is var me and not 0 && (GetWindowLongPtr(me, GwlExStyle) & WsExTopmost) == 0)
+                            SetWindowPos(me, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
                         // 지켜보는 동안 다시 펼쳐지는 창(프로그램이 로딩 끝에 창을 다시 띄움)도 다시 내린다
                         foreach (var h in Windows(names))
                         {

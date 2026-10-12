@@ -137,7 +137,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
     private async Task<CalibrationData?> TryAtAsync(ITaskRun run, (string Name, string Label, double HourAngle) pos, string? cloud, CancellationToken ct)
     {
         run.SubStep(0);
-        run.Guide("위치로 이동", $"극 근처는 캘리브레이션에 맞지 않아 위치 {pos.Name}({pos.Label})로 옮깁니다. 손대실 것은 없습니다.");
+        run.Guide("위치로 이동", $"극 근처는 캘리브레이션에 맞지 않아 위치 {pos.Name}({pos.Label})로 옮깁니다. 케이블이 걸리지 않는지만 봐 주세요.");
         run.ClearReadout();
         run.Live("sky-map");
         run.Status("이동 중입니다");

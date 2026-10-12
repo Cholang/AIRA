@@ -27,7 +27,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
     private static readonly Lock PreGate = new();
 
     /// <summary>
-    /// 아이라가 켜질 때(로고 화면) N.I.N.A.·PHD2·Wanderer Empire를 미리 켠다 (2026-10-11 사용자 결정 — 아이라는 이 프로그램들을 쓰는 것이 전제라,
+    /// 아이라 프로필 화면이 뜰 때 N.I.N.A.·PHD2·Wanderer Empire를 미리 켠다 (2026-10-11 사용자 결정 — 아이라는 이 프로그램들을 쓰는 것이 전제라,
     /// 프로필을 고르는 동안 N.I.N.A.가 준비되면 엔진 켜기는 확인만 한다). N.I.N.A. 실행은 고른 프로필과 상관없다(인자 없이 켬).
     /// 아이라가 켠 것이라 종료 때 함께 닫힌다. 꺼져 있을 때만, 자동으로 켜기가 꺼져 있으면 하지 않는다
     /// </summary>

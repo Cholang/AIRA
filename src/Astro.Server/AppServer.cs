@@ -139,7 +139,7 @@ public static class AppServer
             watcher.SimulateExit();
             return Results.NoContent();
         });
-        // 아이라 화면이 뜨면(로고) N.I.N.A.·PHD2·Empire를 미리 켠다 (EngineStarter.PreLaunch)
+        // 아이라 프로필 화면이 뜨면 N.I.N.A.·PHD2·Empire를 미리 켠다 (EngineStarter.PreLaunch)
         api.MapPost("/engine/prelaunch", (EngineStarter starter) =>
         {
             starter.PreLaunch();
@@ -168,14 +168,12 @@ public static class AppServer
         api.MapGet("/equipment/connect", (EquipmentConnector connector, CancellationToken ct) =>
             TypedResults.ServerSentEvents(connector.RunAsync(ct), eventType: "check"));
         // 출발 전 점검을 마침 ("포커서 0점" 확인) → 다음 초점 작업이 포커서 0점을 잡는다
-        // 지난번 포커서를 0에 두고 끝냈고 지금도 0이면 점검이 "포커서 0점" 카드를 묻지 않으므로 0점도 잡지 않는다
-        api.MapPost("/prepare/focuser-zero", async (Prepare.Tasks.Focus.FocuserZeroRequest zero, Prepare.FocuserPark park, CancellationToken ct) =>
+        // 늘 잡는다 (2026-10-12 사용자 — 포커서는 늘 떼어 보관하고 노브를 돌리면 드로튜브가 움직여, "지난번 0에 두고 끝냄"을 믿을 수 없다)
+        api.MapPost("/prepare/focuser-zero", (Prepare.Tasks.Focus.FocuserZeroRequest zero) =>
         {
-            if (!await park.ReadyAsync(ct)) zero.Pending = true;
+            zero.Pending = true;
             return Results.NoContent();
         });
-        // 포커서 0에 두기: 점검이 "포커서 0점" 카드를 건너뛸지(ready) · 아이라 종료 전에 0으로 보내기 (못 하면 이유, 종료는 그대로)
-        api.MapGet("/focuser/parked", async (Prepare.FocuserPark park, CancellationToken ct) => Results.Ok(new { ready = await park.ReadyAsync(ct) }));
         // 아이라 종료 마지막: 아이라가 켠 N.I.N.A.면 PHD2와 함께 닫는다 (촬영 중이면 두기). 사용자가 켜 둔 N.I.N.A.는 그대로
         // 아이라 종료: 닫을 프로그램 목록(아이라가 N.I.N.A.를 켰고 촬영 중이 아닐 때만) → 화면이 하나씩 닫으며 체크 (2026-10-10)
         // 준비 작업이 돌고 있으면 닫지 않는다 — 종료 화면이 먼저 /prepare/stop-for-quit로 멈춘다 (CX-20-02)
@@ -206,6 +204,7 @@ public static class AppServer
             FileLogProvider.Write("INFO", "화면", (input.Message ?? "").Length > 500 ? input.Message![..500] : input.Message ?? "");
             return Results.NoContent();
         });
+        // 아이라 종료 전에 포커서를 0으로 보내기 (못 하면 이유, 종료는 그대로)
         api.MapPost("/focuser/park", async (Prepare.FocuserPark park, CancellationToken ct) => Results.Ok(new { problem = await park.ParkAsync(ct) }));
         // 진행 표시 아래 "적도의 홈": 지금 보낼 수 있는지(이유) · 보내기
         api.MapGet("/mount/home", async (Prepare.MountHome home, CancellationToken ct) => Results.Ok(await home.StateAsync(ct)));

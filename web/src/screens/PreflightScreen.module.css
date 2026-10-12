@@ -67,6 +67,8 @@
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--line) 72%, var(--text)), var(--lift-shadow);
   transform: translate(calc(var(--depth) * var(--step)), calc(var(--depth) * var(--step)));
   transition: transform 360ms cubic-bezier(0.3, 0, 0.2, 1), filter 360ms;
+  /* 카드를 한 층으로 합성 — 움직이며 투명해지는 동안 안쪽 그림을 매 프레임 다시 그리지 않게 (2026-10-11 사용자: 아이콘 잔상이 심했다) */
+  will-change: transform, opacity;
 }
 
 .card[data-state='under'] {
@@ -117,8 +119,8 @@
 }
 
 @keyframes vOut {
-  0%, 20% { opacity: 1; }
-  75%, 100% { opacity: 0; }
+  0%, 15% { opacity: 1; }
+  45%, 100% { opacity: 0; }
 }
 
 .pic {
@@ -168,7 +170,8 @@
 }
 
 .card[data-state='gone'] .pic {
-  opacity: 0.3;
+  opacity: 0; /* 그림은 곧바로 사라지고 V만 잠깐 (잔상 줄이기, 2026-10-11) */
+  transition-duration: 120ms;
 }
 
 /* 설명: 덱 오른쪽, 덱 세로 가운데. 너비 고정이라 글이 바뀌어도 덱은 그대로 */

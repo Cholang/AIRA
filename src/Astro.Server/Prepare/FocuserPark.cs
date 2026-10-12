@@ -54,7 +54,8 @@ public sealed class FocuserParkStore
 /// 포커서를 0에 두고 끝내기 (2026-10-09 사용자 요청 — 포커서를 다시 달 때마다 노브를 손으로 0에 맞추는 일을 없애려고).
 /// 0은 노브를 끝까지 넣은 기계 끝이라, 떼었다 다시 달며 기어가 맞물려 노브가 돌아가도 오차는 바깥쪽으로만 생긴다 —
 /// 그 위치를 0으로 알아도 끝에 부딪히게 밀지 않고, 오차(많아야 수백 걸음)는 자동초점이 훑는 거리(±500) 안이다.
-/// 마무리의 장비 정리와 아이라 종료가 부르고, 출발 전 점검은 <see cref="ReadyAsync"/>면 "포커서 0점" 카드를 건너뛴다
+/// 마무리의 장비 정리와 아이라 종료가 부른다. 출발 전 점검은 2026-10-12부터 "포커서 0점"을 늘 묻는다(사용자는 포커서를 떼어 보관 — 노브가 돌면 0이 어긋남) —
+/// 끝낼 때 0에 두는 것은 그대로(드로튜브가 들어간 채 보관, 다시 달 때 노브를 끝까지 넣기 쉬움). <see cref="ReadyAsync"/>는 기록 확인용
 /// </summary>
 // PrepareFlow는 필요할 때 꺼낸다 — 장비 정리 작업(PackTask)이 이것을 받아서, 생성자로 받으면 서로를 기다린다
 public sealed class FocuserPark(PrepareMode mode, IFocusDevices devices, FocuserParkStore store, IServiceProvider services, Shoot.ShootSession shoot, ILogger<FocuserPark> log)

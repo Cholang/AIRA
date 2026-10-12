@@ -144,9 +144,16 @@ export default function App() {
 
   useEffect(() => {
     listProfiles().then(setProfiles, () => setLoadError(true))
-    // 로고가 뜨는 동안 N.I.N.A.·PHD2·Empire를 미리 켠다 — 프로필을 고르는 사이 준비돼 엔진 켜기는 확인만 (2026-10-11 사용자 결정, EngineStarter.PreLaunch)
-    void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
   }, [])
+
+  // 프로필 화면이 뜨면 N.I.N.A.·PHD2·Empire를 미리 켠다 — 프로필을 고르는 사이 준비돼 엔진 켜기는 확인만 (2026-10-11 사용자 결정, EngineStarter.PreLaunch).
+  // 로고 때 켜면 아이라 창이 아직 잡히지 않아 N.I.N.A.가 아이라를 덮었다 → 아이라 창이 떠 있는 프로필 화면에서 한 번
+  const prelaunched = useRef(false)
+  useEffect(() => {
+    if (prelaunched.current || (phase !== 'profiles' && phase !== 'newProfile')) return
+    prelaunched.current = true
+    void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
+  }, [phase])
 
   // 부팅 로고를 잠깐 보여 준 뒤, 프로필이 없으면 바로 만들기 화면으로
   useEffect(() => {

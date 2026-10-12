@@ -144,7 +144,8 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private async Task<bool> FindPoleAsync(ITaskRun run, string? cloud, CancellationToken ct)
     {
         run.SubStep(1);
-        run.Guide("극 찾기", CloudNotice.With("회전 전후의 별 위치를 비교해 극축 오차를 계산합니다. 잠시 기다려 주세요.", cloud));
+        // 케이블 확인은 출발 전 점검에서 빼고 크게 돌리기 직전에 (2026-10-12 사용자 결정)
+        run.Guide("극 찾기", CloudNotice.With("적도의를 RA축으로 크게 돌려 회전 전후의 별 위치를 비교합니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.", cloud));
         run.Live("sharpcap", "/api/prepare/live/sharpcap");
         while (true)
         {
