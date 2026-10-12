@@ -8,7 +8,7 @@ using Astro.Server.Prepare.Tasks.Focus;
 namespace Astro.Server.Shoot;
 
 /// <summary>
-/// 촬영 실장비 (2026-10-07 — 실기 미확인, 장비가 돌아오면 확인할 것은 docs/SHOOT_IMPLEMENTATION.md).
+/// 촬영 실장비 (2026-10-07 — 실기 미확인, 장비가 돌아오면 확인할 것은 docs/implementation/SHOOT.md).
 /// AA가 한 장씩 찍는다: N.I.N.A. capture(save, LIGHT) → image-history·통계로 별 크기·별 수·배경. 디더링은 PHD2 dither(안정될 때까지),
 /// 가이딩 상태는 PHD2 앱 상태, 자오선 반전은 N.I.N.A. mount/flip → 센터링(준비의 센터링 장비) → 가이딩 재시작, 초점은 준비의 초점 장비.
 /// ISO는 N.I.N.A. gain으로 넘긴다 (X-T5는 gain이 ISO로 동작 — 사용자가 예전 촬영에서 확인).

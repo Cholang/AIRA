@@ -48,7 +48,7 @@ public sealed record RunnerSetup(string Group, IReadOnlyDictionary<string, strin
 }
 
 /// <summary>
-/// 촬영 준비 진행자 (docs/PREPARE_IMPLEMENTATION.md 2.3·2.4). 묶음 하나(장비 준비 또는 대상)를 맡고, 작업 내용은 모르고 다음만 맡는다:
+/// 촬영 준비 진행자 (docs/implementation/PREPARE.md 2.3·2.4). 묶음 하나(장비 준비 또는 대상)를 맡고, 작업 내용은 모르고 다음만 맡는다:
 /// 순서와 끝 버튼, 다시 하기 의존표, 끝 상태 약속 확인, 멈춤 확인(IMPL-01), 실행 번호로 늦은 갱신 차단·오래된 값 표시(IMPL-04),
 /// 다시 하기 순서(중단 → 정지 확인 → 이전 결과 차단 → 무효화 → 재실행, IMPL-05). 상태는 서버가 갖고 화면은 그리기만 한다.
 /// 묶음 사이의 일(다른 묶음 작업 다시 하기, 다른 묶음이 장비를 쓰기 전 멈추기)은 PrepareFlow가 BeforeRun·ForeignRedo·SuspendAsync로 맡는다.

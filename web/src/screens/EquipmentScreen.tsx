@@ -740,7 +740,7 @@ function DeviceList({
 const shortOutlet = (name: string) => (name.includes(':') ? name.slice(name.lastIndexOf(':') + 1).trim() : name)
 
 /**
- * 카메라 전원 (docs/PRECHECK_DESIGN.md J05, 2026-10-09): 배터리 또는 전원 허브 출력. 출력을 고르면 장비 연결 때 카메라가 안 보이면 아이라가 그 출력을 켠다.
+ * 카메라 전원 (docs/implementation/PRECHECK.md J05, 2026-10-09): 배터리 또는 전원 허브 출력. 출력을 고르면 장비 연결 때 카메라가 안 보이면 아이라가 그 출력을 켠다.
  * 아이라는 출력 전압을 읽거나 바꾸지 못하므로, 고를 때 Empire에서 전압을 맞췄는지 한 번 확인받는다 (실기: 7~8.4V 어댑터를 12V 출력에 꽂아 켜지지 않음)
  */
 function CameraPower() {

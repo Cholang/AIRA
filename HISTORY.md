@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-12 · [Claude] DESIGN.md는 화면만, 아이라가 하는 일은 docs/OPERATION_PROCEDURE.md로 나눔
+## 2026-10-12 · [Claude] docs/ 이름·폴더 정리(대문자 + 밑줄, implementation/·reference/), AGENTS.md 문서 지도
+
+**요청**: 문서 이름을 검토해 알맞게 바꾸고 필요하면 폴더로 나누고 대소문자 규칙을 맞추기 → Codex가 헤매지 않게 알려 줄 것.
+
+**변경**: `git mv` — DESIGN_HISTORY → DECISION_HISTORY(디자인·운영 결정 둘 다), PREPARE_IMPLEMENTATION·SHOOT_IMPLEMENTATION·PRECHECK_DESIGN·POWER_LAYOUT_PLAN·onboarding-and-architecture → `docs/implementation/`(PREPARE·SHOOT·PRECHECK·POWER_WIRING·ARCHITECTURE), api-coverage·nina-prerequisites → `docs/reference/`(NINA_API_COVERAGE·NINA_SETUP), codex/AIRA_ERROR_VERIFICATION → codex/ERROR_VERIFICATION_CODEX. 마크다운 링크 32개를 새 위치로 다시 계산, 글·코드 주석 속 옛 이름(27개 파일)을 새 경로로. 옮긴 문서의 제목을 새 역할에 맞춤(ARCHITECTURE는 "초기 결정 기록" 안내). README 문서 목록, CLAUDE.md `docs/` 구성. **AGENTS.md**: "문서 위치" → "문서 지도"(어떤 질문엔 어떤 문서, 문서와 코드가 다를 때의 기준, 옛 경로 대응), 개발 단계 문장을 "실장비 실내 시험 중"으로.
+
+**확인**: 깨진 마크다운 링크 0개(docs/codex 제외 전체 검사), 경로 겹침 없음. 코드는 주석만 — 서버 빌드·웹 타입 검사 통과. **동작 변경 없음.** HISTORY.md 지난 항목·conversations/·Codex가 쓴 docs/codex 본문은 옛 경로 그대로(기록·Codex 소유).
+
+---
+
+## 2026-10-12 · 9b9cebf [Claude] DESIGN.md는 화면만, 아이라가 하는 일은 docs/OPERATION_PROCEDURE.md로 나눔
 
 **요청**: DESIGN.md 구현 명세를 걷어 내다가(극축 정렬 시범) "DESIGN은 비주얼 문서가 아니었나" → DESIGN에는 비주얼만, 새 문서 이름은 operation procedure. 초기 기획서 docs/nina-ai-assistant-plan.md 지우기.
 

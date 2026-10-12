@@ -2,7 +2,7 @@
 
 실제 장비·하늘이 있어야 확인할 수 있는 것과 아직 만들지 않은 것. 촬영 나갈 때 이것만 열어 본다.
 확인하면 `[x]` + 날짜·결과 한 줄, 문제가 있으면 HISTORY.md나 대화로. 확인이 끝난 항목은 다음 정리 때 지운다(기록은 HISTORY.md에 남음).
-구조 설명은 [PREPARE_IMPLEMENTATION.md](PREPARE_IMPLEMENTATION.md)·[SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md), 하는 일은 [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md), 화면은 [DESIGN.md](../DESIGN.md).
+구조 설명은 [docs/implementation/PREPARE.md](implementation/PREPARE.md)·[docs/implementation/SHOOT.md](implementation/SHOOT.md), 하는 일은 [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md), 화면은 [DESIGN.md](../DESIGN.md).
 
 ## 먼저 지킬 것 (장비 안전)
 

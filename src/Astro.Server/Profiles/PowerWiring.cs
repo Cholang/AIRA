@@ -1,7 +1,7 @@
 namespace Astro.Server.Profiles;
 
 /// <summary>
-/// 장비 전원 배선 (docs/POWER_LAYOUT_PLAN.md "최종 규칙", 2026-10-10 사용자 확정): 장비 종류마다 전원을 어디서 받는가.
+/// 장비 전원 배선 (docs/implementation/POWER_WIRING.md "최종 규칙", 2026-10-10 사용자 확정): 장비 종류마다 전원을 어디서 받는가.
 /// 값 = "dc"(DC 전원) · "mount"(적도의 새들 포트) · "switch"(파워박스) · null(자체 전원 — 배터리 등).
 /// 아이라는 이 값을 믿고 안내·판단하고, 실제와 다른 증거를 보면 조용히 고친다(<see cref="PowerWiringStore.Learn"/>).
 /// 설정하지 않은 프로필은 <see cref="Default"/>(적도의 먼저). 장비 이름·전압·출력 번호는 담지 않는다

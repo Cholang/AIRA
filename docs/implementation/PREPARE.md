@@ -4,12 +4,12 @@
 
 | 무엇을 보면 되나 | 문서 |
 |---|---|
-| 아이라가 **하는 일**(순서·실패 처리·사용자 결정) | [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md) 5장 ①~⑦, 7장 "마무리" |
-| 화면이 **어떻게 보이는지** | [DESIGN.md](../DESIGN.md) "하늘 화면" |
+| 아이라가 **하는 일**(순서·실패 처리·사용자 결정) | [OPERATION_PROCEDURE.md](../OPERATION_PROCEDURE.md) 5장 ①~⑦, 7장 "마무리" |
+| 화면이 **어떻게 보이는지** | [DESIGN.md](../../DESIGN.md) "하늘 화면" |
 | **어떻게 만들었나**(구조·계약·장비 어댑터·실패 처리 순서) | 이 문서 |
-| 촬영 단계의 구조 | [SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md) |
-| 쓰는 N.I.N.A. API | [api-coverage.md](api-coverage.md) |
-| 바뀐 이력 | [HISTORY.md](../HISTORY.md), 결정 이력은 [DESIGN_HISTORY.md](DESIGN_HISTORY.md) |
+| 촬영 단계의 구조 | [docs/implementation/SHOOT.md](SHOOT.md) |
+| 쓰는 N.I.N.A. API | [api-coverage.md](../reference/NINA_API_COVERAGE.md) |
+| 바뀐 이력 | [HISTORY.md](../../HISTORY.md), 결정 이력은 [DECISION_HISTORY.md](../DECISION_HISTORY.md) |
 
 ## 0. 원칙
 
@@ -148,4 +148,4 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 
 ## 7. 실기 확인과 남은 것
 
-맑은 날·실기로 확인할 것과 아직 만들지 않은 것은 [FIELD_TEST_CHECKLIST.md](FIELD_TEST_CHECKLIST.md)에 모은다.
+맑은 날·실기로 확인할 것과 아직 만들지 않은 것은 [FIELD_TEST_CHECKLIST.md](../FIELD_TEST_CHECKLIST.md)에 모은다.

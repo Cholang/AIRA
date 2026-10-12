@@ -4,7 +4,7 @@ using Astro.Core;
 namespace Astro.Server.Engine;
 
 /// <summary>
-/// 카메라 전원을 전원 허브의 어느 출력에서 받는가 (docs/PRECHECK_DESIGN.md J05, 2026-10-09 사용자 결정). null = 배터리.
+/// 카메라 전원을 전원 허브의 어느 출력에서 받는가 (docs/implementation/PRECHECK.md J05, 2026-10-09 사용자 결정). null = 배터리.
 /// 출력을 고를 때 "Empire에서 그 출력 전압을 카메라 어댑터에 맞췄다"는 확인을 받는다 — 아이라는 전압을 읽거나 바꾸지 못하고 켜고 끄기만 한다
 /// (10/09 실기: 7~8.4V 어댑터를 12V 출력에 꽂아 켜지지 않음, 조절 출력 DC2를 8V로 맞추자 켜짐). 데이터 폴더의 camera-power.json
 /// </summary>

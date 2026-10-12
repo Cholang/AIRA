@@ -1,6 +1,6 @@
 namespace Astro.Server.Shoot;
 
-/// <summary>가이드 별을 잃었거나 약해진 원인 (docs/SHOOT_IMPLEMENTATION.md "B. 가이딩 중 가이드 별을 잃었을 때")</summary>
+/// <summary>가이드 별을 잃었거나 약해진 원인 (docs/implementation/SHOOT.md "B. 가이딩 중 가이드 별을 잃었을 때")</summary>
 public enum GuideLoss
 {
     None,

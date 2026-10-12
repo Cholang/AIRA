@@ -147,7 +147,7 @@ export async function toSquareProfileImage(file: File): Promise<Blob> {
 }
 
 /**
- * 전원 배선 (docs/POWER_LAYOUT_PLAN.md): 장비 종류 → 전원을 받는 곳. 'dc' DC 전원 · 'mount' 적도의(새들 포트) · 'switch' 파워박스 · null 자체 전원(배터리 등).
+ * 전원 배선 (docs/implementation/POWER_WIRING.md): 장비 종류 → 전원을 받는 곳. 'dc' DC 전원 · 'mount' 적도의(새들 포트) · 'switch' 파워박스 · null 자체 전원(배터리 등).
  * 아이라가 믿고 쓰는 값이고, 실제와 다르면 아이라가 조용히 고친다
  */
 export type PowerSource = 'dc' | 'mount' | 'switch' | null

@@ -78,7 +78,7 @@ public static class AppServer
         builder.Services.AddSingleton(_ => new Setup.UserSettings(builder.Configuration["App:DataDir"]));
         builder.Services.AddSingleton<ChatModelFactory>();
         builder.Services.AddSingleton<PlanAssistant>();
-        // 촬영 준비: 작업별로 나눈 구조, 지금은 모의 장비만 (docs/PREPARE_IMPLEMENTATION.md — 실제 장비는 P3)
+        // 촬영 준비: 작업별로 나눈 구조, 지금은 모의 장비만 (docs/implementation/PREPARE.md — 실제 장비는 P3)
         // 장비 연결이 실제(Equipment:Simulate=false)면 준비 단계도 실제 장비 (P3, 2026-10-06)
         Prepare.PrepareSetup.AddPrepare(builder.Services, simulate: builder.Configuration.GetValue("Equipment:Simulate", true));
         // 데이터 폴더(기본 %LOCALAPPDATA%\<product.json의 dataFolder>)는 설정 App:DataDir로 바꿀 수 있다 (테스트용).
@@ -587,7 +587,7 @@ public static class AppServer
         profiles.MapDelete("/{id}/sites/{siteId}",(string id, string siteId, ProfileStore store) =>
             store.RemoveSite(id, siteId) is { } profile ? Results.Ok(profile) : Results.NotFound());
 
-        // 전원 배선 (docs/POWER_LAYOUT_PLAN.md): 모든 장비 종류를 채운 표 + 직접 설정했는지. 설정하지 않았으면 기본값(적도의 먼저)
+        // 전원 배선 (docs/implementation/POWER_WIRING.md): 모든 장비 종류를 채운 표 + 직접 설정했는지. 설정하지 않았으면 기본값(적도의 먼저)
         profiles.MapGet("/{id}/power", (string id, ProfileStore store) =>
             store.Get(id) is { } p ? Results.Ok(new { sources = (p.Power ?? PowerWiring.Default).Full(), custom = p.Power is not null }) : Results.NotFound());
         profiles.MapPut("/{id}/power", (string id, PowerInput input, ProfileStore store) =>

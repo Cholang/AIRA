@@ -1,7 +1,7 @@
 # DESIGN.md — 아이라 화면 디자인
 
 > UI를 만들거나 고치기 전에 이 문서를 먼저 읽을 것. 스킬(frontend-design 등)의 제안과 충돌하면 이 문서가 우선한다.
-> 이 문서는 **화면이 어떻게 보이고 움직이고 말하는지**만 다룬다. 아이라가 **무엇을 하는지**(단계·작업 순서, 장비 동작, 실패 처리, 안전 규칙)는 [docs/OPERATION_PROCEDURE.md](docs/OPERATION_PROCEDURE.md), 바뀐 이력은 [docs/DESIGN_HISTORY.md](docs/DESIGN_HISTORY.md).
+> 이 문서는 **화면이 어떻게 보이고 움직이고 말하는지**만 다룬다. 아이라가 **무엇을 하는지**(단계·작업 순서, 장비 동작, 실패 처리, 안전 규칙)는 [docs/OPERATION_PROCEDURE.md](docs/OPERATION_PROCEDURE.md), 바뀐 이력은 [docs/DECISION_HISTORY.md](docs/DECISION_HISTORY.md).
 > 표시: **[임시]** 사용자가 아직 확정하지 않은 값(쓰되 화면을 보여 줄 때 임시라고 알림) · **[계획]** 정했지만 아직 만들지 않음 · **[확인 필요]** 사용자 결정을 기다림.
 
 ---
@@ -308,6 +308,6 @@
 
 ## 10. 이 문서 갱신 규칙
 
-- 이 문서에는 **보이는 것·움직임·말투·화면 안 상호작용**만, 그것도 지금 유효한 것만. 아이라가 하는 일(순서·장비 동작·실패·안전·데이터)은 [docs/OPERATION_PROCEDURE.md](docs/OPERATION_PROCEDURE.md). 규칙을 바꾸면 옛 문장을 고치고, 바뀐 날짜·이유·폐기된 규칙은 [docs/DESIGN_HISTORY.md](docs/DESIGN_HISTORY.md)의 같은 절 아래에 한 줄로(본문에 "그전엔 …"·날짜를 쌓지 않음).
+- 이 문서에는 **보이는 것·움직임·말투·화면 안 상호작용**만, 그것도 지금 유효한 것만. 아이라가 하는 일(순서·장비 동작·실패·안전·데이터)은 [docs/OPERATION_PROCEDURE.md](docs/OPERATION_PROCEDURE.md). 규칙을 바꾸면 옛 문장을 고치고, 바뀐 날짜·이유·폐기된 규칙은 [docs/DECISION_HISTORY.md](docs/DECISION_HISTORY.md)의 같은 절 아래에 한 줄로(본문에 "그전엔 …"·날짜를 쌓지 않음).
 - 사용자가 한 화면을 고치라고 했는데 다른 화면에도 해당되면, 작업 후 이 문서에 추가할 문구를 제안한다.
 - **[임시]** 값이 확정되면 표시를 지우고 실제 값을 적는다. **[계획]**을 만들면 표시를 지운다. **[확인 필요]**는 사용자 결정대로.

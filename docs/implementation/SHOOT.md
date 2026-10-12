@@ -1,4 +1,4 @@
-# 촬영 · 마무리 구현 (2026-10-07)
+# 촬영 · 마무리 구현 (서버 촬영 세션)
 
 하는 일은 OPERATION_PROCEDURE.md "촬영"·"마무리", 화면은 DESIGN.md "촬영"·"마무리 · 오늘 밤 요약", 시안은 `mockups/aa-shoot-wrap-v10.html`. 사용자 요청으로 Codex 리뷰 없이 구현했다.
 

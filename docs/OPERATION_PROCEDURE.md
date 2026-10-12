@@ -6,11 +6,11 @@
 |---|---|
 | 화면이 **어떻게 보이고 움직이는지** | [DESIGN.md](../DESIGN.md) |
 | 아이라가 **무엇을 하는지** | 이 문서 |
-| **어떻게 만들었나**(코드 구조·API) | [PREPARE_IMPLEMENTATION.md](PREPARE_IMPLEMENTATION.md) · [SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md) · [PRECHECK_DESIGN.md](PRECHECK_DESIGN.md) · [POWER_LAYOUT_PLAN.md](POWER_LAYOUT_PLAN.md) |
-| 언제·왜 바뀌었나 | [DESIGN_HISTORY.md](DESIGN_HISTORY.md)(이 문서의 이력도 같은 절 제목으로) · [HISTORY.md](../HISTORY.md) |
+| **어떻게 만들었나**(코드 구조·API) | [docs/implementation/PREPARE.md](implementation/PREPARE.md) · [docs/implementation/SHOOT.md](implementation/SHOOT.md) · [docs/implementation/PRECHECK.md](implementation/PRECHECK.md) · [docs/implementation/POWER_WIRING.md](implementation/POWER_WIRING.md) |
+| 언제·왜 바뀌었나 | [DECISION_HISTORY.md](DECISION_HISTORY.md)(이 문서의 이력도 같은 절 제목으로) · [HISTORY.md](../HISTORY.md) |
 | 실기로 확인할 것 | [FIELD_TEST_CHECKLIST.md](FIELD_TEST_CHECKLIST.md) |
 
-표시: **[임시]** 사용자가 아직 확정하지 않은 것 · **[계획]** 정했지만 아직 만들지 않음 · **[확인 필요]** 사용자 결정을 기다림. 지금 유효한 규칙만 두고, 바뀌면 옛 문장을 고치고 이력은 DESIGN_HISTORY.md에.
+표시: **[임시]** 사용자가 아직 확정하지 않은 것 · **[계획]** 정했지만 아직 만들지 않음 · **[확인 필요]** 사용자 결정을 기다림. 지금 유효한 규칙만 두고, 바뀌면 옛 문장을 고치고 이력은 DECISION_HISTORY.md에.
 
 ---
 
@@ -78,7 +78,7 @@
 
 ### 프로필
 - 프로필 = 별명·메모·사진 + 관측지 목록 + 전원 배선. 바꾸면 관측지는 그대로(지금 서 있는 장소).
-- **전원 배선**: 아이라는 이 배선을 믿고 안내하고(예: "파워박스는 적도의에서 전원을 받습니다…"), 실제와 다른 증거를 보면 조용히 고친다(`POWER_LAYOUT_PLAN.md`).
+- **전원 배선**: 아이라는 이 배선을 믿고 안내하고(예: "파워박스는 적도의에서 전원을 받습니다…"), 실제와 다른 증거를 보면 조용히 고친다(`docs/implementation/POWER_WIRING.md`).
 - 삭제하면 관측지 목록과 전원 배선도 지워지고 되돌릴 수 없다.
 
 ## 4. 출발 전 점검

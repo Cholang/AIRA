@@ -1,6 +1,6 @@
-# 사전 점검 설계 — N.I.N.A.가 오류를 내기 전에 아이라가 먼저 확인하기
+# 사전 점검 — N.I.N.A.가 오류를 내기 전에 아이라가 먼저 확인하기
 
-작성: 2026-10-09 [Claude]. 바탕: [docs/codex/AIRA_ERROR_VERIFICATION.md](codex/AIRA_ERROR_VERIFICATION.md)(Codex 검증 목록 — 표의 ID는 그 문서의 ID), N.I.N.A. 로그 10/01~10/09 빈도, 2026-10-09 낮 실장비 읽기 조사.
+작성: 2026-10-09 [Claude]. 바탕: [docs/codex/ERROR_VERIFICATION_CODEX.md](../codex/ERROR_VERIFICATION_CODEX.md)(Codex 검증 목록 — 표의 ID는 그 문서의 ID), N.I.N.A. 로그 10/01~10/09 빈도, 2026-10-09 낮 실장비 읽기 조사.
 
 ## 1. 목표와 범위
 

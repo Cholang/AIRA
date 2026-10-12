@@ -1,8 +1,10 @@
-# 첫 실행 경험(온보딩)과 앱 구조 결정
+# 앱 구조와 첫 실행 흐름 — 초기 결정 기록
+
+> 2026-09-28 무렵의 결정 기록이다(앱 이름도 그때의 가칭 AA). 지금 동작은 [OPERATION_PROCEDURE.md](../OPERATION_PROCEDURE.md), 지금 코드 구조는 [PREPARE.md](PREPARE.md)·[SHOOT.md](SHOOT.md)를 본다.
 
 > 작성일: 2026-09-28 (집 PC에서 논의)
 > 앱 이름: **AA (Astrophoto Assistant)** — 가칭
-> 관련 문서: [운영 절차](OPERATION_PROCEDURE.md) · [화면 디자인](../DESIGN.md) · [사전 준비](nina-prerequisites.md) · [API 대응표](api-coverage.md) · [플로우](../flow.mmd)
+> 관련 문서: [운영 절차](../OPERATION_PROCEDURE.md) · [화면 디자인](../../DESIGN.md) · [사전 준비](../reference/NINA_SETUP.md) · [API 대응표](../reference/NINA_API_COVERAGE.md) · [플로우](../../flow.mmd)
 
 ---
 
@@ -78,7 +80,7 @@ NINA에서 장비를 연결하려면 지금은 이렇게 해야 한다.
 - 설치 순서(ASCOM 먼저)와 옵션 선택(ASTAP 별 DB)은 어차피 사용자가 해야 함
 - 설치 실패가 AA 탓으로 보임
 
-→ **자동 확인 + 링크 안내 + 같은 내용의 매뉴얼**([사전 준비](nina-prerequisites.md) 1장과 같은 목록)
+→ **자동 확인 + 링크 안내 + 같은 내용의 매뉴얼**([사전 준비](../reference/NINA_SETUP.md) 1장과 같은 목록)
 
 ---
 

@@ -1,4 +1,4 @@
-# 플로우 × Advanced API 대응표
+# N.I.N.A. Advanced API 대응표
 
 > 작성일: 2026-09-28
 > 기준: Advanced API v2.2.15 명세 (github.com/christian-photo/ninaAPI `api_spec.yaml`, `websocket_spec.yaml`)

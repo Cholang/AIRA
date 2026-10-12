@@ -3,7 +3,7 @@ using Astro.Server.Assistant;
 
 namespace Astro.Server.Prepare.Flow;
 
-// 작업 계약 (docs/PREPARE_IMPLEMENTATION.md 2.3 "작업 분리"):
+// 작업 계약 (docs/implementation/PREPARE.md 2.3 "작업 분리"):
 // 작업은 이 계약만 지키고, 다른 작업을 직접 부르거나 참조하지 않는다. 앞 작업 결과는 PrepResults의 기록으로만 읽는다.
 // 화면 갱신은 ITaskRun으로만 하고, 끝나면 결과 기록 하나를 남긴다. 러너가 끝 상태 약속을 장비에서 확인한 뒤 다음으로 넘긴다.
 

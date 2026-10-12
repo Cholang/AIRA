@@ -385,7 +385,7 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
                     Note(r.Ok ? $"초점을 다시 맞췄어요 · 별 크기 {r.Hfr:F1} · 위치 {r.Position:N0}" : $"초점을 다시 맞추지 못했어요 · 그대로 찍어요 ({r.Problem})", r.Ok ? Tone.Ok : Tone.Warn);
                 }
 
-                // 가이드 별: 찍기 전에 확인 — 잃었으면 원인별로 (docs/SHOOT_IMPLEMENTATION.md B)
+                // 가이드 별: 찍기 전에 확인 — 잃었으면 원인별로 (docs/implementation/SHOOT.md B)
                 var before = await CheckGuideAsync(ct);
                 if (before.IsLost())
                 {
@@ -594,7 +594,7 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         }
     }
 
-    // ── 가이드 별 지켜보기 (docs/SHOOT_IMPLEMENTATION.md "B. 가이딩 중 가이드 별을 잃었을 때") ─────────
+    // ── 가이드 별 지켜보기 (docs/implementation/SHOOT.md "B. 가이딩 중 가이드 별을 잃었을 때") ─────────
 
     private int PollMs => mode.Simulate ? 300 : 3000;
 

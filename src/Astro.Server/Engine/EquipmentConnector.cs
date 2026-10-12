@@ -321,7 +321,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         ConnectTimingLog.Append($"{DateTime.Now:HH:mm:ss.fff}  === 장비 연결 시작 ({devices.Count(x => !x.Absent)}개{(options.Value.Simulate ? ", 모의" : "")})");
         foreach (var d in devices)
         {
-            // 허브가 실패하면 허브부터 해결한다: 전원 배선상 허브에서 전원을 받는 장비만 보류 (docs/POWER_LAYOUT_PLAN.md — 배선을 믿는다).
+            // 허브가 실패하면 허브부터 해결한다: 전원 배선상 허브에서 전원을 받는 장비만 보류 (docs/implementation/POWER_WIRING.md — 배선을 믿는다).
             // 다만 PC에 보이는지 바로 알 수 있는 장비가 보이면 전원이 있다는 증거 → 연결하고, 허브에 전원이 없던 것이면 배선을 고친다
             // 등록되지 않은 장비: 연결하지 않고 작은 원으로만 보인다
             if (d.Absent)
@@ -458,7 +458,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             }
             else
             {
-                // 연결 직전 점검 (docs/PRECHECK_DESIGN.md ③): 장비가 PC에 보이지 않으면 N.I.N.A.에 맡기지 않고 할 일을 알린다 —
+                // 연결 직전 점검 (docs/implementation/PRECHECK.md ③): 장비가 PC에 보이지 않으면 N.I.N.A.에 맡기지 않고 할 일을 알린다 —
                 // N.I.N.A. 오류 알림·2분 기다림 없이. 허브 USB 출력을 막 켰을 수 있어 USB 장치는 10초까지 기다려 본다
                 if (!connectedNow)
                 {
@@ -564,7 +564,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
         if (connected)
         {
             choices.Connected(d.Slot.Kind);
-            // 연결 직후 점검 (docs/PRECHECK_DESIGN.md ④⑤): 시뮬레이터가 골라졌는지(A06), 카메라면 사진 저장 폴더(I01~I03)
+            // 연결 직후 점검 (docs/implementation/PRECHECK.md ④⑤): 시뮬레이터가 골라졌는지(A06), 카메라면 사진 저장 폴더(I01~I03)
             if (!options.Value.Simulate)
             {
                 var note = DevicePrecheck.Simulator(d.Slot.Role, d.Name);

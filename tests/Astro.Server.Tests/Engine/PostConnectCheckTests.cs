@@ -2,7 +2,7 @@ using Astro.Server.Engine;
 
 namespace Astro.Server.Tests.Engine;
 
-/// <summary>연결 직후 점검: 사진 저장 폴더·솔버·시뮬레이터 (docs/PRECHECK_DESIGN.md ④⑤)</summary>
+/// <summary>연결 직후 점검: 사진 저장 폴더·솔버·시뮬레이터 (docs/implementation/PRECHECK.md ④⑤)</summary>
 public class PostConnectCheckTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "aira-post-" + Guid.NewGuid().ToString("N"));

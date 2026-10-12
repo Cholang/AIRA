@@ -35,7 +35,7 @@ const ENDED: Record<string, string> = {
   frames: '별이 없는 사진이 30분 넘게 이어져 촬영을 멈췄어요. 렌즈 덮개·이슬·초점·구름을 확인해 주세요. ',
 }
 
-/** 가이드 별을 잃어 멈췄을 때 원인별 안내 (docs/SHOOT_IMPLEMENTATION.md B) */
+/** 가이드 별을 잃어 멈췄을 때 원인별 안내 (docs/implementation/SHOOT.md B) */
 const PAUSE: Record<string, [string, string]> = {
   light: ['강한 빛이 들어왔어요', '차 불빛이나 손전등 같은 빛에 가이드 별이 묻혔어요. 별을 새로 고르지 않고 같은 자리에서 기다려요. 빛이 찍힌 사진은 등급을 보고 제외 폴더로 옮겨요.'],
   cloud: ['구름이 지나가고 있어요', '가이드 별을 잃어 촬영을 잠시 멈췄어요. 별이 돌아오면 자동으로 이어서 찍고, 오래 멈췄으면 다시 가운데로 맞춰요. 30분 넘게 돌아오지 않으면 멈추고 알려 드려요.'],

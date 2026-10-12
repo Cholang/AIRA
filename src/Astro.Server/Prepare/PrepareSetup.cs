@@ -14,7 +14,7 @@ using Astro.Server.Prepare.Tasks.Wrap;
 namespace Astro.Server.Prepare;
 
 /// <summary>
-/// 촬영 준비 등록 (docs/PREPARE_IMPLEMENTATION.md). simulate면 모의 장비, 아니면 실제 장비(P3 — Prepare/Real: N.I.N.A.·PHD2·SharpCap·ASCOM).
+/// 촬영 준비 등록 (docs/implementation/PREPARE.md). simulate면 모의 장비, 아니면 실제 장비(P3 — Prepare/Real: N.I.N.A.·PHD2·SharpCap·ASCOM).
 /// 작업은 장비 인터페이스만 알아서 둘 중 무엇이든 그대로 돈다.
 /// </summary>
 public static class PrepareSetup

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Astro.Server.Tests.Engine;
 
-/// <summary>전원 배선 (docs/POWER_LAYOUT_PLAN.md 최종 규칙) — 아이라가 믿는 값, 증거로 조용히 고침</summary>
+/// <summary>전원 배선 (docs/implementation/POWER_WIRING.md 최종 규칙) — 아이라가 믿는 값, 증거로 조용히 고침</summary>
 public class PowerWiringTests
 {
     [Fact]

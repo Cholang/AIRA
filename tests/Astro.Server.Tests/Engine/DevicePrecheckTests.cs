@@ -2,7 +2,7 @@ using Astro.Server.Engine;
 
 namespace Astro.Server.Tests.Engine;
 
-/// <summary>장비 연결 직전 점검 (docs/PRECHECK_DESIGN.md ③) — 가짜 PC 장치로</summary>
+/// <summary>장비 연결 직전 점검 (docs/implementation/PRECHECK.md ③) — 가짜 PC 장치로</summary>
 public class DevicePrecheckTests
 {
     private sealed class FakeHost : DevicePrecheck.IHostDevices

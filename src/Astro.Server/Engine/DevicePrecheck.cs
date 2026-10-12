@@ -7,7 +7,7 @@ using Microsoft.Win32;
 namespace Astro.Server.Engine;
 
 /// <summary>
-/// 장비 연결 직전 점검 (docs/PRECHECK_DESIGN.md ③, 2026-10-09 사용자 요청 — N.I.N.A.가 오류를 내기 전에 아이라가 먼저 확인).
+/// 장비 연결 직전 점검 (docs/implementation/PRECHECK.md ③, 2026-10-09 사용자 요청 — N.I.N.A.가 오류를 내기 전에 아이라가 먼저 확인).
 /// N.I.N.A.에 연결을 맡기기 전에 장비가 PC에 보이는지 본다. 안 보이면 N.I.N.A.를 부르지 않고(영어 오류·2분 기다림 없이) 할 일을 알린다.
 /// 확인할 수 없으면 "모름"으로 그냥 진행한다 — 막는 것은 확실히 없을 때만 (Codex 원칙 1·2: 관측한 사실만, 원인은 후보로)
 /// </summary>

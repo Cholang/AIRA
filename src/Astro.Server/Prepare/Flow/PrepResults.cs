@@ -1,6 +1,6 @@
 namespace Astro.Server.Prepare.Flow;
 
-// 작업 결과 기록 — 작업 사이에 주고받는 유일한 것 (docs/PREPARE_IMPLEMENTATION.md 2.3).
+// 작업 결과 기록 — 작업 사이에 주고받는 유일한 것 (docs/implementation/PREPARE.md 2.3).
 // 모양을 바꾸면 여러 작업이 영향을 받으므로 따로 리뷰한다. 테스트(ResultContractTests)가 모양을 고정한다.
 // Skipped = 장비 문제로 사용자가 이 작업을 건너뜀 (2026-10-08 사용자 결정 — 한 작업 실패로 밤이 막히지 않게). 값은 비어 있다
 

@@ -1,4 +1,4 @@
-# DESIGN_HISTORY.md — 디자인 결정 이력
+# DECISION_HISTORY.md — 결정 이력 (화면 디자인 · 운영 절차)
 
 [DESIGN.md](../DESIGN.md)에서 옮겨 온 **언제·왜 바뀌었는지**와 **폐기된 규칙**. 절 제목은 DESIGN.md와 같다. 지금 유효한 규칙은 DESIGN.md만 본다.
 [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md)(아이라가 하는 일)의 이력도 여기에 둔다 — 절 제목은 2026-10-12 첫 정리 때의 DESIGN.md 구조를 따른다(그 뒤 DESIGN.md는 화면만, 동작은 OPERATION_PROCEDURE.md로 나뉨).
