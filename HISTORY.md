@@ -8,7 +8,19 @@
 
 ---
 
-## 2026-10-12 · [Claude] DESIGN.md를 지금 유효한 규칙만으로 정리, 이력은 docs/DESIGN_HISTORY.md
+## 2026-10-12 · [Claude] PREPARE_IMPLEMENTATION.md를 지금 코드 설명으로, 실기 확인 체크리스트 분리
+
+**요청**: PREPARE_IMPLEMENTATION.md를 고치기(2026-10-05 "구현 계획 · 착수 전" 그대로였음) → 197줄도 많다 → 코드와 겹치는 세부는 줄이고 실기 확인은 체크리스트로.
+
+**변경**: `docs/PREPARE_IMPLEMENTATION.md` 다시 씀(150줄) — 세 묶음(장비 준비·대상·마무리)과 의존표, 작업 계약(`IPrepTask`·`ITaskRun`)·끝 상태 약속·결과 기록, 공통 규칙(RunId·멈춤 확인·적도의 잠금·다시 하기·이어서 하기·[임시] 건너뛰기), API, 실제 어댑터(`NinaRig`·`Phd2Client`·`SharpCapBridge`·`AscomAxis`·`OasisSdk` 등), 작업별로는 코드만 봐서는 알기 어려운 결정만, 판정·저장·테스트. 새 `docs/FIELD_TEST_CHECKLIST.md`(장비 안전 / 실내에서도 되는 것 / 맑은 밤 장비 준비·대상·촬영·마무리 / 아직 만들지 않은 것). CLAUDE.md 문서 목록에 체크리스트.
+
+**확인**: 코드와 대조해 옛 계획 문서의 틀린 설명을 바로잡음 — 센터링은 N.I.N.A. `slew?center=true`가 아니라 아이라가 사진 + 솔빙 → 동기화 → 다시 이동을 반복(`RealCenterDevices`), 어댑터 이름(`SharpCapController`·`AscomDirect` → `SharpCapBridge`·`AscomAxis`). 체크리스트는 HISTORY의 "확인 못 함"에서 모음. 코드 변경 없음.
+
+**남은 것**: DESIGN.md 준비 화면 ①~⑦의 구현 명세 걷어 내기, DESIGN.md 위계 정리.
+
+---
+
+## 2026-10-12 · 7f50816 [Claude] DESIGN.md를 지금 유효한 규칙만으로 정리, 이력은 docs/DESIGN_HISTORY.md
 
 **요청**: DESIGN.md가 길고(507줄·106KB, 날짜 기록 126곳) 지금 규칙과 이력이 섞여 있음 → 유효한 규칙만 남기고 이력·폐기된 규칙은 분리(이름 DESIGN_HISTORY, 위치 docs/). 애매한 6가지는 사용자 결정: 단계=행성 앱 전체 적용 폐기, 레일에서 완료 단계로 돌아가기 폐기, 계획 화면 그래프 재검토 보류, "정보는 오른쪽 맨 위 한 줄에만" 삭제, 자동초점 설정 계산·쓰기 계획 삭제, WindowChrome 규칙 삭제.
 

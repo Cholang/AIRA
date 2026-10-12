@@ -34,7 +34,7 @@
 ## 문서 위치
 
 - 저장소 맨 위에는 README.md · CLAUDE.md · AGENTS.md · DESIGN.md · HISTORY.md만 둔다.
-- 기획·조사 자료는 `docs/`(기획서, 구조와 온보딩, NINA 사전 준비, API 대응표, 디자인 이력 DESIGN_HISTORY.md), Codex와 주고받는 문서는 `docs/codex/`, 대화 기록은 `conversations/`.
+- 기획·조사 자료는 `docs/`(기획서, 구조와 온보딩, NINA 사전 준비, API 대응표, 디자인 이력 DESIGN_HISTORY.md, 실기 확인 체크리스트 FIELD_TEST_CHECKLIST.md), Codex와 주고받는 문서는 `docs/codex/`, 대화 기록은 `conversations/`.
 - 새 문서가 필요하면 만들어도 되지만 위 위치에 맞추고, 기존 문서에 절을 더하는 것으로 충분한지 먼저 본다. 검토가 끝난 임시 문서(예: `docs/PREPARE_SCREEN_CONTENT.md`)는 내용을 DESIGN.md 등에 합치고 지운다.
 
 ## 리뷰 규칙 (Claude 구현 → GPT Codex 리뷰)
