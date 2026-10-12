@@ -79,13 +79,6 @@ public sealed class NinaWatcher(NinaApiClient nina, ILogger<NinaWatcher> log) : 
     /// <summary>마무리에서 AA가 N.I.N.A.를 닫기 직전: 이번 종료는 정상 (CX-APP-R4)</summary>
     public void ExpectExit() => Volatile.Write(ref _expectExit, true);
 
-    /// <summary>[임시] 화면 설계용: N.I.N.A.가 꺼진 것처럼 (Equipment:Simulate일 때만 엔드포인트가 부른다)</summary>
-    public void SimulateExit()
-    {
-        Stop();
-        Set(NinaState.Exited);
-    }
-
     /// <summary>지금 상태를 먼저 보내고, 바뀔 때마다 보낸다 (화면이 떠 있는 동안)</summary>
     public async IAsyncEnumerable<NinaState> WatchAsync([EnumeratorCancellation] CancellationToken ct)
     {

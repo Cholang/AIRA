@@ -132,13 +132,6 @@ public static class AppServer
         api.MapGet("/nina/notices", (long? after, NinaNotices notices) => notices.Since(after ?? 0));
         api.MapGet("/nina/watch", (NinaWatcher watcher, CancellationToken ct) =>
             TypedResults.ServerSentEvents(watcher.WatchAsync(ct).Select(s => s.ToString()), eventType: "nina"));
-        // [임시] 화면 설계용: N.I.N.A.가 꺼진 것처럼 (Equipment:Simulate일 때만)
-        api.MapPost("/nina/simulate-exit", (NinaWatcher watcher, IOptions<EquipmentOptions> eq) =>
-        {
-            if (!eq.Value.Simulate) return Results.NotFound();
-            watcher.SimulateExit();
-            return Results.NoContent();
-        });
         // 아이라 프로필 화면이 뜨면 N.I.N.A.·PHD2·Empire를 미리 켠다 (EngineStarter.PreLaunch)
         api.MapPost("/engine/prelaunch", (EngineStarter starter) =>
         {
@@ -396,7 +389,6 @@ public static class AppServer
         });
         // SharpCap 스크립트가 극축 정렬 상태를 보내고, 답으로 AA의 명령(advance · exposure:ms · quit)을 받는다
         prepare.MapPost("/sharpcap/report", (System.Text.Json.JsonElement body, Prepare.Real.SharpCapBridge bridge) => Results.Text(bridge.Receive(body)));
-        prepare.MapPost("/sim/speed/{speed:double}", (double speed, Prepare.Sim.SimOptions sim) => { sim.Speed = Math.Clamp(speed, 0, 5); return Results.NoContent(); });
     }
 
     /// <summary>

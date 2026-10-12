@@ -8,7 +8,24 @@
 
 ---
 
-## 2026-10-12 · [Claude] Codex 34절 반영 — 남은 멈춤 명령 추적, 프로필 화면 × 종료 정리, 전체 화면 사진 잘림
+## 2026-10-12 · [Claude] Gemini 6절 작은 정리 — 정지 확인 하나로, 창 Win32 호출 한 곳에, N.I.N.A. 숫자 읽기 하나로, 안 쓰는 주소 삭제
+
+**요청**: Gemini 6절 판단대로 작은 항목 반영(사용자: 판단은 Claude 제안대로).
+
+**변경**:
+- 2-1: `NinaRig.WaitStillAsync`·`ConfirmStillAsync`가 `StillAsync(시간, 횟수)` 하나를 씀(판정·간격 그대로).
+- 2-2: `Engine/Win32Windows` 새로 — 보이는 창 찾기·제목·주인 창·항상 위 + 창 다루기 호출. `BackgroundWindows`·`NinaToastHider`·`NinaAutofocusWindowHider`·`Phd2Windows`의 중복 선언 삭제. 창 캡처(`LiveImages`)·데스크톱 쪽은 성격이 달라 그대로.
+- 2-3: `EquipmentConnector`의 `Num`을 지우고 `NinaRig.Num`(문자열 "NaN"·숫자 문자열도 읽음)으로. `Text`는 빈 문자열을 null로 보는 차이가 있어 그대로. 자리를 잘못 잡은 허브 USB 설명 주석을 `EnsureHubUsbOnAsync` 위로.
+- 4-2·4-3: `/nina/simulate-exit`(+`NinaWatcher.SimulateExit`)·`/prepare/sim/speed` 삭제.
+- 3-1: ARCHITECTURE.md 3절에 "자동 진행 4초는 화면만 정한다" 한 줄. PREPARE.md 모의 주소 목록에서 `/sim/speed` 뺌.
+
+**확인**: 서버 테스트 220 통과·1 건너뜀, 데스크톱 빌드 오류 0. 창 다루기(N.I.N.A. 알림·자동초점 창 숨기기, 미리 켤 때 뒤로 보내기, PHD2 연결 창 감지)는 실기로 다시 보지 않음 — 다음 실행 때 평소처럼 보이면 됨.
+
+**남은 것**: 4-4(TempFailButtons·forceFail)는 배포 준비 때 개발 모드 전용으로. 1-1~1-3 큰 클래스 쪼개기는 2026-10-17~18. 4-1(`RunnerSetup.Single`은 생성자 기본값)·3-2는 그대로.
+
+---
+
+## 2026-10-12 · 52924a8 [Claude] Codex 34절 반영 — 남은 멈춤 명령 추적, 프로필 화면 × 종료 정리, 전체 화면 사진 잘림
 
 **요청**: Codex 34절 리뷰 검토·반영(사용자 승인 전에 먼저 고쳐 보고 → 승인 후 커밋).
 

@@ -1,6 +1,5 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text;
+using Astro.Server.Engine;
 
 namespace Astro.Server.Prepare.Real;
 
@@ -16,26 +15,6 @@ public static class Phd2Windows
     {
         if (!OperatingSystem.IsWindows()) return false;
         var pids = Process.GetProcessesByName("phd2").Select(p => { using (p) return (uint)p.Id; }).ToHashSet();
-        if (pids.Count == 0) return false;
-        var open = false;
-        var title = new StringBuilder(64);
-        EnumWindows((h, _) =>
-        {
-            GetWindowThreadProcessId(h, out var pid);
-            if (pids.Contains(pid) && IsWindowVisible(h))
-            {
-                title.Clear();
-                GetWindowText(h, title, title.Capacity);
-                if (ConnectTitles.Contains(title.ToString().Trim(), StringComparer.OrdinalIgnoreCase)) open = true;
-            }
-            return !open;
-        }, 0);
-        return open;
+        return Win32Windows.Visible(pids).Any(h => ConnectTitles.Contains(Win32Windows.Title(h).Trim(), StringComparer.OrdinalIgnoreCase));
     }
-
-    private delegate bool EnumProc(nint hWnd, nint lParam);
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, nint lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint pid);
-    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, StringBuilder text, int max);
 }

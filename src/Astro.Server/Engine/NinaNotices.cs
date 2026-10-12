@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using static Astro.Server.Engine.Win32Windows;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -434,40 +434,17 @@ public sealed class NinaToastHider(NinaNotices notices) : BackgroundService
     {
         var fg = GetForegroundWindow();
         if (fg == 0) return false;
-        GetWindowThreadProcessId(fg, out var pid);
-        return NinaProcesses.Ids().Contains(pid);
+        return NinaProcesses.Ids().Contains(Pid(fg));
     }
 
     /// <summary>보이는 N.I.N.A. 알림 창 (없으면 0)</summary>
     private static nint ToastWindow()
     {
-        var pids = NinaProcesses.Ids();
-        if (pids.Count == 0) return 0;
-        nint found = 0;
-        var title = new StringBuilder(64);
-        EnumWindows((h, _) =>
-        {
-            GetWindowThreadProcessId(h, out var pid);
-            if (pids.Contains(pid) && IsWindowVisible(h))
-            {
-                title.Clear();
-                GetWindowText(h, title, title.Capacity);
-                if (title.ToString() == "NotificationsWindow") { found = h; return false; }
-            }
-            return true;
-        }, 0);
-        return found;
+        return Visible(NinaProcesses.Ids()).FirstOrDefault(h => Title(h) == "NotificationsWindow");
     }
 
     private const int SwShowNoActivate = 4;
     private const int SwHide = 0;
-    private delegate bool EnumProc(nint hWnd, nint lParam);
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, nint lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint pid);
-    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, StringBuilder text, int max);
-    [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hWnd, int cmd);
-    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
 }
 
 /// <summary>
@@ -493,29 +470,7 @@ public sealed class NinaAutofocusWindowHider : BackgroundService
     {
         var own = NinaProcesses.OwnWindow();
         if (own == 0 || GetForegroundWindow() != own) return;
-        var pids = NinaProcesses.Ids();
-        if (pids.Count == 0) return;
-        var title = new StringBuilder(64);
-        EnumWindows((h, _) =>
-        {
-            GetWindowThreadProcessId(h, out var pid);
-            if (pids.Contains(pid) && IsWindowVisible(h) && GetWindow(h, GwOwner) != 0)
-            {
-                title.Clear();
-                GetWindowText(h, title, title.Capacity);
-                if (Titles.Contains(title.ToString().Trim(), StringComparer.OrdinalIgnoreCase)) ShowWindowAsync(h, 0);
-            }
-            return true;
-        }, 0);
+        foreach (var h in Visible(NinaProcesses.Ids()))
+            if (HasOwner(h) && Titles.Contains(Title(h).Trim(), StringComparer.OrdinalIgnoreCase)) ShowWindowAsync(h, 0);
     }
-
-    private const uint GwOwner = 4;
-    private delegate bool EnumProc(nint hWnd, nint lParam);
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, nint lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint pid);
-    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, StringBuilder text, int max);
-    [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hWnd, int cmd);
-    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
-    [DllImport("user32.dll")] private static extern nint GetWindow(nint hWnd, uint cmd);
 }

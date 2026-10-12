@@ -34,11 +34,16 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     }
 
     /// <summary>움직임이 멈출 때까지 (이동 중 아님 + 좌표가 연속 두 번 같음). timeout까지 안 멈추면 false</summary>
-    public async Task<bool> WaitStillAsync(TimeSpan timeout, CancellationToken ct)
+    public Task<bool> WaitStillAsync(TimeSpan timeout, CancellationToken ct) => StillAsync(timeout, int.MaxValue, ct);
+
+    /// <summary>멈춘 것 확인 — 같은 판정을 12번까지 (멈춤 명령 뒤)</summary>
+    public Task<bool> ConfirmStillAsync(CancellationToken ct) => StillAsync(TimeSpan.MaxValue, 12, ct);
+
+    private async Task<bool> StillAsync(TimeSpan timeout, int tries, CancellationToken ct)
     {
-        var deadline = DateTime.UtcNow + timeout;
+        var deadline = timeout == TimeSpan.MaxValue ? DateTime.MaxValue : DateTime.UtcNow + timeout;
         (double, double)? last = null;
-        while (DateTime.UtcNow < deadline)
+        for (var i = 0; i < tries && DateTime.UtcNow < deadline; i++)
         {
             var m = await MountAsync(ct);
             if (m is null) return false;
@@ -85,20 +90,6 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         // N.I.N.A.가 정지 명령을 받지 못하면(멈춤·꺼짐·적도의 연결 끊김) 드라이버에 직접 — 멈춘 것을 확인하지 못해도 적도의는 실제로 멈추게 (M2)
         if (!stop.Ok && axis is not null) await axis.EmergencyStopAsync();
         return await ConfirmStillAsync(ct);
-    }
-
-    public async Task<bool> ConfirmStillAsync(CancellationToken ct)
-    {
-        (double, double)? last = null;
-        for (var i = 0; i < 12; i++)
-        {
-            var m = await MountAsync(ct);
-            if (m is null) return false;
-            if (!m.Slewing && last is { } l && Math.Abs(l.Item1 - m.RaDeg) < 0.005 && Math.Abs(l.Item2 - m.DecDeg) < 0.005) return true;
-            last = (m.RaDeg, m.DecDeg);
-            await Task.Delay(1200, ct);
-        }
-        return false;
     }
 
     /// <summary>추적 켜기(항성)/끄기. 반영됐는지 확인</summary>

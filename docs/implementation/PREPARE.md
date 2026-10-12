@@ -90,7 +90,7 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 - 상태: 작업 목록(상태·결과 한 줄) · 지금 작업(세부 과정·안내·측정값·상태·버튼·`Live`) · 실행 번호. SSE `/api/prepare/{rig|target|wrap}/watch`, 한 번 읽기 `/state`.
 - 버튼 `/act`(next · retry · redo:작업 · next:선택 · device-check · 작업별 답), 중단 `/abort`, 시작 `/rig/start` · `/target/start` · `/wrap/start`, 장비 준비 뒤 쉬기 `/rig/rest`, [임시] `/temp-skip`, 아이라 종료 전 정지 `/prepare/stop-for-quit`, 점검 뒤 포커서 0점 요청 `/prepare/focuser-zero`.
 - 이미지 `/api/prepare/live/{kind}`(SharpCap 저장 영상·가이드 사진·N.I.N.A. 마지막 사진 — 같은 내용이면 ETag로 304). SharpCap 스크립트 보고 `/api/prepare/sharpcap/report`(localhost만).
-- 모의 전용: `/sim/fail-next/{key}`(다음 동작 하나 실패, 키 목록 `SimFaults.Known`), `/sim/ignore-altitude`, `/sim/speed/{n}`.
+- 모의 전용: `/sim/fail-next/{key}`(다음 동작 하나 실패, 키 목록 `SimFaults.Known`), `/sim/ignore-altitude`.
 
 ## 2. 실제 장비 어댑터 (`Real/`)
 

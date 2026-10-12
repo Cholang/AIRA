@@ -572,7 +572,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                     note = DevicePrecheck.Storage(Text(files, "FilePath"));
                 if (note is null && d.Slot.Kind == "mount" && await nina.GetActiveProfileAsync(ct) is { ValueKind: JsonValueKind.Object } p2 && p2.TryGetProperty("AstrometrySettings", out var astro)
                     && await nina.GetInfoAsync("mount", ct) is { ValueKind: JsonValueKind.Object } mi)
-                    note = DevicePrecheck.MountSite(Num(astro, "Latitude"), Num(astro, "Longitude"), Num(mi, "SiteLatitude"), Num(mi, "SiteLongitude"));
+                    note = DevicePrecheck.MountSite(Prepare.Real.NinaRig.Num(astro, "Latitude"), Prepare.Real.NinaRig.Num(astro, "Longitude"), Prepare.Real.NinaRig.Num(mi, "SiteLatitude"), Prepare.Real.NinaRig.Num(mi, "SiteLongitude"));
                 if (note is not null)
                     return Make(d, note.Block ? CheckStatus.Fail : CheckStatus.Warn, note.Message, new Diagnosis([], note.Fix));
             }
@@ -586,12 +586,6 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             ? Make(d, CheckStatus.Warn, $"연결되지 않아 {d.Slot.Role} 없이 진행합니다", diagnosis)
             : Make(d, CheckStatus.Fail, "연결되어 있지 않습니다", diagnosis);
     }
-
-    /// <summary>
-    /// 허브의 "USB" 출력이 꺼져 있으면 켠다. N.I.N.A. 출력 바꾸기의 index는 출력 Id가 아니라 쓰기 가능한 출력 목록의 순서(10/09 실기 —
-    /// Id를 넣으면 "Switch value updated"라고 답하고 실제로는 안 바뀜) → 순서로 바꾸고 다시 읽어 확인한다. 못 켜도 연결은 그대로 (뒤 장비 점검이 알린다)
-    /// </summary>
-    private static double Num(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : double.NaN;
 
     /// <summary>"Regulated 0-13.2V adjustable DC2: DC2" → "DC2"</summary>
     internal static string ShortOutlet(string name) => name.Contains(':') ? name[(name.LastIndexOf(':') + 1)..].Trim() : name;
@@ -654,6 +648,10 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     internal static bool IsInputVoltage(string name) =>
         Regex.IsMatch(name, @"(input|입력).*(volt|전압)|(volt|전압).*(input|입력)", RegexOptions.IgnoreCase);
 
+    /// <summary>
+    /// 허브의 "USB" 출력이 꺼져 있으면 켠다. N.I.N.A. 출력 바꾸기의 index는 출력 Id가 아니라 쓰기 가능한 출력 목록의 순서(10/09 실기 —
+    /// Id를 넣으면 "Switch value updated"라고 답하고 실제로는 안 바뀜) → 순서로 바꾸고 다시 읽어 확인한다. 못 켜도 연결은 그대로 (뒤 장비 점검이 알린다)
+    /// </summary>
     private async Task EnsureHubUsbOnAsync(CancellationToken ct)
     {
         var on = await SetHubOutputAsync(n => Regex.IsMatch(n, @"(^|:\s*)USB\s*$|^USB\b", RegexOptions.IgnoreCase), true, ct);

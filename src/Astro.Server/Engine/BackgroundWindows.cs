@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using static Astro.Server.Engine.Win32Windows;
 
 namespace Astro.Server.Engine;
 
@@ -86,7 +87,7 @@ public static class BackgroundWindows
                         }
                         // 아이라 "항상 위"를 지켜보는 내내 확인한다 — 시작할 때 아이라 창을 아직 못 찾았으면(0) 아무것도 안 하고 지나가
                         // N.I.N.A.가 아이라를 덮었다 (2026-10-11 실기: 아이라가 켜질 때 미리 켜기). 창이 잡히는 대로 건다
-                        if (_onTop && NinaProcesses.OwnWindow() is var me and not 0 && (GetWindowLongPtr(me, GwlExStyle) & WsExTopmost) == 0)
+                        if (_onTop && NinaProcesses.OwnWindow() is var me and not 0 && !IsTopmost(me))
                             SetWindowPos(me, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
                         // 지켜보는 동안 다시 펼쳐지는 창(프로그램이 로딩 끝에 창을 다시 띄움)도 다시 내린다
                         foreach (var h in Windows(names))
@@ -104,7 +105,7 @@ public static class BackgroundWindows
                                 // "항상 위"를 푸는 것은 확인된 시작 로고(제목 "startup")만 — 사용자가 연 다른 "항상 위" 창은 건드리지 않는다.
                                 // 시작 로고는 원래대로("항상 위") 되돌리지 않는다 — 지키기가 끝날 때 아직 떠 있으면 아이라 위로 다시 올라와
                                 // 로고가 두 번 뜬 것처럼 보였다 (2026-10-11 사용자 실행). 사용자 창은 애초에 건드리지 않는다 (CX-20-11)
-                                if ((GetWindowLongPtr(h, GwlExStyle) & WsExTopmost) != 0 && IsSplash(h))
+                                if (IsTopmost(h) && IsSplash(h))
                                 {
                                     SetWindowPos(h, HwndNoTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
                                     if (own != 0) SetWindowPos(own, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
@@ -150,44 +151,14 @@ public static class BackgroundWindows
             foreach (var p in Process.GetProcessesByName(name))
                 using (p)
                     pids.Add((uint)p.Id);
-        if (pids.Count == 0) return [];
-        var found = new List<nint>();
-        EnumWindows((h, _) =>
-        {
-            GetWindowThreadProcessId(h, out var pid);
-            // 주인 창이 없는 창 + 주인이 있어도 스스로 "항상 위"인 창 (Wanderer Empire 시작 로고 "startup" — 숨은 창에 딸려 있어 전에는 빠졌음, 2026-10-10 실측)
-            if (pids.Contains(pid) && IsWindowVisible(h) && (GetWindow(h, GwOwner) == 0 || (GetWindowLongPtr(h, GwlExStyle) & WsExTopmost) != 0)) found.Add(h);
-            return true;
-        }, 0);
-        return found;
+        // 주인 창이 없는 창 + 주인이 있어도 스스로 "항상 위"인 창 (Wanderer Empire 시작 로고 "startup" — 숨은 창에 딸려 있어 전에는 빠졌음, 2026-10-10 실측)
+        return Visible(pids).Where(h => !HasOwner(h) || IsTopmost(h));
     }
 
     private const int SwShowMinNoActive = 7;
     private static readonly nint HwndBottom = 1, HwndTopmost = -1, HwndNoTopmost = -2;
     private const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
-    private const uint GwOwner = 4;
-    private const int GwlExStyle = -20;
-    private const nint WsExTopmost = 0x8;
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern nint GetWindowLongPtr(nint hWnd, int index);
-
-    private delegate bool EnumWindowsProc(nint hWnd, nint lParam);
-
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, nint lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
-    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint hWnd, System.Text.StringBuilder text, int max);
 
     /// <summary>Wanderer Empire 시작 로고 창인가 (2026-10-10 실측: 제목 "startup", 숨은 창에 딸린 "항상 위" WinForms 창)</summary>
-    private static bool IsSplash(nint h)
-    {
-        var title = new System.Text.StringBuilder(64);
-        GetWindowText(h, title, title.Capacity);
-        return string.Equals(title.ToString().Trim(), "startup", StringComparison.OrdinalIgnoreCase);
-    }
-    [DllImport("user32.dll")] private static extern bool IsIconic(nint hWnd);
-    [DllImport("user32.dll")] private static extern nint GetWindow(nint hWnd, uint cmd);
-    [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hWnd, int cmdShow);
-    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
-    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hWnd);
-    [DllImport("user32.dll")] private static extern bool SetWindowPos(nint hWnd, nint after, int x, int y, int cx, int cy, uint flags);
+    private static bool IsSplash(nint h) => string.Equals(Title(h).Trim(), "startup", StringComparison.OrdinalIgnoreCase);
 }
