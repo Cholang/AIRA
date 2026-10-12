@@ -36,7 +36,7 @@ export default function NewProfileScreen({
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
-  // 전원 배선 (DESIGN.md 3장): 오른쪽 패널에서 고치고 프로필과 함께 저장. 손대지 않으면(custom=false) 저장하지 않아 기본값(적도의 먼저)을 쓴다
+  // 전원 배선 (DESIGN.md "프로필"): 오른쪽 패널에서 고치고 프로필과 함께 저장. 손대지 않으면(custom=false) 저장하지 않아 기본값(적도의 먼저)을 쓴다
   const [wiring, setWiring] = useState<PowerWiring>(DEFAULT_WIRING)
   const [custom, setCustom] = useState(false)
   const [changed, setChanged] = useState(false)

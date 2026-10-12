@@ -17,5 +17,5 @@
 
 - 저장소 맨 위에는 README.md · CLAUDE.md · AGENTS.md · DESIGN.md · HISTORY.md만 둔다.
 - 리뷰 결과는 `docs/codex/REVIEW_CODEX.md`, 구현 요청서는 `docs/codex/`에 쓴다 (예전 맨 위의 REVIEW_CODEX.md·IMPLEMENTATION_REQUEST_CODEX.md를 옮김).
-- 기획·조사 자료(기획서, 구조와 온보딩, NINA 사전 준비, API 대응표)는 `docs/`, 대화 기록은 `conversations/`.
+- 기획·조사 자료(운영 절차 OPERATION_PROCEDURE.md, 구현 문서, 구조와 온보딩, NINA 사전 준비, API 대응표, 결정 이력 DESIGN_HISTORY.md)는 `docs/`, 대화 기록은 `conversations/`.
 - 새 문서가 필요하면 위 위치에 맞춰 만든다. 검토가 끝난 임시 문서는 내용을 기준 문서(DESIGN.md 등)에 합치고 지운다.

@@ -36,10 +36,10 @@ import styles from './App.module.css'
 
 // flow.mmd ① 시작 · 연결:
 // 부팅 로고 → 프로필 선택 (없으면 새 프로필 만들기) → 0단계 설치 확인 → 1단계 엔진 켜기 → 장비 연결
-// → 출발 전 점검 → 장비 준비(rig) → 대상(계획 → target) → (다음: 촬영). DESIGN.md "장비 준비 · 대상" (2026-10-07)
+// → 출발 전 점검 → 장비 준비(rig) → 대상(계획 → target) → (다음: 촬영). OPERATION_PROCEDURE.md "장비 준비 · 대상" (2026-10-07)
 type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipment' | 'site' | 'preflight' | 'rig' | 'plan' | 'target' | 'shoot' | 'wrap' | 'summary'
 
-/** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md 2장) */
+/** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md "진행 표시") */
 /** 장비 연결 뒤 화면들: 왼쪽 위에 구석 태양을 둔다 (2026-10-11 사용자 요청, CornerSun) */
 const CORNER_SUN: Phase[] = ['site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
 
@@ -114,7 +114,7 @@ export default function App() {
   const fading = useRef(false)
 
   /** 지금 화면을 서서히 감추고, 다음 화면을 서서히 보여 준다. */
-  // 전환 중에는 화면을 누를 수 없다 (DESIGN.md 9장). 새 화면이 다 나타난 뒤 true
+  // 전환 중에는 화면을 누를 수 없다 (DESIGN.md 8장). 새 화면이 다 나타난 뒤 true
   const [settled, setSettled] = useState(true)
   // 지금 화면이 진행 표시에 넘긴 작업 목록·버튼 (예: 준비의 7작업, 준비 중단)
   const [railExtra, setRailExtra] = useState<RailExtra | null>(null)
@@ -205,7 +205,7 @@ export default function App() {
   // N.I.N.A.가 꺼져 다시 켠 경우: 장비를 다시 연결한 뒤 원래 있던 화면으로 돌아간다 (점검을 다시 묻지 않는다)
   const resumeTo = useRef<Phase | null>(null)
 
-  // ── 관측지 (DESIGN.md 3장 "관측지"): 지금 관측지 = N.I.N.A.에 설정된 좌표. undefined면 아직 모름 ─────────
+  // ── 관측지 (OPERATION_PROCEDURE.md "관측지"): 지금 관측지 = N.I.N.A.에 설정된 좌표. undefined면 아직 모름 ─────────
   const [site, setSite] = useState<CurrentSite | null | undefined>(undefined)
   const [siteSyncing, setSiteSyncing] = useState<string | null>(null)
   // 관측지 고르기 화면이 끝나면 돌아갈 곳 (장비 연결 뒤 → 출발 전 점검, 상태 줄 "관측지 편집" → 원래 화면)
@@ -332,7 +332,7 @@ export default function App() {
   const toWrap = useCallback(() => fadeTo('wrap'), [fadeTo])
   const toSummary = useCallback(() => fadeTo('summary'), [fadeTo])
 
-  // 촬영에 들어가면 적색 테마로 (DESIGN.md 7-3, 2026-10-07). 다른 대상으로 돌아가면(계획) 원래 테마로, 마무리·요약은 그대로
+  // 촬영에 들어가면 적색 테마로 (DESIGN.md 6-2, 2026-10-07). 다른 대상으로 돌아가면(계획) 원래 테마로, 마무리·요약은 그대로
   const themeBefore = useRef<typeof theme | null>(null)
   useEffect(() => {
     if (phase === 'shoot' && theme !== 'night') {

@@ -4,11 +4,12 @@
 
 | 무엇을 보면 되나 | 문서 |
 |---|---|
-| 사용자가 **보고 겪는 것**(화면·문구·사용자 결정) | [DESIGN.md](../DESIGN.md) 3장 "장비 준비 · 대상", "준비 화면" ①~⑦, "마무리" |
+| 아이라가 **하는 일**(순서·실패 처리·사용자 결정) | [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md) 5장 ①~⑦, 7장 "마무리" |
+| 화면이 **어떻게 보이는지** | [DESIGN.md](../DESIGN.md) "하늘 화면" |
 | **어떻게 만들었나**(구조·계약·장비 어댑터·실패 처리 순서) | 이 문서 |
 | 촬영 단계의 구조 | [SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md) |
 | 쓰는 N.I.N.A. API | [api-coverage.md](api-coverage.md) |
-| 바뀐 이력 | [HISTORY.md](../HISTORY.md), 디자인 결정은 [DESIGN_HISTORY.md](DESIGN_HISTORY.md) |
+| 바뀐 이력 | [HISTORY.md](../HISTORY.md), 결정 이력은 [DESIGN_HISTORY.md](DESIGN_HISTORY.md) |
 
 ## 0. 원칙
 
@@ -111,9 +112,9 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 
 ## 3. 작업별 구현 — 코드만 봐서는 알기 어려운 결정
 
-사용자 쪽 규칙은 DESIGN.md, 실패 처리 순서 같은 세부는 각 작업 클래스(`Tasks/<작업>/`)의 주석과 코드가 기준이다. 여기에는 왜 그렇게 만들었는지만 둔다.
+하는 일은 OPERATION_PROCEDURE.md, 실패 처리 순서 같은 세부는 각 작업 클래스(`Tasks/<작업>/`)의 주석과 코드가 기준이다. 여기에는 왜 그렇게 만들었는지만 둔다.
 
-- **극축 정렬**: 넘겨받기·극 찾기는 적도의 잠금 안에서(추적 설정 포함). RA 회전은 goto가 아니라 `AscomAxis`의 `MoveAxis`(goto는 극 근처에서 Dec축까지 움직임). 실제 모드에서는 조절량 환산을 실기로 확인하기 전까지 등급 말 대신 방향·픽셀 값만(IMPL-03). SharpCap은 아이라가 켠 것만 닫는다.
+- **극축 정렬**: 순서 = 추적 항성 → PHD2 `stop_capture` → Stopped 기다림 → `set_connected false` → SharpCap 실행 → (스크립트가 노출·게인·극축 정렬 켬) → 극 찾기 → 정렬 → SharpCap 닫기 → PHD2 `set_connected true` → N.I.N.A.–PHD2 확인. 넘겨받기·극 찾기는 적도의 잠금 안에서(추적 설정 포함). RA 회전은 goto가 아니라 `AscomAxis`의 `MoveAxis`(goto는 극 근처에서 Dec축까지 움직이고 덜 돈다) 60°, SharpCap "Allow smaller rotation angles" 필요, 둘째 사진 뒤 `PolarAlignment.Advance()`. 정렬 평가는 SharpCap의 Good·Excellent 글자를 스크립트로 못 받아 아이라가 직접: 조절량(픽셀) × PHD2 `get_pixel_scale`. 실제 모드에서는 이 환산을 실기로 확인하기 전까지 등급 말 대신 방향·픽셀 값만(IMPL-03). SharpCap은 최소화하지 않는다(최소화하면 Windows가 창을 그리지 않아 영상을 비출 수 없다) — 켜지는 동안 아이라 "항상 위". 이미 켜진 SharpCap은 스크립트로 조종할 수 없어 닫고 다시 켜야 하고, 아이라가 정리하며 닫는 것은 아이라가 켠 SharpCap뿐.
 - **캘리브레이션**: 장비 준비를 시작할 때는 항상 새로(조립·극축 정렬로 가이드 카메라를 만졌으므로), 같은 밤 대상만 바꿀 때는 `IPrepMemory.LastCalibration` 재사용. "가이딩 없이 진행"은 시작 선택(`StartAlternatives`)이라 움직이기 전에 고른다.
 - **초점**: 기억된 위치가 없으면 자동초점 전에 넓게 찾기(자동초점은 시작점 앞뒤 수백 걸음만 봄). 손으로 맞춘 위치는 저장하지 않는다. 점검을 마쳤으면 먼저 0점(`FocuserZeroRequest`).
 - **센터링**: N.I.N.A.의 센터링 명령이 아니라 아이라가 사진 + 솔빙 → 거리 → 동기화 → 다시 이동을 반복(`RealCenterDevices`) — 사진의 HFR·별 수를 초점 확인에 넘기려고.

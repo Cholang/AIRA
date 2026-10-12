@@ -1,7 +1,7 @@
 import styles from './ProgressLine.module.css'
 
 /**
- * 조용한 진행 표시 (DESIGN.md 9장: 스피너 대신 얇은 진행 바).
+ * 조용한 진행 표시 (DESIGN.md 8장: 스피너 대신 얇은 진행 바).
  * 끝을 알 수 없는 기다림(N.I.N.A. 준비 등)은 indeterminate로.
  */
 export default function ProgressLine({ value = 0, label, indeterminate = false }: { value?: number; label: string; indeterminate?: boolean }) {

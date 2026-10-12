@@ -262,7 +262,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             || driver.Contains("Fuji", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>솔빙으로 얻은 지금 위치로 적도의를 동기화 (DESIGN.md ⑤ — 솔빙 동기화는 정상)</summary>
+    /// <summary>솔빙으로 얻은 지금 위치로 적도의를 동기화 (OPERATION_PROCEDURE.md ⑤ — 솔빙 동기화는 정상)</summary>
     public async Task<bool> SyncAsync(double raDeg, double decDeg, CancellationToken ct) =>
         (await nina.RequestAsync($"equipment/mount/sync?ra={raDeg.ToString(Inv)}&dec={decDeg.ToString(Inv)}", Short, ct)).Ok;
 
@@ -386,7 +386,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         return double.IsFinite(b) && b > 0 ? (int)b : null;
     }
 
-    // ── 가이딩 (N.I.N.A. 명령 — 시퀀스의 디더링·반전이 상태를 알도록, DESIGN.md ⑥) ─────────
+    // ── 가이딩 (N.I.N.A. 명령 — 시퀀스의 디더링·반전이 상태를 알도록, OPERATION_PROCEDURE.md ⑥) ─────────
 
     /// <summary>가이딩 시작. 별이 없어도 2분쯤 뒤 성공으로 답하므로 결과는 PHD2 상태로 확인할 것</summary>
     public async Task<NinaReply> StartGuidingAsync(bool calibrate, CancellationToken ct) =>

@@ -16,7 +16,7 @@ public sealed record CenterAttempt(bool Solved, double ErrorArcmin, double? Came
 public sealed record CenterEndState(double ErrorArcmin, bool MountMoving, bool Tracking, bool CameraExposing);
 
 /// <summary>
-/// ⑤ 센터링 (DESIGN.md ⑤): 사진·솔빙·보정 반복, 목표 1′ 안, 최대 10번. 카메라 방향은 돌리지 않고 기록만.
+/// ⑤ 센터링 (OPERATION_PROCEDURE.md ⑤): 사진·솔빙·보정 반복, 목표 1′ 안, 최대 10번. 카메라 방향은 돌리지 않고 기록만.
 /// 솔빙 실패 → 노출 늘려 다시 → 하늘 전체 검색 → "초점이나 구름" 안내 + 초점 다시 맞추기(초점 확인에 넘김).
 /// 맞추면 그 사진으로 구도를 보여 주고 "이 대상으로 확정 / 다른 대상"(탐색).
 /// </summary>
@@ -80,7 +80,7 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                     run.Readout("center-error", $"{a.ErrorArcmin:F1}′", $"대상과 화면 가운데의 거리 · 목표 1′ 안{angleText}", Tone.Ok,
                         new Dictionary<string, double> { ["errorArcmin"] = a.ErrorArcmin, ["attempt"] = i });
                     run.Status(null);
-                    // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (DESIGN.md "장비 준비 · 대상")
+                    // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (OPERATION_PROCEDURE.md "장비 준비 · 대상")
                     return new Completed(new CenterResult(a.ErrorArcmin, a.CameraAngleDeg, i, ctx.Now(), a.Hfr, a.Stars), $"오차 {a.ErrorArcmin:F1}′{angleText}",
                         "이 대상으로 확정할까요?", "가운데에 맞춘 사진이에요. 구도가 마음에 들면 확정하세요. 다른 대상을 고르면 계획으로 돌아가고, 장비 준비는 그대로 씁니다.",
                         [new("flow:replan", "다른 대상")]);

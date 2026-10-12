@@ -13,7 +13,7 @@ namespace Astro.Server.Prepare.Real;
 /// </summary>
 public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridge sharpCap, AscomAxis axis, ReportAddress address) : IPolarDevices
 {
-    /// <summary>RA 회전: 이 적도의는 홈에서 한쪽으로 약 60°까지만 돈다 (DESIGN.md ①)</summary>
+    /// <summary>RA 회전: 이 적도의는 홈에서 한쪽으로 약 60°까지만 돈다 (OPERATION_PROCEDURE.md ①)</summary>
     private const double RotationDeg = 60;
     private const double RotationRate = 2.0; // °/s (최대 3.55)
     // 노출(초): 1초에서 시작해 배경 밝기를 보고 0.25~4초 사이에서 줄이거나 늘린다 (2026-10-08 실기: 무조건 늘리면 화면이 하얘져 별이 더 안 보임)

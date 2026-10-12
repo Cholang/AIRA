@@ -14,7 +14,7 @@ namespace Astro.Server.Sky;
 public sealed record CurrentSite(double Latitude, double Longitude, double Elevation);
 
 /// <summary>
-/// 관측지 (DESIGN.md 3장 "관측지"): 관측지의 기준은 AA(프로필의 관측지 목록)이고, N.I.N.A.는 AA 값을 따라간다.
+/// 관측지 (OPERATION_PROCEDURE.md "관측지"): 관측지의 기준은 AA(프로필의 관측지 목록)이고, N.I.N.A.는 AA 값을 따라간다.
 /// 저장하면 N.I.N.A. 프로필의 위도·경도·고도를 바꾸고, 연결된 적도의에도 새 위치를 보낸다.
 /// </summary>
 public sealed class SiteService(NinaApiClient nina, IHttpClientFactory httpFactory, IOptions<EquipmentOptions> equipment, PlanAssistant plan, ILogger<SiteService> log)

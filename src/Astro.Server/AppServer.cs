@@ -285,7 +285,7 @@ public static class AppServer
         return app;
     }
 
-    /// <summary>촬영 (DESIGN.md "촬영") · 오늘 밤 요약 (마무리 끝)</summary>
+    /// <summary>촬영 (OPERATION_PROCEDURE.md "촬영") · 오늘 밤 요약 (마무리 끝)</summary>
     private static void MapShoot(RouteGroupBuilder shoot, RouteGroupBuilder night)
     {
         // 대상 묶음이 끝난 상황으로 촬영 시작 (찍는 중이면 그대로 — 화면 재접속)
@@ -338,7 +338,7 @@ public static class AppServer
 
     private static void MapPrepare(RouteGroupBuilder prepare)
     {
-        // 묶음 두 개 (DESIGN.md "장비 준비 · 대상"): rig = 장비 준비(계획 없이, 그날 밤), target = 대상(확정 계획 하나). 같은 것이면 하던 곳에서 그대로
+        // 묶음 두 개 (OPERATION_PROCEDURE.md "장비 준비 · 대상"): rig = 장비 준비(계획 없이, 그날 밤), target = 대상(확정 계획 하나). 같은 것이면 하던 곳에서 그대로
         prepare.MapPost("/rig/start", async (Prepare.PrepareStarter starter, Prepare.Flow.PrepareFlow flow, CancellationToken ct) =>
             await starter.StartRigAsync(ct) is { } problem ? Results.BadRequest(new { error = problem }) : Results.Ok(flow.Rig.View()));
         // 마무리 (플랫 · 다크 · 장비 정리 — 촬영이 끝난 뒤, 그날 밤 하나)

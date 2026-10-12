@@ -22,7 +22,7 @@ public sealed record GuideStats(double RaArcsec, double DecArcsec, int StarLost)
 public sealed record GuidingEndState(bool Guiding, bool Settled, int StarLostRecently);
 
 /// <summary>
-/// ⑥ 가이딩 (DESIGN.md ⑥): 별 선택 → 안정화 → 오차 측정. 가이드 노출 시작값 1.5초(하모닉 적도의는 짧게).
+/// ⑥ 가이딩 (OPERATION_PROCEDURE.md ⑥): 별 선택 → 안정화 → 오차 측정. 가이드 노출 시작값 1.5초(하모닉 적도의는 짧게).
 /// 판정 기준 = 주 카메라 한 픽셀(″): 이하 "충분해요" / 1.5배 이하 "괜찮아요, 지켜볼게요" / 그 위 "아쉬워요".
 /// </summary>
 public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
@@ -140,7 +140,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
     public bool KeepsRunning => true;
 }
 
-/// <summary>가이딩 판정 (순수 함수, DESIGN.md ⑥)</summary>
+/// <summary>가이딩 판정 (순수 함수, OPERATION_PROCEDURE.md ⑥)</summary>
 public static class GuidingRules
 {
     public static (string Grade, Tone Tone, string Text) Judge(GuideStats s, double limitArcsec)

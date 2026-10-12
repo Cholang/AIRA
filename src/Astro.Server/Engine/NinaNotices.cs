@@ -8,7 +8,7 @@ namespace Astro.Server.Engine;
 /// <summary>
 /// N.I.N.A. 오류를 아이라 말로 (2026-10-09 사용자 요청). N.I.N.A. 알림(토스트)은 영어·번역 누락("MISSING LABEL")이 섞여 있고,
 /// Advanced API는 알림을 주지 않는다 → N.I.N.A. 로그 파일(%LOCALAPPDATA%\NINA\Logs, 같은 내용이 원인까지 남음)을 따라 읽어
-/// 오류·경고를 진단 카드 형식(무슨 일 / 왜 / 이렇게, 원본은 접어서 — DESIGN.md 4장)으로 바꾼다.
+/// 오류·경고를 진단 카드 형식(무슨 일 / 왜 / 이렇게, 원본은 접어서 — DESIGN.md "공통 부품" 진단 카드)으로 바꾼다.
 /// </summary>
 public sealed record NinaNotice(long Id, DateTimeOffset At, string Category, string Title, IReadOnlyList<string> Why, string Fix, string Raw, int Count)
 {

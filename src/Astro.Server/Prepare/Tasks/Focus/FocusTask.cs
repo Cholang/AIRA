@@ -5,7 +5,7 @@ namespace Astro.Server.Prepare.Tasks.Focus;
 /// <summary>장비 준비 ③ 초점 장비 (대상 묶음의 초점 확인도 같은 장비). 실제: N.I.N.A. 포커서 이동·자동초점(설정은 AA 추천값으로 먼저), 온도 프로브</summary>
 public interface IFocusDevices
 {
-    /// <summary>포커서 범위(걸음). 제조사 설정의 0~최대 (DESIGN.md ④ — 한계는 제조사 기능에 맡김)</summary>
+    /// <summary>포커서 범위(걸음). 제조사 설정의 0~최대 (OPERATION_PROCEDURE.md ③ 초점 — 한계는 제조사 기능에 맡김)</summary>
     Task<(int Min, int Max)> LimitsAsync(CancellationToken ct);
     Task<int> PositionAsync(CancellationToken ct);
     /// <summary>포커서가 연결되어 있는가 (모의는 항상)</summary>
@@ -59,7 +59,7 @@ public sealed record AutofocusRun(bool Ok, bool StarsFound, int BestPosition, do
 public sealed record FocusEndState(bool Moving, int Position, bool Error);
 
 /// <summary>
-/// 장비 준비 ③ 초점 (DESIGN.md ④ — 캘리브레이션 위치의 별로, 대상과 무관): 지난번 맞은 위치(그때 기온과 함께)에서 시작(처음이면 넓게 찾은 위치) → 자동초점(N.I.N.A. 설정의 칸 크기·백래시) → 결과를 AA 말로.
+/// 장비 준비 ③ 초점 (OPERATION_PROCEDURE.md ③ 초점 — 캘리브레이션 위치의 별로, 대상과 무관): 지난번 맞은 위치(그때 기온과 함께)에서 시작(처음이면 넓게 찾은 위치) → 자동초점(N.I.N.A. 설정의 칸 크기·백래시) → 결과를 AA 말로.
 /// 별이 안 보이면 포커서 범위 안에서 넓게 훑기 → 그래도 안 되면 손 초점 안내. 포커서 에러(멈춤 감지)는 바로 멈추고 해제 안내.
 /// </summary>
 public sealed class FocusTask(IFocusDevices devices) : IPrepTask

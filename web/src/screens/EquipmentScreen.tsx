@@ -19,7 +19,7 @@ import styles from './EquipmentScreen.module.css'
 const HUB = 'switch'
 const WAITING_FOR_HUB = '전원 허브가 연결되면 확인합니다'
 
-// 자동 진행 (DESIGN.md 3장 "장비 연결"): 4초 동안 항성 테두리 호가 차오른다, "장비 변경"은 3.5초까지만 받는다
+// 자동 진행 (DESIGN.md "장비 연결"): 4초 동안 항성 테두리 호가 차오른다, "장비 변경"은 3.5초까지만 받는다
 const ADVANCE_MS = 4000
 const CHANGE_UNTIL_MS = 3500
 const SLOW_RATE = 0.3 // 변경 버튼을 가리키는 동안 시간이 흐르는 배속

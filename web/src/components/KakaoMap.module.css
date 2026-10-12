@@ -19,7 +19,7 @@
   transform-origin: 0 0;
 }
 
-/* 촬영용 적색 테마: 지도도 빨강 채널만 (DESIGN.md 7-3, index.html의 #red-only) */
+/* 촬영용 적색 테마: 지도도 빨강 채널만 (DESIGN.md 6-2, index.html의 #red-only) */
 :global(:root[data-theme='night']) .map {
   filter: url(#red-only);
 }

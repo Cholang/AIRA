@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import styles from './DiagnosticCard.module.css'
 
 /**
- * 진단 카드 (DESIGN.md 4장 — 공통): 화면 위쪽(상태 줄 바로 아래) 가운데에 붙는다. 전체를 가리는 모달이 아니다.
+ * 진단 카드 (DESIGN.md "공통 부품" 진단 카드): 화면 위쪽(상태 줄 바로 아래) 가운데에 붙는다. 전체를 가리는 모달이 아니다.
  * 무슨 일(title) / 왜(why, 가능성 높은 순) / 이렇게(fix) + 버튼, 원본 로그는 접어서(raw) — 영문 로그를 먼저 보이지 않는다.
  * tone: fail = 진행이 막힘(N.I.N.A. 꺼짐 등), warn = 알림(N.I.N.A. 오류를 풀어 쓴 것)
  */

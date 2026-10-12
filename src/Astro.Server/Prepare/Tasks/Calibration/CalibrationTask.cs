@@ -26,7 +26,7 @@ public sealed record CalibrationData(bool Ok, double OrthogonalityErrorDeg, doub
 public sealed record CalibrationEndState(bool HasCalibration, bool Phd2Guiding, bool Phd2Looping, bool MountMoving, bool Tracking, bool Phd2Unknown = false);
 
 /// <summary>
-/// ② 캘리브레이션 (DESIGN.md ②): 위치로 이동 → 별 선택 → 움직임 측정. 자동.
+/// ② 캘리브레이션 (OPERATION_PROCEDURE.md ②): 위치로 이동 → 별 선택 → 움직임 측정. 자동.
 /// 위치 A(자오선 서쪽 1시간·적위 0°) → 안 되면 B(동쪽 1시간). 같은 밤 대상만 바꾸면 재사용.
 /// </summary>
 public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask

@@ -21,7 +21,7 @@ public sealed record SlewMove(bool Ok, double ArrivalErrorDeg, string? Problem =
 public sealed record SlewEndState(double DistanceToTargetDeg, bool Moving, bool Tracking);
 
 /// <summary>
-/// ③ 대상 이동 (DESIGN.md ③): ② 끝 버튼 "대상으로 이동"이 이동 승인. 낮은 대상은 계획 단계에서 알렸고 여기선
+/// ③ 대상 이동 (OPERATION_PROCEDURE.md ④ 이동): ② 끝 버튼 "대상으로 이동"이 이동 승인. 낮은 대상은 계획 단계에서 알렸고 여기선
 /// "기다리기"(남은 시간 + 때가 되면 알림) → "기다리기 끝" → "이동". 30° 아래면 이동을 막는다. 이동 중 "멈춤".
 /// </summary>
 public sealed class SlewTask(ISlewDevices devices) : IPrepTask

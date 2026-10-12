@@ -21,7 +21,7 @@ public sealed record ShotStats(double Hfr, double Eccentricity, double Backgroun
 public sealed record TestShotEndState(bool CameraExposing, bool Guiding, bool FileSaved);
 
 /// <summary>
-/// ⑦ 시험 사진 (DESIGN.md ⑦): 계획 노출로 한 장 → AA가 규칙으로 바로 검사 → "좋아요" 또는 문제 + 할 일.
+/// ⑦ 시험 사진 (OPERATION_PROCEDURE.md ⑦): 계획 노출로 한 장 → AA가 규칙으로 바로 검사 → "좋아요" 또는 문제 + 할 일.
 /// 노출을 바꿔야 하면 묻고(계획에 반영) 다시 찍기. 첫 장으로 쓰지 않는다. 끝 버튼은 러너의 "촬영 시작".
 /// </summary>
 public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask

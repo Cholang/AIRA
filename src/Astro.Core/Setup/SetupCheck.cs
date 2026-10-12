@@ -28,7 +28,7 @@ public enum CheckSeverity
 }
 
 /// <summary>
-/// 실패·경고일 때 진단 카드에 보여 줄 내용 (DESIGN.md 4장: 무슨 일 / 왜 / 이렇게 / 원본).
+/// 실패·경고일 때 진단 카드에 보여 줄 내용 (DESIGN.md "공통 부품" 진단 카드: 무슨 일 / 왜 / 이렇게 / 원본).
 /// </summary>
 public sealed record Diagnosis(
     IReadOnlyList<string> Causes,

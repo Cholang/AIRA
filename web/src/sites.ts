@@ -1,7 +1,7 @@
 import type { ObservingSite, Profile } from './profiles'
 
 /**
- * 관측지 (DESIGN.md 3장 "관측지"). 기준은 AA(프로필의 관측지 목록)이고 N.I.N.A.는 AA 값을 따라간다.
+ * 관측지 (OPERATION_PROCEDURE.md "관측지"). 기준은 AA(프로필의 관측지 목록)이고 N.I.N.A.는 AA 값을 따라간다.
  * 지금 관측지 = N.I.N.A.에 설정된 좌표. 서버 SiteService와 같이 쓴다.
  */
 export interface CurrentSite {

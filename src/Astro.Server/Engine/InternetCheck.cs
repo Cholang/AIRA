@@ -12,7 +12,7 @@ public sealed class NetworkOptions
 }
 
 /// <summary>
-/// 인터넷 연결 확인. 시작·계획 단계는 온라인 필수라 1단계 엔진 켜기에서 확인한다 (DESIGN.md 1장).
+/// 인터넷 연결 확인. 시작·계획 단계는 온라인 필수라 1단계 엔진 켜기에서 확인한다 (OPERATION_PROCEDURE.md 0장).
 /// 응답 코드는 따지지 않는다: 서버까지 닿기만 하면 연결된 것으로 본다.
 /// </summary>
 public sealed class InternetCheck(HttpClient http, IOptions<NetworkOptions> options)

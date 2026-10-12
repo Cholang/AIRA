@@ -1,6 +1,7 @@
 # DESIGN_HISTORY.md — 디자인 결정 이력
 
 [DESIGN.md](../DESIGN.md)에서 옮겨 온 **언제·왜 바뀌었는지**와 **폐기된 규칙**. 절 제목은 DESIGN.md와 같다. 지금 유효한 규칙은 DESIGN.md만 본다.
+[OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md)(아이라가 하는 일)의 이력도 여기에 둔다 — 절 제목은 2026-10-12 첫 정리 때의 DESIGN.md 구조를 따른다(그 뒤 DESIGN.md는 화면만, 동작은 OPERATION_PROCEDURE.md로 나뉨).
 형식: `날짜 · 무엇이 어떻게 바뀌었나 — 왜`. 2026-10-12에 DESIGN.md를 "현재 규칙만"으로 정리하며 처음 만들었다(그 전 이력은 본문에 섞여 있던 것을 옮김).
 
 ---
@@ -245,3 +246,4 @@
 
 ## 11. 이 문서 갱신 규칙
 - 2026-10-12 · DESIGN.md를 "지금 유효한 규칙만"으로 정리하고 이력은 이 문서로(사용자 결정). 정리 전 원문은 git `daa27c3`의 DESIGN.md(507줄, 약 106KB).
+- 2026-10-12 · **DESIGN.md를 화면(보이는 것·움직임·말투·화면 안 상호작용)만으로**, 아이라가 하는 일(단계·작업 순서, 장비 동작, 실패·재사용, 안전·데이터 규칙)은 새 `docs/OPERATION_PROCEDURE.md`로 나눔(사용자 — "DESIGN은 비주얼 문서가 아니었나"). DESIGN.md 약 78KB → 47KB. 장 번호가 바뀜(테마 7 → 6장, 움직임 9 → 8장 등), 코드 주석 71곳을 새 위치로. 초기 기획서 `docs/nina-ai-assistant-plan.md`는 지움(사용자 요청, git에 남음).

@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Astro.Server.Assistant;
 
-// 촬영 계획 네 칸 (DESIGN.md 3장 "촬영 계획 화면"): 대상 / 구도 / 촬영 설정 / 끝난 뒤.
+// 촬영 계획 네 칸 (OPERATION_PROCEDURE.md "계획"): 대상 / 구도 / 촬영 설정 / 끝난 뒤.
 // 칸 상태: empty(아직) · asking(지금 묻는 중) · set(정해짐). 화면은 이 모양을 그대로 그린다.
 // 칸에는 실행에 쓰는 값(좌표·종료 규칙·끝난 뒤 동작)을 두고, 화면 문장은 그 값에서 만든다 (Codex 리뷰 CX-PLAN-04·07)
 

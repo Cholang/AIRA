@@ -3,7 +3,7 @@ using Astro.Server.Prepare.Flow;
 namespace Astro.Server.Shoot;
 
 /// <summary>
-/// 촬영 장비 (DESIGN.md "촬영"). 실제: N.I.N.A. Advanced API(촬영·통계·자동초점·적도의) + PHD2(디더링·가이딩 상태).
+/// 촬영 장비 (OPERATION_PROCEDURE.md "촬영"). 실제: N.I.N.A. Advanced API(촬영·통계·자동초점·적도의) + PHD2(디더링·가이딩 상태).
 /// 세션(ShootSession)이 순서를 정하고, 장비는 한 가지 일씩만 한다.
 /// </summary>
 public interface IShootDevices

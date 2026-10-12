@@ -9,7 +9,7 @@ import { prepareAbort, prepareAct, watchPrepare, type PrepGroup, type PrepTaskSt
 import styles from './PrepareScreen.module.css'
 
 /**
- * 장비 준비 · 대상 묶음 화면 (DESIGN.md "장비 준비 · 대상", 시안 mockups/aa-prepare-arcs-v9.html). group으로 묶음을 고른다.
+ * 장비 준비 · 대상 묶음 화면 (OPERATION_PROCEDURE.md "장비 준비 · 대상", 시안 mockups/aa-prepare-arcs-v9.html). group으로 묶음을 고른다.
  * 화면 영역: 하늘 화면(배경 전체, LiveView) · 안내(왼쪽 위, PrepGuide) · 중앙 정보(가운데 아래, PrepCenter) · 진행 표시(오른쪽, StepRail).
  * 진행은 서버(Prepare/Flow/PrepareRunner 두 개)가 하고, 이 화면은 상태를 받아 그리고 버튼만 전달한다.
  * 끝 버튼(장비 준비: "대상 고르기", 대상: "촬영 시작")을 누르면(ready) onDone. 센터링 뒤 "다른 대상"이면 onReplan,

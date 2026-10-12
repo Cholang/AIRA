@@ -27,7 +27,7 @@ public sealed class RealCenterDevices(NinaRig rig, LiveImages live) : ICenterDev
         _lastError = Astronomy.Separation(new Equatorial(solvedRa, solvedDec), new Equatorial(raDeg, decDeg)) * 60;
         if (_lastError > CenterTask.TargetArcmin)
         {
-            // 솔빙으로 맞춘 동기화는 정상 (DESIGN.md ⑤) → 그 뒤 대상으로 다시 이동
+            // 솔빙으로 맞춘 동기화는 정상 (OPERATION_PROCEDURE.md ⑤) → 그 뒤 대상으로 다시 이동
             await rig.SyncAsync(solvedRa, solvedDec, ct);
             if (await rig.StartSlewAsync(raDeg, decDeg, ct) is null)
                 await rig.WaitSlewAsync(raDeg, decDeg, null, TimeSpan.FromMinutes(2), ct);

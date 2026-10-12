@@ -18,7 +18,7 @@ export default function ProfileScreen({
   profiles: Profile[]
   onSelect: (p: Profile) => void
   onNew: () => void
-  /** 프로필 편집 (별명·메모·사진). 타일을 가리키면 연필이 보인다 — 편집은 앱 시작 때만 (DESIGN.md 3장) */
+  /** 프로필 편집 (별명·메모·사진). 타일을 가리키면 연필이 보인다 — 편집은 앱 시작 때만 (DESIGN.md "프로필") */
   onEdit: (p: Profile) => void
 }) {
   const lastUsed = profiles.reduce<Profile | null>(

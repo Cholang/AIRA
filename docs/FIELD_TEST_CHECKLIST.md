@@ -2,7 +2,7 @@
 
 실제 장비·하늘이 있어야 확인할 수 있는 것과 아직 만들지 않은 것. 촬영 나갈 때 이것만 열어 본다.
 확인하면 `[x]` + 날짜·결과 한 줄, 문제가 있으면 HISTORY.md나 대화로. 확인이 끝난 항목은 다음 정리 때 지운다(기록은 HISTORY.md에 남음).
-구조 설명은 [PREPARE_IMPLEMENTATION.md](PREPARE_IMPLEMENTATION.md)·[SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md), 화면 규칙은 [DESIGN.md](../DESIGN.md).
+구조 설명은 [PREPARE_IMPLEMENTATION.md](PREPARE_IMPLEMENTATION.md)·[SHOOT_IMPLEMENTATION.md](SHOOT_IMPLEMENTATION.md), 하는 일은 [OPERATION_PROCEDURE.md](OPERATION_PROCEDURE.md), 화면은 [DESIGN.md](../DESIGN.md).
 
 ## 먼저 지킬 것 (장비 안전)
 
@@ -70,4 +70,4 @@
 - 극축 정렬 실제 모드의 등급 말(조절량 환산 확인 뒤)
 - [임시] 건너뛰기·모의 실패 버튼 지우기(실장비가 안정된 뒤)
 - 출발 전 점검을 장비 그림 한 장으로(사용자가 초안을 그려 옴)
-- DESIGN.md의 [계획] 항목들(스켈레톤, 패럴랙스, 상태 줄 날씨, AI 호출 버튼, "▸ 자세히", 폰 화면, 음성 "멈춰", 구도 회전)
+- DESIGN.md·OPERATION_PROCEDURE.md의 [계획] 항목들(스켈레톤, 패럴랙스, 상태 줄 날씨, AI 호출 버튼, "▸ 자세히", 폰 화면, 음성 "멈춰", 구도 회전)

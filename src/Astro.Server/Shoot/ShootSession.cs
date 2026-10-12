@@ -28,7 +28,7 @@ public sealed record ShootView(
 public enum ShootMode { Idle, Shoot, Dither, Flip, Focus, Paused, Finishing, Ended }
 
 /// <summary>
-/// 촬영 (DESIGN.md "촬영", 시안 mockups/aa-shoot-wrap-v10.html). 확정 계획·대상 묶음의 결과로 찍는다.
+/// 촬영 (OPERATION_PROCEDURE.md "촬영", 시안 mockups/aa-shoot-wrap-v10.html). 확정 계획·대상 묶음의 결과로 찍는다.
 /// 사진마다 등급(ShotGrader) → F면 제외 폴더로. 디더링(3장마다)·자오선 반전·초점 다시 맞추기·구름 멈춤은 묻지 않고 자동.
 /// 끝: 계획 장수(쓸 사진 기준) · 대상이 30° 아래 · 계획 끝 시각(새벽) — 또는 사용자의 "촬영 중단"(지금 사진까지 찍고).
 /// 끝나면 가이딩을 멈춘다. 그 뒤(마무리 / 다른 대상)는 화면이 고른다.

@@ -3,7 +3,7 @@ using Astro.Server.Shoot;
 
 namespace Astro.Server.Prepare.Tasks.Wrap;
 
-// 마무리 묶음 (DESIGN.md "마무리", 시안 mockups/aa-shoot-wrap-v10.html): 플랫 → (뚜껑) → 플랫 다크·다크 → 장비 정리.
+// 마무리 묶음 (OPERATION_PROCEDURE.md "마무리", 시안 mockups/aa-shoot-wrap-v10.html): 플랫 → (뚜껑) → 플랫 다크·다크 → 장비 정리.
 // 준비 묶음과 같은 러너·화면을 쓴다. 사용자가 할 일(패널 씌우기, 뚜껑 덮기)만 묻고 나머지는 묻지 않고 이어 간다(AutoNext).
 
 /// <summary>마무리 장비. 실제: N.I.N.A.(적도의·촬영·연결 끊기) + 프로그램 닫기</summary>

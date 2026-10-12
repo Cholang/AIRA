@@ -60,7 +60,7 @@ const ITEMS: Item[] = [
   },
 ]
 
-// 동작 시간 (DESIGN.md 3장 "사용자가 직접 확인하는 체크리스트")
+// 동작 시간 (DESIGN.md "출발 전 점검")
 const CARD_MS = 640 // 카드가 떠오르며 사라지는 시간 (CSS와 같게)
 const SINK_MS = 260 // "모두 확인 완료" 버튼이 가라앉은 뒤 첫 카드가 넘어가기까지
 const SKIP_STEP_MS = 220 // 남은 카드가 차례로 넘어가는 간격

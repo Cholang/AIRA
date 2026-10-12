@@ -47,7 +47,7 @@
 | 달과의 거리 | `GET /astro-util/moon-separation` | ✅ | |
 | 후보 goto·프레이밍 비교 | `/equipment/mount/slew?ra=&dec=&center=true&waitForResult=true` → `/equipment/camera/capture?solve=true&stream=true` | ✅ | 이동 전 승인은 우리 앱 UI에서. **`ra`는 도(°) 단위** (시간으로 보내면 엉뚱한 곳으로 감, 2026-10-05 실기 확인) |
 | 프레이밍 도우미 활용 | `/framing/set-coordinates`, `/framing/slew?slew_option=Center` | ⚠️ | NINA에서 프레이밍 도우미를 한 번 열어 둬야 동작 |
-| 계획 → 시퀀스 | `/sequence/list-available` → `/sequence/load?sequenceName=` → `/sequence/set-target` | ✅ | 기획서의 "템플릿 + 대상" 방식과 정확히 맞음 |
+| 계획 → 시퀀스 | `/sequence/list-available` → `/sequence/load?sequenceName=` → `/sequence/set-target` | ✅ | 초기 기획의 "템플릿 + 대상" 방식과 정확히 맞음 |
 | 시퀀스 세부 수정 (노출, 장수, 종료 시각) | `GET /sequence/edit`, `POST /sequence/load` (JSON) | ⚠️🔍 | edit의 경로 문법 확인 필요. 안 되면 템플릿 JSON을 우리가 고쳐서 POST |
 
 ## ③ 준비
@@ -61,7 +61,7 @@
 | 오토포커스 | `/equipment/focuser/auto-focus`, `/equipment/focuser/last-af` | ✅ | 이벤트 `AUTOFOCUS-FINISHED`, `ERROR-AF` |
 | 가이딩 시작 | `/equipment/guider/connect`, `/equipment/guider/start?calibrate=` | ✅ | |
 | 가이딩 품질 | `/equipment/guider/graph` | ✅ | RMS 판정은 우리 코드 |
-| 준비상태 평가 | 위 결과 조합 | ❌ | 판정 규칙은 우리 코드 (기획서: 수치 판정은 코드) |
+| 준비상태 평가 | 위 결과 조합 | ❌ | 판정 규칙은 우리 코드 (운영 절차 0장: 수치 판정은 코드) |
 | 시험 촬영 | `/equipment/camera/capture?duration=&solve=true&stream=true` | ✅ | 미리보기 + 솔빙 결과. **2026-10-06 실기(X-T5)**: 시작(`capture?duration=` → "Capture started")과 결과(`capture?getResult=true` — 끝날 때까지 "Capture already in progress")를 따로 요청. 1초 노출에 결과까지 약 25초(RAW 84MB). **실패해도 이전 사진을 돌려줌** → `event-history`의 `API-CAPTURE-FINISHED`(성공)·`CAMERA-DOWNLOAD-TIMEOUT`(실패)로 이번 사진인지 확인. 카메라 화질이 JPEG면 모든 값 0. 통계는 `capture/statistics`, 저장은 `save=true` → `image-history` |
 | 이동 멈춤 | `/equipment/mount/slew/stop` | ✅ | 2026-10-06 실기: 감속 후 정지. 정보는 약 2초마다 갱신 → "이동 중 아님" + 좌표 연속 두 번 같음으로 확인. 홈(`mount/home`)으로 가는 동안 Slewing은 false, 끝나면 AtHome true |
 | 추적 | `/equipment/mount/tracking?mode=0(항성)/4(멈춤)` | ✅ | 반영까지 약 2초 |

@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 import styles from './Button.module.css'
 
 /**
- * 앱의 모든 글자 버튼 (DESIGN.md 3장 "버튼"). 모양은 이 파일과 Button.module.css 한 곳에서만 정한다 —
+ * 앱의 모든 글자 버튼 (DESIGN.md "공통 부품"). 모양은 이 파일과 Button.module.css 한 곳에서만 정한다 —
  * 화면은 className으로 자리·너비만 준다(색·테두리·높이·호버는 넘기지 않는다).
  * variant  primary: 한 화면에 하나뿐인 주 행동 (DESIGN.md 1장) / quiet: 보조 행동, 테두리만 / ghost: 테두리도 없는 흐린 글자(레일 아래 홈·종료처럼 늘 있는 도구)
  * size     sm 34px(목록 안) / md 42px(기본) / lg 56px(하늘 화면 중앙 정보·덱 아래처럼 큰 자리)

@@ -10,7 +10,7 @@ export interface DiagnosisData {
 }
 
 /**
- * 진단 내용. 형식은 항상 같다 (DESIGN.md 4장):
+ * 진단 내용. 형식은 항상 같다 (DESIGN.md "공통 부품" 진단 카드):
  * 왜 그런 것 같나요 / 이렇게 해 보세요 / (접힘) 원본.
  * "무슨 일이 있었나요"는 감싸는 영역(StepPanel)의 결과 문장이 맡는다.
  */

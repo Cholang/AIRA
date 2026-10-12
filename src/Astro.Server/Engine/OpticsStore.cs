@@ -19,7 +19,7 @@ public sealed record Scope(string Id, string Name, double FocalLength, double? A
 public sealed record NewScope(string? Name, double FocalLength, double? Aperture, double? FocalRatio, double? Reducer, double? Flattener);
 
 /// <summary>
-/// 망원경 목록 (DESIGN.md 3장 "망원경"). 프로필과 관계없이 AA 전체에 하나 — 망원경은 사람이 아니라 장비라서.
+/// 망원경 목록 (OPERATION_PROCEDURE.md "망원경"). 프로필과 관계없이 AA 전체에 하나 — 망원경은 사람이 아니라 장비라서.
 /// 장비 연결 화면의 "장비 변경"에서 고르고·추가·수정·삭제한다. 데이터 폴더의 optics.json.
 /// 망원경은 연결되는 장비가 아니므로 N.I.N.A.는 모른다 → 고른 망원경의 초점거리·F값을 N.I.N.A. 프로필에 써 넣는다 (EquipmentConnector)
 /// </summary>

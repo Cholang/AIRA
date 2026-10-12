@@ -8,7 +8,19 @@
 
 ---
 
-## 2026-10-12 · [Claude] PREPARE_IMPLEMENTATION.md를 지금 코드 설명으로, 실기 확인 체크리스트 분리
+## 2026-10-12 · [Claude] DESIGN.md는 화면만, 아이라가 하는 일은 docs/OPERATION_PROCEDURE.md로 나눔
+
+**요청**: DESIGN.md 구현 명세를 걷어 내다가(극축 정렬 시범) "DESIGN은 비주얼 문서가 아니었나" → DESIGN에는 비주얼만, 새 문서 이름은 operation procedure. 초기 기획서 docs/nina-ai-assistant-plan.md 지우기.
+
+**변경**: DESIGN.md 다시 씀(313줄·약 47KB, 78KB에서) — 원칙 → 톤과 분위기 → 화면 틀(진행 표시·상태 줄·공통 부품·하늘 화면) → 화면별(부팅 → … → 종료 창) → 용어 → 테마 → 글꼴 → 움직임 → 하지 말 것. 새 `docs/OPERATION_PROCEDURE.md`(222줄) — 원칙·장비 안전 → 단계 → 시작·연결 → 관측지·망원경·프로필 데이터 → 출발 전 점검 → 장비 준비·대상 ①~⑦(계획 포함) → 촬영 → 마무리 → 적도의 홈 → 앱 전체(종료·다른 창·N.I.N.A. 알림·설정·새 버전·AI). 극축 정렬의 API 순서·이유는 PREPARE_IMPLEMENTATION.md로. 장 번호가 바뀐 곳과 옮긴 절을 가리키던 코드 주석 71곳을 새 위치로(화면 코드 → DESIGN, 서버 동작 → OPERATION_PROCEDURE, PRECHECK_DESIGN.md 인용은 그대로). README·CLAUDE.md·AGENTS.md·onboarding·api-coverage·구현 문서·체크리스트 링크 갱신, CLAUDE.md에 "동작을 바꾸면 OPERATION_PROCEDURE.md도". docs/nina-ai-assistant-plan.md 지움. DESIGN_HISTORY.md에 분리 기록.
+
+**확인**: 코드는 주석만 바뀜 — 웹 타입 검사·서버 빌드 통과. 남은 [확인 필요]는 계획 화면 그래프(보류) 하나.
+
+**남은 것**: 없음(내용 정리는 이번으로 일단 끝).
+
+---
+
+## 2026-10-12 · 91a72c3 [Claude] PREPARE_IMPLEMENTATION.md를 지금 코드 설명으로, 실기 확인 체크리스트 분리
 
 **요청**: PREPARE_IMPLEMENTATION.md를 고치기(2026-10-05 "구현 계획 · 착수 전" 그대로였음) → 197줄도 많다 → 코드와 겹치는 세부는 줄이고 실기 확인은 체크리스트로.
 
