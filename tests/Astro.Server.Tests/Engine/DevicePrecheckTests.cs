@@ -49,6 +49,16 @@ public class DevicePrecheckTests
         Assert.Equal(expected, EquipmentConnector.IsInputVoltage(name));
 
     [Fact]
+    public async Task WandererBox_CH340이_없으면_바로_실패()
+    {
+        var h = new FakeHost { Usb = ["0547"] };
+        var r = await Check(h, "switch", "ASCOM.WandererBox1.Switch", "전원 허브");
+        Assert.False(r.Ok); // N.I.N.A.에 맡기면 Empire 오류 창 뒤 약 2분을 기다린다
+        Assert.Contains("PC에 보이지 않습니다", r.Message);
+        Assert.True((await Check(new FakeHost(), "switch", "ASCOM.WandererBox1.Switch", "전원 허브")).Ok);
+    }
+
+    [Fact]
     public async Task 적도의_포트가_있으면_통과()
     {
         Assert.True((await Check(new FakeHost(), "mount", "ASCOM.OnStep.Telescope", "적도의")).Ok);

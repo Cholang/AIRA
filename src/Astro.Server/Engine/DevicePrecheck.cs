@@ -133,6 +133,10 @@ public static class DevicePrecheck
         }
         if (kind == "focuser" && id.Contains("AOFocuser", StringComparison.OrdinalIgnoreCase))
             return ("338F", "포커서 USB 케이블을 확인해 주세요. 전원 허브의 USB 출력을 쓰면 그 출력이 켜져 있는지도 확인해 주세요.");
+        // WandererBox는 CH340 USB 직렬(1A86). 없으면 Empire가 "No CH340 device found" 창을 띄우고 N.I.N.A. 연결은 약 2분 뒤에야 실패한다
+        // (2026-10-12 사용자 — 장비 없이 연결하자 연결 중으로 계속 남음). 다른 CH340 장치가 꽂혀 있으면 통과하고 예전처럼 N.I.N.A. 결과를 기다린다
+        if (kind == "switch" && id.Contains("Wanderer", StringComparison.OrdinalIgnoreCase))
+            return ("1A86", "전원 허브의 전원(12V)이 켜져 있는지, 허브와 PC 사이 USB 케이블이 꽂혀 있는지 확인해 주세요.");
         return null;
     }
 
