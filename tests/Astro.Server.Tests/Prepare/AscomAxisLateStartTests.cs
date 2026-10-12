@@ -58,4 +58,37 @@ public class AscomAxisLateStartTests
         Assert.Contains(0.5, seen);
         Assert.Equal(0.0, seen[^1]); // 늦게 돈 회전은 시작 명령 쪽이 바로 멈춘다
     }
+
+    /// <summary>가짜 드라이버: 멈춤(속도 0)이 문이 열릴 때까지 막힌다</summary>
+    public sealed class StuckStopDriver
+    {
+        public readonly ManualResetEventSlim Gate = new(false);
+        public readonly List<double> Rates = [];
+        public bool Connected { get => true; set { } }
+        public bool CanMoveAxis(int axis) => true;
+        public void MoveAxis(int axis, double rate)
+        {
+            if (rate == 0) Gate.Wait();
+            lock (Rates) Rates.Add(rate);
+        }
+        public void AbortSlew() { }
+        public double[] Seen() { lock (Rates) return [.. Rates]; }
+    }
+
+    [Fact]
+    public async Task CX34_01_멈춤이_끝나지_않았으면_다음_회전을_보내지_않는다()
+    {
+        var d = new StuckStopDriver();
+        var axis = new AscomAxis(NullLogger<AscomAxis>.Instance) { CommandLimit = TimeSpan.FromMilliseconds(300), Factory = () => d };
+        Assert.Null(await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None)); // 회전은 됐지만 끝의 멈춤이 막힘
+        var next = await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None);
+        Assert.NotNull(next); // 예전 멈춤이 남아 있으면 새 회전은 보내지 않는다 (새 회전 중에 늦게 멈추지 않게)
+        Assert.Equal([0.5], d.Seen());
+        d.Gate.Set();
+        await Until(() => d.Seen().Length >= 2);
+        await Task.Delay(100);
+        Assert.Null(await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None)); // 멈춤이 끝나면 다시 된다
+        await Until(() => d.Seen().Length >= 4);
+        Assert.Equal(0.0, d.Seen()[^1]);
+    }
 }

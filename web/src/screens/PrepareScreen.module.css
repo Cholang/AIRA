@@ -126,7 +126,8 @@
   inset: 0;
   z-index: 100;
   display: grid;
-  place-items: center;
+  /* 트랙을 창 크기로 묶는다 — 기본(auto)이면 큰 사진 크기만큼 늘어나 아래가 잘렸다 (CX-34-03) */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   padding: 0;
   border: none;
   background: var(--bg);
@@ -134,7 +135,9 @@
 }
 
 .fullPhoto img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
 }

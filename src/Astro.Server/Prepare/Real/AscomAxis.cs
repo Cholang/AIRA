@@ -23,6 +23,9 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
 
     private readonly Lock _gate = new();
     private Task _busy = Task.CompletedTask;
+    // 아직 끝나지 않은 멈춤 명령들 (CX-34-01 — 시간 한도가 지나도 드라이버 안에서는 남아 있어, 다음 회전 중에 늦게 들어가 멈출 수 있다).
+    // 하나라도 남아 있으면 새 이동은 보내지 않는다. 멈춤 재확인이 성공해도 마찬가지
+    private readonly List<Task> _stops = [];
 
     /// <summary>RA축을 rate(°/s)로 seconds 동안 돌리고 멈춘다. 진행 각도를 알린다. 실패면 이유</summary>
     public async Task<string?> RotateRaAsync(double rate, double seconds, Action<double> progress, CancellationToken ct)
@@ -151,8 +154,13 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
         Task<T> work;
         lock (_gate)
         {
-            if (stop) work = Task.Run(command);
-            else if (!_busy.IsCompleted)
+            _stops.RemoveAll(t => t.IsCompleted);
+            if (stop)
+            {
+                work = Task.Run(command);
+                _stops.Add(work);
+            }
+            else if (!_busy.IsCompleted || _stops.Count > 0)
             {
                 log.LogWarning("{What}: 드라이버가 앞 명령에 아직 답하지 않아 보내지 않음", what);
                 return new(false, default, "적도의 드라이버가 앞 명령에 아직 답하지 않습니다");

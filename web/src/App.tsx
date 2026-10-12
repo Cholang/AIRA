@@ -43,6 +43,9 @@ type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipmen
 /** 장비 연결 뒤 화면들: 왼쪽 위에 구석 태양을 둔다 (2026-10-11 사용자 요청, CornerSun) */
 const CORNER_SUN: Phase[] = ['site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
 
+/** 프로필 화면: 레일은 없지만 N.I.N.A.·PHD2·Empire를 미리 켰으니 창 ×도 종료 절차(켠 프로그램 닫기)를 거친다 (CX-34-02) */
+const prelaunchedPhase = (p: Phase) => p === 'profiles' || p === 'newProfile'
+
 const STAGE_OF: Partial<Record<Phase, Stage>> = {
   check: '연결',
   engine: '연결',
@@ -150,7 +153,7 @@ export default function App() {
   // 로고 때 켜면 아이라 창이 아직 잡히지 않아 N.I.N.A.가 아이라를 덮었다 → 아이라 창이 떠 있는 프로필 화면에서 한 번
   const prelaunched = useRef(false)
   useEffect(() => {
-    if (prelaunched.current || (phase !== 'profiles' && phase !== 'newProfile')) return
+    if (prelaunched.current || !prelaunchedPhase(phase)) return
     prelaunched.current = true
     void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
   }, [phase])
@@ -359,7 +362,7 @@ export default function App() {
 
   return (
     // 종료 확인은 앱 전체에서 (레일을 숨기거나 빼도 동작). 창 ×도 확인은 단계 화면에서만, 마지막 요약은 바로 닫음
-    <QuitProvider stage={STAGE_OF[phase] ?? null} confirmOnClose={!!STAGE_OF[phase] && phase !== 'summary'}>
+    <QuitProvider stage={STAGE_OF[phase] ?? null} confirmOnClose={(!!STAGE_OF[phase] || prelaunchedPhase(phase)) && phase !== 'summary'}>
     <div className={styles.window}>
     {/* 앱 전체 배경 효과 (성운과 별) — 틀 바깥 여백까지. 틀은 그 위에 투명 */}
     <SkyBackdrop />
