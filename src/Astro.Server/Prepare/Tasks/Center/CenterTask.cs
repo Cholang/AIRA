@@ -80,7 +80,7 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                     run.Readout("center-error", $"{a.ErrorArcmin:F1}′", $"대상과 화면 가운데의 거리 · 목표 1′ 안{angleText}", Tone.Ok,
                         new Dictionary<string, double> { ["errorArcmin"] = a.ErrorArcmin, ["attempt"] = i });
                     run.Status(null);
-                    // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (DESIGN.md "단계 재구성")
+                    // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (DESIGN.md "장비 준비 · 대상")
                     return new Completed(new CenterResult(a.ErrorArcmin, a.CameraAngleDeg, i, ctx.Now(), a.Hfr, a.Stars), $"오차 {a.ErrorArcmin:F1}′{angleText}",
                         "이 대상으로 확정할까요?", "가운데에 맞춘 사진이에요. 구도가 마음에 들면 확정하세요. 다른 대상을 고르면 계획으로 돌아가고, 장비 준비는 그대로 씁니다.",
                         [new("flow:replan", "다른 대상")]);

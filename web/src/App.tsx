@@ -36,7 +36,7 @@ import styles from './App.module.css'
 
 // flow.mmd ① 시작 · 연결:
 // 부팅 로고 → 프로필 선택 (없으면 새 프로필 만들기) → 0단계 설치 확인 → 1단계 엔진 켜기 → 장비 연결
-// → 출발 전 점검 → 장비 준비(rig) → 대상(계획 → target) → (다음: 촬영). DESIGN.md "단계 재구성" (2026-10-07)
+// → 출발 전 점검 → 장비 준비(rig) → 대상(계획 → target) → (다음: 촬영). DESIGN.md "장비 준비 · 대상" (2026-10-07)
 type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipment' | 'site' | 'preflight' | 'rig' | 'plan' | 'target' | 'shoot' | 'wrap' | 'summary'
 
 /** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md 2장) */

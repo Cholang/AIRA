@@ -20,7 +20,7 @@ public sealed class UpdateOptions
 public sealed record UpdateInfo(string Id, string Name, string Installed, string Latest, string Url, string How);
 
 /// <summary>
-/// 새 버전 알림 (DESIGN.md "프로필 화면" — 새 버전). 업데이트를 권하지 않고 알리기만 한다.
+/// 새 버전 알림 (DESIGN.md "프로필" — 새 버전). 업데이트를 권하지 않고 알리기만 한다.
 /// 설치된 버전은 파일·레지스트리에서, 최신 버전은 인터넷에서 하루 한 번만 받아 데이터 폴더에 기억한다.
 /// 확인에 실패하면(인터넷 없음 등) 아무것도 알리지 않는다. 쓸 수 없는 옛 버전은 여기가 아니라 설치 확인에서 막는다.
 /// 대상: N.I.N.A. · Advanced API · ASCOM Platform · PHD2 (SharpCap은 확인 경로가 불안정해 뒤로 미룸)

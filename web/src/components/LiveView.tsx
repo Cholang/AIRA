@@ -6,7 +6,7 @@ import GlowFrame from './GlowFrame'
 import WindowView, { slotOf } from './WindowView'
 
 /**
- * 하늘 화면 (DESIGN.md "촬영 준비" 화면 영역 — 배경 전체). 서버의 live.kind에 따라 그린다:
+ * 하늘 화면 (DESIGN.md "준비 화면" 화면 영역 — 배경 전체). 서버의 live.kind에 따라 그린다:
  * none · sharpcap · guide-image · sky-map · focus-curve · solved-photo · test-photo.
  * 지금은 모의 장비라 사진 대신 측정값(readout.values)과 live.data로 그림을 흉내 낸다.
  * 실제 장비(P3)에서는 live.url의 사진·창 캡처를 이 자리에 깐다.

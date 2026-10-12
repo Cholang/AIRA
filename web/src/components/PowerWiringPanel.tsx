@@ -3,7 +3,7 @@ import { DEFAULT_WIRING, type PowerSource, type PowerWiring } from '../profiles'
 import styles from './PowerWiringPanel.module.css'
 
 /**
- * 전원 배선 패널 (DESIGN.md 3장 "프로필: 전원 배선", 시안 mockups/aira-power-wiring.html — 2026-10-10 사용자 확정).
+ * 전원 배선 패널 (DESIGN.md 3장 "프로필" 전원 배선, 시안 mockups/aira-power-wiring.html — 2026-10-10 사용자 확정).
  * 장비 종류 사이의 전원 흐름만: DC 전원 → 적도의·파워박스(서로 앞뒤) → 나머지 장비. 선이 없으면 자체 전원(배터리 등).
  * 상자 어디서든 다른 상자로 끌거나 차례로 누르면 이어진다(방향 무관). 배선도의 크기·자리는 고정
  */

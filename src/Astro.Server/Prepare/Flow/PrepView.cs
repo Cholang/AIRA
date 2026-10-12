@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Astro.Server.Prepare.Flow;
 
-// 화면에 보내는 준비 상태 (DESIGN.md "촬영 준비" 화면 영역: 안내 · 중앙 정보 · 하늘 화면 · 진행 표시).
+// 화면에 보내는 준비 상태 (DESIGN.md "준비 화면" 화면 영역: 안내 · 중앙 정보 · 하늘 화면 · 진행 표시).
 // 화면은 이것만 보고 그린다. 문장은 서버가 만들고, 숫자·단위·판정 근거는 따로 보존한다 (CX-PREP-IMPL-04).
 
 [JsonConverter(typeof(JsonStringEnumConverter<PrepTaskStatus>))]

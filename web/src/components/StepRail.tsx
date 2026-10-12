@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import Button from './Button'
 import styles from './StepRail.module.css'
 
-/** 촬영 단계 (DESIGN.md "진행 표시", "단계 재구성" 2026-10-07). 연결 = 설치 확인·엔진 켜기·장비 연결 */
+/** 촬영 단계 (DESIGN.md "진행 표시", "장비 준비 · 대상" 2026-10-07). 연결 = 설치 확인·엔진 켜기·장비 연결 */
 export const STAGES = ['연결', '점검', '장비 준비', '대상', '촬영', '마무리'] as const
 export type Stage = (typeof STAGES)[number]
 

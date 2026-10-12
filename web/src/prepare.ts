@@ -1,6 +1,6 @@
 // 준비 묶음 상태 (서버 Prepare/Flow/PrepView.cs와 같은 모양). 서버가 상태를 갖고 화면은 받아서 그리기만 한다.
-// 묶음 두 개 (DESIGN.md "단계 재구성"): rig = 장비 준비(극축 정렬 · 캘리브레이션 · 초점), target = 대상(이동 · 센터링 · 초점 확인 · 가이딩 · 시험 사진)
-// 화면 영역 이름(DESIGN.md "촬영 준비"): 안내(guide) · 중앙 정보(center: 측정값 → 상태 줄 → 버튼) · 하늘 화면(live) · 진행 표시(tasks)
+// 묶음 두 개 (DESIGN.md "장비 준비 · 대상"): rig = 장비 준비(극축 정렬 · 캘리브레이션 · 초점), target = 대상(이동 · 센터링 · 초점 확인 · 가이딩 · 시험 사진)
+// 화면 영역 이름(DESIGN.md "준비 화면"): 안내(guide) · 중앙 정보(center: 측정값 → 상태 줄 → 버튼) · 하늘 화면(live) · 진행 표시(tasks)
 
 export type PrepGroup = 'rig' | 'target' | 'wrap'
 
