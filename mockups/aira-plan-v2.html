@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아이라 계획 화면 v2</title>
+<!--
+  v2 (Claude, 2026-10-13): aira-plan-current.html(지금 구현)에서 대화 영역만 바꿈 (사용자 요청)
+  - 대화창 = 외곽선만 있는 투명한 틀. 칸 구분선 대신 둥근 틀이 태양 위에 떠 있다
+  - 말풍선은 반투명 유리(뒤가 흐리게 비침). 지금 주고받는 말은 또렷하게, 지난 대화는 단계적으로 흐리게 → 지금 할 일에 눈이 간다
+  - 위 버튼으로 말풍선 바탕 진하기·지난 대화 흐리기를 바꿔 볼 수 있다
+  (아래는 지금 구현 시안의 설명)
+  2026-10-13 (Claude): 계획 화면(대상 단계의 첫 작업)을 지금 코드대로 옮긴 시안 — 개선 전 기준.
+  - 레이아웃·색·글자 크기: web/src/screens/PlanScreen.module.css, components/NightChart(.module.css), index.css 토큰(다크 테마) 그대로
+  - 문구: 서버 PlanAssistant.Greeting, 연습 대화(ScriptedChatModel)의 실제 순서·문장. 시각·고도·장수는 예시(서울, 10월 중순, M31)
+  - 화면 틀: 상태 줄 · 오른쪽 진행 표시(대상 — 계획) · 구석 태양(장비 연결 항성의 80%, 화면 내용 아래 층)은 모양만 비슷하게
+  - 배경 성운·별·혜성 움직임, 태양 표면 회전·이글거림은 넣지 않았다
+-->
+<style>
+:root {
+  --page-bg: #141416; --page-surface: #1d1e21; --page-text: #e8e5df; --page-muted: #9d9a94; --page-line: #303236; --page-accent: #a9a6f7;
+  --font: 'Pretendard Variable', Pretendard, 'Malgun Gothic', sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page-bg); color: var(--page-text); font-family: var(--font); font-size: 15px; line-height: 1.6; word-break: keep-all; }
+.page { max-width: 1760px; margin: 0 auto; padding: 24px 20px 56px; display: grid; gap: 14px; }
+.top h1 { margin: 0; font-size: 22px; font-weight: 800; }
+.top p { margin: 4px 0 0; color: var(--page-muted); font-size: 14px; max-width: 1200px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.controls .lbl { font-size: 13px; color: var(--page-muted); margin-right: 4px; }
+.ctl { padding: 5px 12px; border: 1px solid var(--page-line); border-radius: 8px; background: var(--page-surface); color: var(--page-text); font: inherit; font-size: 13px; cursor: pointer; }
+.ctl[aria-pressed="true"] { border-color: var(--page-accent); color: var(--page-accent); font-weight: 700; }
+.note { font-size: 13px; color: var(--page-muted); margin: 0; }
+.frame { position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--page-line); border-radius: 12px; }
+
+/* ───────── 앱 틀 1920×1200 (index.css 다크 토큰) ───────── */
+.app {
+  --bg: #1e1f21; --surface: #27292c; --surface-2: #303236; --line: #3b3e42; --text: #ebe8e3; --muted: #a3a09a;
+  --accent: #a9a6f7; --on-accent: #17153a; --pass: #72bf8e; --fail: #f07a52; --warn: #f0a93b; --focus: #a9a6f7;
+  --step-idle: #242528; --step-done: #303337; --step-done-line: rgb(169 166 247 / 0.55);
+  --glass-line: rgb(255 255 255 / 0.10); --conn: #a9a6f7;
+  --sun-fill: radial-gradient(circle at 42% 40%, #2c2a33, #201f25 70%, #1a191d);
+  --radius: 10px; --gutter: 96px; --rail-w: 150px; --size-bar: 12.5px;
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1200px; transform-origin: 0 0; transform: scale(var(--s, 1));
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: var(--font); font-size: 15.5px; line-height: 1.6; color: var(--text); background: var(--bg);
+}
+.app button { font-family: inherit; }
+
+/* 배경 (SkyBackdrop을 멈춘 모습으로 단순화) */
+.sky { position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 520px at 72% 30%, rgb(120 110 200 / 0.07), transparent 70%),
+    radial-gradient(ellipse 700px 600px at 25% 85%, rgb(90 120 180 / 0.06), transparent 70%); }
+.sky i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #e8e6e1; }
+
+/* 상태 줄 (StatusBar) */
+.bar { position: relative; z-index: 3; display: flex; align-items: center; gap: 20px; min-height: 44px; padding: 0 var(--gutter); border-bottom: 1px solid var(--line);
+  font-size: var(--size-bar); color: var(--muted); font-variant-numeric: tabular-nums; }
+.brand { font-weight: 800; letter-spacing: 0.18em; color: var(--text); font-size: 15px; }
+.version { margin-left: -12px; font-size: 11px; }
+.who { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; }
+.avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #5a587f, #34333f); }
+.devices { display: inline-flex; gap: 12px; align-items: center; }
+.devices span { display: inline-flex; align-items: center; gap: 5px; }
+.devices span::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--pass); }
+.spacer { flex: 1; }
+.site b { color: var(--text); font-weight: 600; margin-right: 6px; }
+.clock { color: var(--text); font-size: 14px; }
+
+/* 화면 영역 + 진행 표시 */
+.body { position: relative; flex: 1; min-height: 0; display: flex; }
+.sunLayer { position: absolute; left: 0; top: 0; bottom: 0; right: var(--rail-w); overflow: hidden; pointer-events: none; }
+/* 구석 태양: sunSpot(1770×1155) → 지름 593, 중심 (26.5, 23) 에서 80%로 밀림 → 중심 (-38, -41) */
+.sun { position: absolute; left: -38px; top: -41px; width: 593px; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--sun-fill); box-shadow: inset 0 0 0 1px var(--glass-line), 0 0 0 1px rgb(169 166 247 / 0.18), 0 0 60px 6px rgb(169 166 247 / 0.16); }
+.screen { position: relative; z-index: 1; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* 진행 표시 (StepRail — 모양만) */
+.rail { position: relative; z-index: 2; flex: none; width: var(--rail-w); display: flex; flex-direction: column; padding: 34px 22px 24px 12px; color: var(--muted); }
+.track { list-style: none; margin: auto 0; padding: 0; position: relative; }
+.track::before { content: ''; position: absolute; right: 12px; top: 20px; bottom: 20px; border-left: 1px dashed var(--line); }
+.node { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.stage { min-height: 28px; padding: 11px 0; }
+.name { font-size: 13px; white-space: nowrap; }
+.dot { position: relative; z-index: 1; flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 1.5px dashed var(--line); border-radius: 50%; background: var(--bg); color: var(--conn); font-size: 13px; font-weight: 800; }
+.stage[data-s="done"] .name { color: var(--text); opacity: 0.75; }
+.stage[data-s="done"] .dot { border-style: solid; border-color: var(--conn); }
+.stage[data-s="now"] .name { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+.stage[data-s="now"] .dot { border: 2px solid var(--accent); }
+.stage[data-s="now"] .dot::after { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.item { min-height: 75px; padding-right: 8px; }
+.itemDot { flex: none; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--bg); position: relative; z-index: 1; }
+.item[data-s="now"] .itemDot { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 10px 3px rgb(169 166 247 / 0.45); }
+.itemName { font-size: 13.5px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.item:not([data-s="now"]) .itemName { visibility: hidden; }
+.foot { display: grid; gap: 8px; justify-items: end; }
+.ghost { height: 34px; padding: 0 12px; border: none; border-radius: var(--radius); background: transparent; color: var(--muted); font-size: 13px; }
+
+/* ───────── 계획 화면 (PlanScreen.module.css 그대로) ───────── */
+.plan { flex: 1; display: grid; grid-template-columns: 1fr 2fr; min-height: 0; }
+/* v2: 칸 구분선 대신 외곽선만 있는 투명한 틀 — 태양이 그대로 비친다 */
+.chat { display: grid; grid-template-rows: 1fr auto auto; min-height: 0; margin: 18px 0 18px 18px; border: 1px solid var(--chat-line); border-radius: 16px; background: transparent; }
+.app { --chat-line: rgb(255 255 255 / 0.14); --bubble-a: 0.62; --bubble-u: 0.72; --glass: blur(18px) saturate(1.2); }
+.messages { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 12px; overflow-y: auto; min-height: 0; }
+.turn { display: grid; gap: 8px; }
+.message { max-width: 88%; padding: 10px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }
+/* v2: 반투명 유리 말풍선 (바탕 진하기 --bubble-a/u) */
+.message[data-role='assistant'] { justify-self: start; background: rgb(39 41 44 / var(--bubble-a)); border-top-left-radius: 4px; backdrop-filter: var(--glass); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06); }
+.message[data-role='user'] { justify-self: end; background: rgb(48 50 54 / var(--bubble-u)); border-top-right-radius: 4px; backdrop-filter: var(--glass); }
+/* v2: 지난 대화는 흐리게 — 마지막 주고받기(age 0)만 또렷 */
+.turn { transition: opacity 400ms ease; }
+.fade .turn[data-age='1'] { opacity: 0.62; }
+.fade .turn[data-age='2'] { opacity: 0.42; }
+.fade .turn[data-age='3'] { opacity: 0.3; }
+.turn[data-age='0'] .message[data-role='assistant'] { box-shadow: inset 0 0 0 1px rgb(169 166 247 / 0.28); }
+.whoLabel { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 700; color: var(--accent); }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { padding: 5px 12px; border: 1.5px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font-size: 13.5px; cursor: pointer; }
+.choice:disabled { cursor: default; opacity: 0.55; }
+.choice[data-picked='true'] { border-color: var(--accent); color: var(--accent); font-weight: 600; opacity: 1; }
+.error { margin: 0 18px; min-height: 1.5em; font-size: 13.5px; color: var(--fail); visibility: hidden; }
+.composer { display: flex; align-items: center; gap: 10px; margin: 6px 14px 14px; padding: 6px 8px 6px 16px; border: 1px solid var(--chat-line); border-radius: var(--radius); background: rgb(39 41 44 / var(--bubble-a)); backdrop-filter: var(--glass); }
+.composer input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; outline: none; }
+.composer input::placeholder { color: var(--muted); }
+.send { width: 32px; height: 32px; display: grid; place-items: center; border: none; border-radius: 8px; background: var(--surface-2); color: var(--muted); }
+.send svg { width: 18px; height: 18px; }
+
+.right { display: grid; grid-template-rows: 1fr 3fr; min-height: 0; }
+.night { display: grid; grid-template-rows: auto 1fr; gap: 6px; padding: 14px 24px 10px; border-bottom: 1px solid var(--line); min-height: 0; }
+.nightHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px; font-size: 13px; color: var(--muted); }
+.nightHead b { color: var(--text); font-size: 14.5px; }
+.legend { display: inline-flex; align-items: center; gap: 5px; visibility: hidden; }
+.legend[data-shown='true'] { visibility: visible; }
+.swatch { width: 12px; height: 8px; border-radius: 2px; background: var(--accent); opacity: 0.35; }
+.lower { display: grid; grid-template-rows: 1fr auto; gap: 14px; padding: 18px 24px; min-height: 0; }
+.cells { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0; }
+.cell { position: relative; display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 14px 16px; border-radius: 12px; background: var(--step-idle); box-shadow: inset 0 0 0 1.5px transparent; min-height: 0; overflow: hidden; }
+.cell[data-state='set'] { background: var(--step-done); box-shadow: inset 0 0 0 1.5px var(--step-done-line); cursor: pointer; }
+.cell[data-state='set']:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cell[data-state='asking'] { background: var(--step-done); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cell h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.stateText { margin-left: auto; font-weight: 600; }
+.cell[data-state='set'] .stateText { color: var(--pass); }
+.cell[data-state='asking'] .stateText { color: var(--accent); }
+.empty { margin: 0; align-self: center; justify-self: center; font-size: 13.5px; color: var(--muted); }
+.cellBody { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; min-height: 0; }
+.big { font-size: 19px; font-weight: 700; line-height: 1.3; color: var(--text); }
+.sub { font-size: 13px; color: var(--muted); }
+.rows { display: grid; align-content: start; gap: 3px; margin: 8px 0 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.row { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; }
+.row dt { color: var(--muted); }
+.row dd { margin: 0; color: var(--text); font-weight: 600; }
+.rec { margin-left: 6px; padding: 0 6px; border-radius: 5px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.fov { width: 118px; height: auto; border-radius: 6px; background: var(--bg); }
+.fovFrame { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.fovTarget { fill: var(--text); opacity: 0.55; }
+.card { display: flex; align-items: center; gap: 18px; min-height: 52px; padding: 0 4px; }
+.card[data-shown='false'] > * { visibility: hidden; }
+.summary { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary small { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+/* Button primary md (Button.module.css) */
+.primary { height: 42px; padding: 0 20px; border: 1.5px solid var(--accent); border-radius: var(--radius); background: var(--accent); color: var(--on-accent); font-size: 15px; font-weight: 700; }
+.primary:disabled { opacity: 0.4; }
+
+/* NightChart.module.css */
+.chart { width: 100%; height: 100%; overflow: visible; }
+.chart text { font-family: var(--font); font-size: 11px; fill: var(--muted); }
+.twilight { fill: var(--surface-2); }
+.shooting { fill: var(--accent); opacity: 0.14; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.guide { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+.trackLine { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.transit { stroke: var(--muted); stroke-dasharray: 2 3; }
+.chart .label { fill: var(--accent); font-weight: 700; }
+.moon { fill: var(--muted); }
+.cloud { fill: var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1>계획 화면 v2 — 대화창을 태양 위 투명한 틀로</h1>
+    <p>지금 구현(aira-plan-current.html)에서 왼쪽 대화 영역만 바꿨습니다. 대화창은 외곽선만 있는 투명한 틀로 태양 위에 떠 있고, 말풍선은 반투명 유리라 태양이 흐리게 비칩니다. 지금 주고받는 말만 또렷하고 지난 대화는 흐려집니다. 오른쪽은 그대로입니다.<br>대상 단계의 첫 작업입니다. 장비 준비가 끝나면 이 화면으로 오고, 적도의는 홈에서 추적을 끈 채 기다립니다. 왼쪽 1/3은 아이라와의 대화, 오른쪽 위 1/4은 오늘 밤 그래프, 아래 3/4은 계획 네 칸과 계획 카드 줄입니다. 문구는 연습 대화의 실제 순서이고, 시각·고도·장수는 예시(서울, 10월 중순, M31)입니다.</p>
+  </div>
+  <div class="controls">
+    <span class="lbl">상태</span>
+    <button class="ctl" data-k="start" aria-pressed="true">처음 들어왔을 때</button>
+    <button class="ctl" data-k="mid" aria-pressed="false">대상 정함 · 구도 묻는 중</button>
+    <button class="ctl" data-k="done" aria-pressed="false">모두 정해짐</button>
+  </div>
+  <div class="controls">
+    <span class="lbl">말풍선 바탕</span>
+    <button class="ctl" data-op="0.4" aria-pressed="false">옅게</button>
+    <button class="ctl" data-op="0.62" aria-pressed="true">중간</button>
+    <button class="ctl" data-op="0.85" aria-pressed="false">진하게</button>
+    <span class="lbl" style="margin-left:16px">지난 대화</span>
+    <button class="ctl" data-fade="on" aria-pressed="true">흐리게</button>
+    <button class="ctl" data-fade="off" aria-pressed="false">그대로</button>
+  </div>
+  <p class="note">태양은 크기·자리만 맞춘 정지 그림이고(실제는 표면이 돌고 가장자리가 이글거림), 배경 성운·별은 멈춘 모습입니다.</p>
+  <div class="frame" id="frame">
+    <div class="app" id="app">
+      <div class="sky" id="sky"></div>
+      <header class="bar">
+        <span class="brand">AIRA</span><span class="version">0.9</span>
+        <span class="who"><span class="avatar"></span>프로필</span>
+        <span class="devices"><span>적도의</span><span>카메라</span><span>포커서</span><span>가이드</span><span>전원 허브</span></span>
+        <span class="spacer"></span>
+        <span class="site"><b>집</b>37.50°N 127.03°E</span>
+        <span class="clock">19:24</span>
+        <span>⚙</span>
+      </header>
+      <div class="body">
+        <div class="sunLayer"><div class="sun"></div></div>
+        <div class="screen"><main class="plan" id="plan"></main></div>
+        <nav class="rail">
+          <ol class="track">
+            <li class="node stage" data-s="done"><span class="name">연결</span><span class="dot">✓</span></li>
+            <li class="node stage" data-s="done"><span class="name">점검</span><span class="dot">✓</span></li>
+            <li class="node stage" data-s="done"><span class="name">장비 준비</span><span class="dot">✓</span></li>
+            <li class="node stage" data-s="now"><span class="name">대상</span><span class="dot"></span></li>
+            <li class="node item" data-s="now"><span class="itemName">계획</span><span class="itemDot"></span></li>
+            <li class="node item"><span class="itemName">이동</span><span class="itemDot"></span></li>
+            <li class="node item"><span class="itemName">센터링</span><span class="itemDot"></span></li>
+            <li class="node item"><span class="itemName">초점 확인</span><span class="itemDot"></span></li>
+            <li class="node item"><span class="itemName">가이딩</span><span class="itemDot"></span></li>
+            <li class="node item"><span class="itemName">시험 사진</span><span class="itemDot"></span></li>
+            <li class="node stage"><span class="name">촬영</span><span class="dot"></span></li>
+            <li class="node stage"><span class="name">마무리</span><span class="dot"></span></li>
+          </ol>
+          <div class="foot"><button class="ghost">적도의 홈</button><button class="ghost">아이라 종료</button></div>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── 예시 밤: 18:00부터 12시간. 서울 37.5°N, 10월 중순 ──
+  var START = 18 * 60, MIN = 720;
+  var hm = function (m) { m = Math.round(m + START) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+  var DARK = { start: 72, end: 665 };            // 19:12 – 05:05
+  var MOON = { pct: 12, rise: 580 };             // 03:40 뜸
+  var CLOUDS = [10, 5, 0, 0, 5, 15, 30, 45, 35, 20, 10, 5];
+  // M31: 적위 +41.3°, 자오선 통과 23:47 (위도 37.5°)
+  var LAT = 37.5 * Math.PI / 180, DEC = 41.3 * Math.PI / 180, TRANSIT = 347;
+  var alt = function (m) { var H = (m - TRANSIT) / 60 * 15.04 * Math.PI / 180; return Math.asin(Math.sin(LAT) * Math.sin(DEC) + Math.cos(LAT) * Math.cos(DEC) * Math.cos(H)) * 180 / Math.PI; };
+  var track = []; for (var m = 0; m <= MIN; m += 10) track.push([m, alt(m)]);
+  var SHOOT = { start: 100, end: 630 };          // 19:40 – 04:30 (30° 넘는 시간 ∩ 어두운 시간)
+
+  var target = { name: 'M31', ko: '안드로메다', con: '안드로메다자리', type: '나선 은하', size: 190, usable: hm(SHOOT.start) + '–' + hm(SHOOT.end), highestAt: hm(TRANSIT), highestAlt: Math.round(alt(TRANSIT)), moonSep: 118 };
+  var FOV = { w: 5.18, h: 3.44 };                // 260mm f/3.8 + X-T5
+  var fill = Math.round(target.size / 60 / FOV.w * 100);
+  var settings = { exposure: 120, iso: 800, filter: '광해 필터', end: '대상이 낮아지거나 새벽이 올 때까지', frames: 236 };
+
+  // ── 그래프 (NightChart.tsx와 같은 좌표) ──
+  function chart(withTarget, shooting) {
+    var L = 34, W = 756, TOP = 6, H = 90, MOON_Y = 101, CLOUD_Y = 110;
+    var x = function (m) { return L + Math.max(0, Math.min(MIN, m)) / MIN * W; };
+    var y = function (a) { return TOP + (90 - Math.max(0, Math.min(90, a))); };
+    var s = '<svg class="chart" viewBox="0 0 800 136">';
+    s += '<rect x="' + x(0) + '" y="' + TOP + '" width="' + (x(DARK.start) - x(0)) + '" height="' + H + '" class="twilight"/>';
+    s += '<rect x="' + x(DARK.end) + '" y="' + TOP + '" width="' + (x(MIN) - x(DARK.end)) + '" height="' + H + '" class="twilight"/>';
+    if (shooting) s += '<rect x="' + x(SHOOT.start) + '" y="' + TOP + '" width="' + (x(SHOOT.end) - x(SHOOT.start)) + '" height="' + H + '" class="shooting"/>';
+    [0, 30, 60, 90].forEach(function (a) {
+      s += '<line x1="' + L + '" x2="' + (L + W) + '" y1="' + y(a) + '" y2="' + y(a) + '" class="' + (a === 30 ? 'guide' : 'grid') + '"/>';
+      s += '<text x="' + (L - 6) + '" y="' + (y(a) + 4) + '" text-anchor="end">' + a + '°</text>';
+    });
+    if (withTarget) {
+      s += '<path class="trackLine" d="' + track.map(function (p, i) { return (i ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1); }).join('') + '"/>';
+      s += '<line x1="' + x(TRANSIT) + '" x2="' + x(TRANSIT) + '" y1="' + TOP + '" y2="' + (TOP + H) + '" class="transit"/>';
+      s += '<text x="' + (x(TRANSIT) - 4) + '" y="18" text-anchor="end">자오선 ' + hm(TRANSIT) + '</text>';
+      s += '<text x="' + x(TRANSIT - 150) + '" y="' + (y(alt(TRANSIT) * 0.75) - 6) + '" class="label">M31</text>';
+    }
+    s += '<rect x="' + x(MOON.rise) + '" y="' + MOON_Y + '" width="' + (x(MIN) - x(MOON.rise)) + '" height="4" rx="2" class="moon"/>';
+    s += '<text x="' + (x(MOON.rise) - 6) + '" y="' + (MOON_Y + 5) + '" text-anchor="end">달 ' + hm(MOON.rise) + ' 뜸</text>';
+    var hourW = W / 12;
+    CLOUDS.forEach(function (c, i) {
+      s += '<rect x="' + (x(i * 60) + 1) + '" y="' + CLOUD_Y + '" width="' + (hourW - 2) + '" height="9" rx="2" class="cloud" style="opacity:' + (0.06 + c / 100 * 0.9).toFixed(2) + '"><title>구름 ' + c + '%</title></rect>';
+    });
+    s += '<text x="' + (L - 6) + '" y="' + (CLOUD_Y + 8) + '" text-anchor="end">구름</text>';
+    for (var h = 0; h <= 12; h += 2) s += '<text x="' + x(h * 60) + '" y="133" text-anchor="middle">' + ((18 + h) % 24) + '시</text>';
+    return s + '</svg>';
+  }
+
+  // ── 대화 (PlanAssistant.Greeting + ScriptedChatModel) ──
+  var greeting = { role: 'assistant', text: '오늘 밤은 ' + hm(DARK.start) + '부터 ' + hm(DARK.end) + '까지 어두워요. 달(' + MOON.pct + '%)은 ' + hm(MOON.rise) + '에 떠요. 오늘은 무엇을 촬영하실 계획인가요?', choices: ['오늘 밤 추천 보기'] };
+  var picks = ['M31 안드로메다', 'NGC 7000 북아메리카', 'M45 플레이아데스', 'M33 삼각형자리 은하'];
+  var mid = [
+    Object.assign({}, greeting, { picked: '오늘 밤 추천 보기' }),
+    { role: 'user', text: '오늘 밤 추천 보기' },
+    { role: 'assistant', text: '오늘 밤 오래 높이 뜨고 화면에 잘 맞는 대상이에요. ' + picks.join(', ') + ' 중에 골라 보세요.', choices: picks, picked: 'M31 안드로메다' },
+    { role: 'user', text: 'M31 안드로메다' },
+    { role: 'assistant', text: 'M31 안드로메다로 정했어요. ' + target.usable + '에 30°보다 높고, 가장 높을 때는 ' + target.highestAt + '(' + target.highestAlt + '°)예요. 화면 가로의 약 ' + fill + '%를 채워요. 화면 어디에 둘까요?', choices: ['가운데', '왼쪽으로 조금 비켜서'] },
+  ];
+  var done = mid.slice(0, 4).concat([
+    Object.assign({}, mid[4], { picked: '가운데' }),
+    { role: 'user', text: '가운데' },
+    { role: 'assistant', text: '좋아요. 오늘 망원경에 어떤 필터를 끼우셨나요?', choices: ['필터 없음', '광해 필터', '듀얼 내로우밴드'], picked: '광해 필터' },
+    { role: 'user', text: '광해 필터' },
+    { role: 'assistant', text: '노출은 ' + settings.exposure + '초, 감도는 ISO ' + settings.iso + '이에요. 대상이 낮아지거나 새벽이 올 때까지 약 ' + settings.frames + '장 찍어요. 끝나면 적도의를 파킹하고 장비 연결을 해제할게요. 다크·플랫은 찍지 않아요. 이대로 할까요?', choices: ['기본값으로 하기'], picked: '기본값으로 하기' },
+    { role: 'user', text: '기본값으로 하기' },
+    { role: 'assistant', text: '모두 정해졌어요. 오른쪽 계획을 확인해 주세요.' },
+  ]);
+
+  var esc = function (t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  function messages(list) {
+    var last = -1; list.forEach(function (m, i) { if (m.role === 'assistant') last = i; });
+    var age = [], a = 0;
+    for (var j = list.length - 1; j >= 0; j--) { age[j] = Math.min(3, a); if (list[j].role === 'user') a++; }
+    return list.map(function (m, i) {
+      var h = '<div class="turn" data-age="' + age[i] + '"><div class="message" data-role="' + m.role + '">' + (m.role === 'assistant' ? '<span class="whoLabel">아이라</span>' : '') + esc(m.text) + '</div>';
+      if (m.role === 'assistant' && m.choices) {
+        h += '<div class="choices">' + m.choices.map(function (c) {
+          var dis = i !== last || !!m.picked;
+          return '<button class="choice" data-picked="' + (m.picked === c) + '"' + (dis ? ' disabled' : '') + '>' + esc(c) + '</button>';
+        }).join('') + '</div>';
+      }
+      return h + '</div>';
+    }).join('');
+  }
+
+  function rows(list) { return '<dl class="rows">' + list.map(function (r) { return '<div class="row"><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl>'; }
+  function fovSvg(off) {
+    var W = 118, Hh = Math.round(W * FOV.h / FOV.w), r = Math.max(2, target.size / 60 / FOV.w * W / 2);
+    return '<svg class="fov" viewBox="0 0 ' + W + ' ' + Hh + '"><rect x="1" y="1" width="' + (W - 2) + '" height="' + (Hh - 2) + '" rx="4" class="fovFrame"/><ellipse cx="' + (W / 2 + off) + '" cy="' + (Hh / 2) + '" rx="' + r + '" ry="' + (r * 0.72) + '" class="fovTarget"/></svg>';
+  }
+  var EMPTY = '<p class="empty">대화를 진행하면 채워집니다</p>';
+  function cell(name, state, body) {
+    var st = state === 'set' ? '정해짐' : state === 'asking' ? '묻는 중' : '';
+    return '<section class="cell" data-state="' + state + '"><h3>' + name + '<span class="stateText">' + st + '</span></h3>' + body + '</section>';
+  }
+  var targetBody = '<div class="cellBody"><div><div class="big">M31 안드로메다</div><div class="sub">' + target.con + ' ' + target.type + '</div>' +
+    rows([['30° 넘는 시간', target.usable], ['가장 높을 때', target.highestAt + ' · ' + target.highestAlt + '°'], ['달과 거리', target.moonSep + '°']]) + '</div>' + fovSvg(0) + '</div>';
+  var framingBody = '<div class="cellBody"><div><div class="big">가운데</div>' + rows([['카메라 방향', '지금 방향 그대로'], ['대상 크기', '화면 가로의 약 ' + fill + '%']]) + '</div>' + fovSvg(0) + '</div>';
+  var settingsBody = rows([['노출', settings.exposure + '초<span class="rec">추천</span>'], ['감도', 'ISO ' + settings.iso + '<span class="rec">추천</span>'], ['필터', settings.filter], ['끝나는 조건', settings.end], ['예상 장수', '약 ' + settings.frames + '장 (' + target.usable + ')']]);
+  var afterBody = rows([['적도의', '파킹'], ['다크·플랫', '찍지 않음'], ['장비', '연결 해제']]);
+
+  var STATES = {
+    start: { msgs: [greeting], chart: chart(false, false), legend: false, cells: [['대상', 'asking', EMPTY], ['구도', 'empty', EMPTY], ['촬영 설정', 'empty', EMPTY], ['끝난 뒤', 'empty', EMPTY]], complete: false },
+    mid: { msgs: mid, chart: chart(true, false), legend: false, cells: [['대상', 'set', targetBody], ['구도', 'asking', EMPTY], ['촬영 설정', 'empty', EMPTY], ['끝난 뒤', 'empty', EMPTY]], complete: false },
+    done: { msgs: done, chart: chart(true, true), legend: true, cells: [['대상', 'set', targetBody], ['구도', 'set', framingBody], ['촬영 설정', 'set', settingsBody], ['끝난 뒤', 'set', afterBody]], complete: true },
+  };
+
+  function render(k) {
+    var s = STATES[k];
+    document.getElementById('plan').innerHTML =
+      '<aside class="chat"><div class="messages' + (fade ? ' fade' : '') + '" id="msgs">' + messages(s.msgs) + '</div>' +
+      '<p class="error"></p>' +
+      '<form class="composer" onsubmit="return false"><input placeholder="아이라에게 말하기" maxlength="300"><button type="button" class="send" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button></form></aside>' +
+      '<div class="right"><section class="night"><div class="nightHead"><b>오늘 밤</b><span>어두운 시간 ' + hm(DARK.start) + '–' + hm(DARK.end) + '</span><span>달 ' + MOON.pct + '%</span><span>구름 예보 받음</span>' +
+      '<span class="legend" data-shown="' + s.legend + '"><span class="swatch"></span>촬영 시간</span></div>' + s.chart + '</section>' +
+      '<div class="lower"><div class="cells">' + s.cells.map(function (c) { return cell(c[0], c[1], c[2]); }).join('') + '</div>' +
+      '<div class="card" data-shown="' + s.complete + '"><div class="summary">' + (s.complete ? 'M31 안드로메다 · ' + settings.exposure + '초 × 약 ' + settings.frames + '장 · ISO ' + settings.iso + ' · ' + settings.filter : '&nbsp;') +
+      '<small>' + (s.complete ? hm(SHOOT.start) + ' 시작 가능 · ' + hm(SHOOT.end) + ' 종료 후 파킹' : '&nbsp;') + '</small></div>' +
+      '<button class="primary"' + (s.complete ? '' : ' disabled') + '>이 대상으로 이동</button></div></div></div>';
+    var box = document.getElementById('msgs'); box.scrollTop = box.scrollHeight;
+    document.querySelectorAll('.ctl[data-k]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.k === k)); });
+    cur = k;
+  }
+  var cur = 'start', fade = true;
+  document.querySelectorAll('.ctl[data-k]').forEach(function (b) { b.addEventListener('click', function () { render(b.dataset.k); }); });
+  document.querySelectorAll('.ctl[data-op]').forEach(function (b) { b.addEventListener('click', function () {
+    var v = Number(b.dataset.op); app.style.setProperty('--bubble-a', v); app.style.setProperty('--bubble-u', Math.min(0.95, v + 0.1));
+    document.querySelectorAll('.ctl[data-op]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  }); });
+  document.querySelectorAll('.ctl[data-fade]').forEach(function (b) { b.addEventListener('click', function () {
+    fade = b.dataset.fade === 'on'; render(cur);
+    document.querySelectorAll('.ctl[data-fade]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  }); });
+
+  // 별 몇 개 (고정)
+  var sky = document.getElementById('sky'), seed = 7;
+  var rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (var i = 0; i < 70; i++) { var st = document.createElement('i'); st.style.left = (rnd() * 1920) + 'px'; st.style.top = (rnd() * 1200) + 'px'; st.style.opacity = (0.15 + rnd() * 0.5).toFixed(2); sky.appendChild(st); }
+
+  var frame = document.getElementById('frame'), app = document.getElementById('app');
+  var fit = function () { app.style.setProperty('--s', frame.clientWidth / 1920); };
+  new ResizeObserver(fit).observe(frame); fit();
+  render('start');
+})();
+</script>
+</body>
+</html>
