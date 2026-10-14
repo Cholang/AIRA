@@ -48,6 +48,10 @@ public class RulesAndContractTests
         var ok = new ShotStats(2.3, .3, .2, .4, .6, "a");
         Assert.Equal(Tone.Ok, TestShotRules.Judge(ok, 2.1, 120).Tone);
         Assert.Equal(90, TestShotRules.Judge(ok with { Background = .5 }, 2.1, 120).SuggestExposure);
+        Assert.Equal(90, TestShotRules.Judge(ok with { SaturatedPercent = 2 }, 2.1, 120).SuggestExposure);
+        // 별 모양을 재지 못했으면(실제 장비) 문구에 "별 둥긂"을 쓰지 않는다
+        Assert.DoesNotContain("별 둥긂", TestShotRules.Judge(ok with { Eccentricity = null }, 2.1, 120).Caption);
+        Assert.Equal(Tone.Ok, TestShotRules.Judge(ok with { Eccentricity = null }, 2.1, 120).Tone);
         Assert.Equal("redo:focuscheck", TestShotRules.Judge(ok with { Hfr = 3.0 }, 2.1, 120).Problem!.RedoAction);
         Assert.Equal("redo:guiding", TestShotRules.Judge(ok with { Eccentricity = .8 }, 2.1, 120).Problem!.RedoAction);
     }

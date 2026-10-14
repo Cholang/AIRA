@@ -6,6 +6,7 @@ import PrepGuide from '../components/PrepGuide'
 import { FlipSteps, ShootGauges, ShootGrades } from '../components/ShootPanels'
 import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra } from '../components/StepRail'
+import { postSkip, useTempSkip } from '../components/TempSkip'
 import type { CurrentView, PrepAction, Tone } from '../prepare'
 import { answerShoot, recheckShootStop, stopShoot, watchShoot, type ShootView } from '../shoot'
 import styles from './PrepareScreen.module.css'
@@ -80,6 +81,13 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
   useEffect(() => watchShoot(setView, setProblem), [])
 
   const ended = view?.mode === 'Ended'
+
+  // [임시] 건너뛰기 (2026-10-14): 다 찍은 것(성공)·오류로 끝난 것(실패)으로 끝낸다 — 그 뒤 마무리·다른 대상은 평소처럼 고른다
+  useTempSkip(
+    view && view.mode !== 'Idle'
+      ? { what: '촬영', success: () => postSkip('/api/shoot/temp-skip?ok=true'), failure: () => postSkip('/api/shoot/temp-skip?ok=false') }
+      : null,
+  )
   // 중단을 고른 뒤 끝나면 고른 곳으로
   const stopped = (view?.guideStopped ?? true) && (view?.mountStopped ?? true)
   useEffect(() => {

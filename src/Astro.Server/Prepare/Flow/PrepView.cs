@@ -52,4 +52,7 @@ public sealed record CurrentView(
 /// 묶음 화면 전체. Ready = 끝 버튼(대상: "촬영 시작", 장비 준비: "대상 고르기")을 눌렀다, Simulated = 모의 장비(화면은 그림으로 흉내, 아니면 Live.Url의 실제 이미지).
 /// Group = rig(장비 준비) | target(대상). Handoff = 다른 묶음이 장비를 쓰는 동안 멈춰 둠 — 화면이 그 묶음(예: rig)으로 넘어간다
 /// </summary>
-public sealed record PrepView(bool Started, IReadOnlyList<TaskRowView> Tasks, CurrentView? Current, bool Ready, int Version, bool Simulated = true, string Group = "all", string? Handoff = null);
+public sealed record PrepView(bool Started, IReadOnlyList<TaskRowView> Tasks, CurrentView? Current, bool Ready, int Version, bool Simulated = true, string Group = "all", string? Handoff = null, TempSkipView? TempSkip = null);
+
+/// <summary>[임시] 건너뛰기 버튼이 넘길 작업 (2026-10-14). CanFail = 실패로도 넘길 수 있음</summary>
+public sealed record TempSkipView(string TaskId, string Title, bool CanFail);

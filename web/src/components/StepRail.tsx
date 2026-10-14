@@ -87,7 +87,7 @@ function progressKey(stage: number, items: RailItem[] | undefined) {
  * 키보드 초점일 때 툴팁으로 (2026-10-14 사용자 결정, 시안 mockups/aira-plan-v3.html). 작업은 제목만(결과·세부 과정 없음). 맨 아래 화면 버튼(준비 중단)과 App이 넣는 도구 자리(foot — 적도의 홈·종료). 레일은 단계·작업 표시만 맡는다(2026-10-10).
  * 화면이 바뀌어도 같은 자리·같은 너비. 단계·작업이 바뀌면 상태만 바꿔 부드럽게 넘어간다.
  */
-export default function StepRail({ current, extra: given, foot }: { current: Stage; extra?: RailExtra | null; foot?: ReactNode }) {
+export default function StepRail({ current, extra: given, foot, temp }: { current: Stage; extra?: RailExtra | null; foot?: ReactNode; /** [임시] 건너뛰기 자리 (종료 줄 위) */ temp?: ReactNode }) {
   const extra = given?.stage === current ? given : null
   // 모든 단계가 끝났으면 "지금 단계"는 마지막 다음 (마무리까지 체크, 펼친 묶음 없음)
   const now = extra?.complete ? STAGES.length : STAGES.indexOf(current)
@@ -313,6 +313,7 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
             {extra.action.label}
           </Button>
         )}
+        {temp}
         {/* 늘 있는 도구(적도의 홈 · 아이라 종료)는 App이 넣는다 — 레일은 자리만 (2026-10-10 분리) */}
         {foot && <div className={styles.endRow}>{foot}</div>}
       </div>

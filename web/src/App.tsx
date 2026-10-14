@@ -5,6 +5,7 @@ import StatusBar, { type DeviceState } from './components/StatusBar'
 import NinaLostCard, { type NinaState } from './components/NinaLostCard'
 import NinaNoticeCard from './components/NinaNoticeCard'
 import StepRail, { RailProvider, type RailExtra, type Stage } from './components/StepRail'
+import { postSkip, TempSkipButtons, TempSkipProvider, type TempSkipSpec } from './components/TempSkip'
 import SkyBackdrop from './components/SkyBackdrop'
 import CornerSun from './components/CornerSun'
 import { logClicks, logEvent } from './log'
@@ -121,6 +122,8 @@ export default function App() {
   const [settled, setSettled] = useState(true)
   // 지금 화면이 진행 표시에 넘긴 작업 목록·버튼 (예: 준비의 7작업, 준비 중단)
   const [railExtra, setRailExtra] = useState<RailExtra | null>(null)
+  // [임시] 건너뛰기: 화면이 알린 것 (없으면 아래 단계별 기본)
+  const [screenSkip, setScreenSkip] = useState<TempSkipSpec | null>(null)
   // 화면 바탕이 하늘인가 — 화면이 useScreenSky로 알린다 (레일과 따로)
   const [sky, setSky] = useState(false)
   const phaseNow = useRef<Phase>('boot')
@@ -369,6 +372,31 @@ export default function App() {
   const frame = useFrame()
   const siteInfo = describeSite(site ?? null, profile, profiles ?? [])
 
+  // [임시] 건너뛰기 (2026-10-14 사용자 요청 — 장비 없이 모든 단계를 넘겨 봄): 화면이 따로 알리지 않는 단계의 기본. 실패가 의미 없는 단계라 성공만.
+  // 관측지 고르기는 사용자가 고르는 일이라 없다(계획이 실제 좌표를 써야 함). 준비·대상·마무리 작업과 촬영은 그 화면이 알린다(성공·실패)
+  const defaultSkip: TempSkipSpec | null =
+    phase === 'check' ? { what: '설치 확인', success: toEngine }
+    : phase === 'engine' ? { what: '엔진 켜기', success: toEquipment }
+    : phase === 'equipment' ? { what: '장비 연결', success: () => toNext([], { changeSite: false }) }
+    : phase === 'preflight'
+      ? {
+          what: '출발 전 점검',
+          success: () => {
+            void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
+            toRig()
+          },
+        }
+    : phase === 'plan'
+      ? {
+          what: '계획 (대상이 없으면 대표 대상 하나)',
+          success: async () => {
+            const problem = await postSkip('/api/plan/temp-skip')
+            if (!problem) toTarget()
+            return problem
+          },
+        }
+    : null
+
   return (
     // 종료 확인은 앱 전체에서 (레일을 숨기거나 빼도 동작). 창 ×도 확인은 단계 화면에서만, 마지막 요약은 바로 닫음
     <QuitProvider stage={STAGE_OF[phase] ?? null} confirmOnClose={(!!STAGE_OF[phase] || prelaunchedPhase(phase)) && phase !== 'summary'}>
@@ -421,6 +449,7 @@ export default function App() {
       )}
       <ScreenReady.Provider value={settled}>
       <ScreenSkyProvider onChange={setSky}>
+      <TempSkipProvider onChange={setScreenSkip}>
       <RailProvider onChange={setRailExtra}>
       <div className={styles.screen} data-shown={shown} data-boot={phase === 'boot'} inert={!settled}>
       {/* 화면 하나가 그리다 실패해도 그 자리만 대신 그린다 — 상태 줄·레일·종료는 그대로 (자체 점검 H3). 다른 화면으로 넘어가면 다시 그려 본다 */}
@@ -490,6 +519,7 @@ export default function App() {
       </ErrorBoundary>
       </div>
       </RailProvider>
+      </TempSkipProvider>
       </ScreenSkyProvider>
       </ScreenReady.Provider>
       {/* 진행 표시는 화면 전환 페이드 밖에 둔다: 화면이 바뀌어도 같은 자리에 그대로 */}
@@ -501,6 +531,7 @@ export default function App() {
           <StepRail
             current={STAGE_OF[phase]}
             extra={railExtra}
+            temp={<TempSkipButtons spec={screenSkip ?? defaultSkip} />}
             // 레일 아래 늘 있는 도구. 마지막 요약은 가운데에 종료 버튼이 있어 여기서는 숨긴다(같은 버튼 두 개 금지)
             foot={
               <>

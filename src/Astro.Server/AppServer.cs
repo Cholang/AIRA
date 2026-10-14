@@ -306,6 +306,9 @@ public static class AppServer
         shoot.MapPost("/recheck-stop", async (Shoot.ShootSession session) =>
             await session.RecheckStopAsync() is { } problem ? Results.Conflict(new { error = problem }) : Results.NoContent());
         // 촬영 중 질문에 답하기 (가이딩 불안정이 오래가면: shoot = 그대로 찍기 · wait = 더 기다리기)
+        // [임시] 건너뛰기 (2026-10-14): 촬영을 다 찍은 것(ok=true)·오류로 끝난 것(ok=false)으로 끝낸다. 가이딩·적도의 정지를 확인하지 못했으면 이유
+        shoot.MapPost("/temp-skip", async (bool? ok, Shoot.ShootSession session) =>
+            await session.TempSkipAsync(ok ?? true) is { } problem ? Results.Conflict(new { error = problem }) : Results.NoContent());
         shoot.MapPost("/answer", (ShootAnswer body, Shoot.ShootSession session) =>
             session.Answer(body.Choice) is { } problem ? Results.Conflict(new { error = problem }) : Results.NoContent());
 
@@ -369,10 +372,10 @@ public static class AppServer
             flow.Runner(group) is not { } r ? Results.NotFound()
             : await r.AbortAsync() ? Results.NoContent() : Results.Conflict(new { error = "장비가 멈췄는지 확인하지 못했습니다. 장비 상태를 확인해 주세요." }));
 
-        // [임시] 건너뛰기 — 극축 정렬·캘리브레이션을 바로 넘김 (2026-10-10, PrepareRunner.TempSkipAsync — 지울 때 같이)
-        prepare.MapPost("/{group}/temp-skip", async (string group, Prepare.Flow.PrepareFlow flow) =>
+        // [임시] 건너뛰기 — 지금(또는 다음) 작업을 더미 성공(ok=true)·실패(ok=false) 기록으로 넘김 (2026-10-14 모든 작업, PrepareRunner.TempSkipAsync — 지울 때 같이)
+        prepare.MapPost("/{group}/temp-skip", async (string group, bool? ok, Prepare.Flow.PrepareFlow flow) =>
             flow.Runner(group) is not { } r ? Results.NotFound()
-            : await r.TempSkipAsync() is { } problem ? Results.BadRequest(new { error = problem }) : Results.NoContent());
+            : await r.TempSkipAsync(ok ?? true) is { } problem ? Results.BadRequest(new { error = problem }) : Results.NoContent());
 
         // [모의] 화면·시험용: 다음 동작 하나 실패시키기(키는 SimFaults.Known), 대상이 보인다고 가정, 모의 속도
         prepare.MapPost("/sim/fail-next/{key}", (string key, Prepare.Sim.SimFaults faults) =>
@@ -494,6 +497,9 @@ public static class AppServer
         // "이 계획으로 준비 시작": 계획을 실행 값으로 확정한다 (CX-PLAN-07). 실행할 수 없는 계획이면 이유
         plan.MapPost("/confirm", (PlanAssistant assistant) =>
             assistant.Confirm() is { } problem ? Results.BadRequest(new { error = problem }) : Results.Ok(assistant.Confirmed));
+        // [임시] 건너뛰기 (2026-10-14): 대상이 없으면 오늘 밤 찍을 수 있는 대표 대상 하나를 골라 확정
+        plan.MapPost("/temp-skip", (PlanAssistant assistant) =>
+            assistant.TempSkip() is { } problem ? Results.BadRequest(new { error = problem }) : Results.Ok(assistant.Confirmed));
         // 준비 단계가 읽는 확정 계획
         plan.MapGet("/confirmed", (PlanAssistant assistant) =>
             assistant.Confirmed is { } p ? Results.Ok(p) : Results.NotFound());

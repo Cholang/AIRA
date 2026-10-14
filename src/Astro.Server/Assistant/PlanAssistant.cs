@@ -120,6 +120,25 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
     public NightContext? Night => _night;
 
     /// <summary>
+    /// [임시] 건너뛰기 (2026-10-14 — 장비 없이 모든 단계를 넘겨 볼 때): 지금 대상이 없으면 오늘 밤 찍을 수 있는 대표 대상 하나를 골라 확정한다. 안 되면 이유.
+    /// 지울 때: 이 메서드 · AppServer의 /plan/temp-skip · 웹 App의 계획 건너뛰기
+    /// </summary>
+    public string? TempSkip()
+    {
+        bool none;
+        lock (_planGate) none = _plan.Target is null;
+        if (none)
+        {
+            if (_night is not { } n) return "오늘 밤 정보가 아직 없습니다. 화면을 다시 열어 주세요.";
+            var picked = false;
+            foreach (var name in new[] { "M31", "M45", "M42", "M33", "M13", "M57", "M27", "M8", "M20", "M51" })
+                if (tools.Search(name, n).FirstOrDefault() is { } d && Pick(d.Id) is null) { picked = true; break; }
+            if (!picked) return "오늘 밤 찍을 수 있는 대상을 찾지 못했습니다";
+        }
+        return Confirm();
+    }
+
+    /// <summary>
     /// AA를 다시 켜 "이어서"를 골랐을 때 (Session/NightSession): 오늘 밤 정보를 다시 만들고 확정 계획·계획 칸을 되살린다.
     /// 대화 기록은 되살리지 않는다(첫 인사부터) — 계획 칸과 확정 계획만
     /// </summary>

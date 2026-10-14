@@ -24,7 +24,7 @@ public interface IPolarDevices
     Task<DeviceResult> GiveBackGuideCameraAsync(CancellationToken ct);
     /// <summary>가이드 화면 배율(″/px). 모르면 null</summary>
     Task<double?> GuidePixelScaleAsync(CancellationToken ct);
-    /// <summary>조절량 단위·환산을 실기로 확인했는가 (CX-PREP-IMPL-03). 확인 전이면 등급 말을 쓰지 않는다</summary>
+    /// <summary>등급 말("충분해요")을 쓰는가 — 모의만. 실제 장비는 방향·픽셀 값만 (2026-10-14 사용자 결정, 옛 CX-PREP-IMPL-03)</summary>
     bool OffsetUnitVerified { get; }
     Task<bool> StopAsync(CancellationToken ct);
     /// <summary>적도의만 다시 멈추고 멈춘 것을 확인 (SharpCap·PHD2는 건드리지 않음)</summary>

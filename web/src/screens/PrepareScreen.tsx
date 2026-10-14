@@ -5,6 +5,7 @@ import PrepCenter from '../components/PrepCenter'
 import PrepGuide from '../components/PrepGuide'
 import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra, type RailItem } from '../components/StepRail'
+import { postSkip, useTempSkip } from '../components/TempSkip'
 import { prepareAbort, prepareAct, watchPrepare, type PrepGroup, type PrepTaskStatus, type PrepView } from '../prepare'
 import styles from './PrepareScreen.module.css'
 
@@ -25,9 +26,6 @@ const RAIL_STATE: Record<PrepTaskStatus, RailItem['state']> = {
   Failed: 'problem',
   Skipped: 'skipped',
 }
-
-/** [임시] 건너뛰기 버튼을 보일 작업 (서버 PrepareRunner.TempSkippable과 같게) */
-const TEMP_SKIP = ['polar', 'calibration', 'focus']
 
 /** [임시] 작업마다 걸어 볼 수 있는 모의 실패 (서버 SimFaults.Known) — 실제 장비(P3)를 붙이면 뺀다 */
 const FAULTS: Record<string, [string, string][]> = {
@@ -66,6 +64,16 @@ export default function PrepareScreen({
   const [faultsOpen, setFaultsOpen] = useState(false)
 
   useEffect(() => watchPrepare(group, setView, setProblem), [group])
+
+  // [임시] 건너뛰기: 진행 중인(끝났으면 다음) 작업을 더미 성공·실패 기록으로 넘긴다 (2026-10-14, 진행 표시 아래 — components/TempSkip)
+  const skip = view?.tempSkip ?? null
+  useTempSkip(
+    skip && {
+      what: skip.title,
+      success: () => postSkip(`/api/prepare/${group}/temp-skip?ok=true`),
+      failure: skip.canFail ? () => postSkip(`/api/prepare/${group}/temp-skip?ok=false`) : undefined,
+    },
+  )
 
   const cur = view?.current ?? null
   const liveKind = cur?.live?.kind ?? 'none'
@@ -154,21 +162,6 @@ export default function PrepareScreen({
               </Button>
             )}
           </div>
-
-          {/* [임시] 건너뛰기 (2026-10-10 사용자 요청 — 실내 시험에서 극축 정렬·캘리브레이션을 바로 넘김. 지울 때: 이 버튼 + 서버 PrepareRunner.TempSkipAsync·/temp-skip) */}
-          {TEMP_SKIP.includes(cur.taskId) && task && (task.status === 'Running' || task.status === 'Waiting') && (
-            <div className={styles.temp} style={{ bottom: view?.simulated ? 56 : 20 }}>
-              <button
-                type="button"
-                className={styles.tempToggle}
-                onClick={() => void fetch(`/api/prepare/${group}/temp-skip`, { method: 'POST' }).then(async (r) => {
-                  if (!r.ok) setActError(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? '건너뛰지 못했습니다')
-                })}
-              >
-                [임시] 건너뛰기
-              </button>
-            </div>
-          )}
 
           {/* [임시] 모의 실패 걸기: 다음 동작 하나를 실패시킨다 (모의 장비일 때만) */}
           {view?.simulated && (

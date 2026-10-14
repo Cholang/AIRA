@@ -83,7 +83,7 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 - **적도의 잠금**(IMPL-02, `MountLock`): 적도의를 움직이는 동작(N.I.N.A. slew·home, ASCOM `MoveAxis`, PHD2 캘리브레이션·가이딩 시작)은 잠금을 잡은 작업만. 끝나면 정지·추적 상태를 확인하고 푼다. 정지를 확인하지 못한 채 남으면 `MountLock.Unconfirmed` — 사용자가 "멈춘 것을 확인했어요"를 누를 때까지 적도의를 쓰는 모든 작업이 거부한다(`MountUnconfirmedException`, CX-30-02). 가이딩 중 PHD2의 보정 펄스는 PHD2 몫. 사용자가 다른 앱에서 직접 조작하는 것까지 막는다고 가정하지 않는다.
 - **다시 하기 순서**(IMPL-05): 진행 중 작업 중단 → 정지 확인 → 이전 실행 결과 차단(RunId) → 영향받는 결과 무효화 → 재실행. 앞 실행이 아직 정리 중이면 새 실행을 시작하지 않고 "확인 필요"(CX-30-03). 버튼(다음·다시 시도·다시 하기)은 받는 즉시 지워 두 번 눌러도 한 번만.
 - **화면 재접속 ≠ 서버 재시작**: 화면을 다시 열면 그대로 이어서. 아이라를 다시 켜 이어서 하면(`PrepareStarter.StopForResumeAsync`) 먼저 노출·포커서·적도의를 멈추고 확인한 뒤, 끝낸 작업은 `CheckResumeAsync`로 장비가 그대로인지 보고 건너뛴다.
-- **[임시] 건너뛰기**(`TempSkipAsync`, 극축 정렬·캘리브레이션·초점): 지금 작업을 멈추고(정지 확인) "건너뜀" 결과로 끝낸다. 실내 시험용 — 지울 때 화면 버튼·`/temp-skip`·`TempSkippable`을 함께.
+- **[임시] 건너뛰기**(`TempSkipAsync(success)`, 모든 작업): 진행 중인 작업은 멈추고(정지 확인) 넘기고, 끝났으면 다음 작업을 시작하지 않고 넘긴다. 성공 = 더미 성공 결과, 실패 = 그 작업이 실패해 건너뛸 때와 같은 결과(캘리브레이션·가이딩은 `GuiderSkipped`). 포커서 위치처럼 장비를 움직일 값은 넣지 않는다. 초점 확인은 성공만. 촬영(`ShootSession.TempSkipAsync`)·계획(`PlanAssistant.TempSkip`)도 같은 버튼. 지울 때 `/temp-skip` 세 곳·`PrepView.TempSkip`·웹 `TempSkip`을 함께.
 
 ### 1.5 화면에 보내는 것 (`PrepView`)과 API
 

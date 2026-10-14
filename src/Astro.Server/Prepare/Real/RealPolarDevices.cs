@@ -23,7 +23,7 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
 
     private string _camera = "";
 
-    public bool OffsetUnitVerified => false; // 조절량 단위·환산은 맑은 날 실기 확인 전 (CX-PREP-IMPL-03)
+    public bool OffsetUnitVerified => false; // 실제 장비는 등급 말 없이 방향·픽셀 값만 (2026-10-14 사용자 결정)
 
     public async Task<DeviceResult> SetSiderealTrackingAsync(CancellationToken ct) =>
         await rig.SetTrackingAsync(true, ct) ? DeviceResult.Success : DeviceResult.Fail("추적 속도를 항성으로 맞추지 못했습니다");

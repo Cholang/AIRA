@@ -16,8 +16,8 @@ public interface ITestShotDevices
     Task<TestShotEndState> ReadEndStateAsync(CancellationToken ct);
 }
 
-/// <summary>사진 검사값. Background = 배경 밝기(0~1), Eccentricity = 별 길쭉함(0 둥긂 ~ 1), Histogram = 0~최대 밝기를 나눈 칸마다 픽셀 수 (못 구하면 null)</summary>
-public sealed record ShotStats(double Hfr, double Eccentricity, double Background, double SaturatedPercent, double GuidingRms, string FilePath, int[]? Histogram = null);
+/// <summary>사진 검사값. Background = 배경 밝기(0~1), Eccentricity = 별 길쭉함(0 둥긂 ~ 1, 못 재면 null — 실제 장비는 아직), SaturatedPercent = 포화 화소 %, Histogram = 0~최대 밝기를 나눈 칸마다 픽셀 수 (못 구하면 null)</summary>
+public sealed record ShotStats(double Hfr, double? Eccentricity, double Background, double SaturatedPercent, double GuidingRms, string FilePath, int[]? Histogram = null);
 public sealed record TestShotEndState(bool CameraExposing, bool Guiding, bool FileSaved);
 
 /// <summary>
@@ -81,9 +81,10 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             var verdict = TestShotRules.Judge(stats, focusHfr, ctx.ExposureSeconds);
             var values = new Dictionary<string, double>
             {
-                ["hfr"] = stats.Hfr, ["eccentricity"] = stats.Eccentricity, ["background"] = stats.Background,
+                ["hfr"] = stats.Hfr, ["background"] = stats.Background,
                 ["saturatedPercent"] = stats.SaturatedPercent, ["guidingRms"] = stats.GuidingRms,
             };
+            if (stats.Eccentricity is { } ecc) values["eccentricity"] = ecc;
             if (focusHfr is { } fh) values["focusHfr"] = fh;
             run.Readout("test-shot", $"HFR {stats.Hfr:F1}", verdict.Caption, verdict.Tone, values);
 
@@ -141,6 +142,7 @@ public static class TestShotRules
     public const double HfrGrowthLimit = 1.25;   // 초점 때보다 25% 넘게 커지면 초점이 밀렸다고 본다
     public const double EccentricityLimit = 0.6; // 이보다 길쭉하면 가이딩·추적 문제
     public const double BackgroundLimit = 0.35;  // 배경이 이보다 밝으면 노출을 줄이자고 한다
+    public const double SaturatedLimit = 1.0;    // [임시] 포화 화소가 이 %를 넘으면 노출을 줄이자고 한다 (밝은 별 꼭대기는 늘 조금 넘침 — 실제 사진으로 다듬기)
 
     public sealed record Problem(string Title, string Text, string Status, string RedoAction, string RedoLabel);
     public sealed record Verdict(string Caption, Tone Tone, int? SuggestExposure, Problem? Problem);
@@ -149,14 +151,14 @@ public static class TestShotRules
     {
         var parts = new List<string>();
         if (focusHfr is { } f) parts.Add($"초점 때 {f:F1}");
-        parts.Add(s.Eccentricity <= EccentricityLimit ? "별 둥긂" : "별 길쭉함");
+        if (s.Eccentricity is { } ecc) parts.Add(ecc <= EccentricityLimit ? "별 둥긂" : "별 길쭉함"); // 재지 못했으면 말하지 않는다
         parts.Add(s.Background <= BackgroundLimit ? "배경 적당" : "배경 밝음");
         parts.Add($"포화 {s.SaturatedPercent:F1}%");
         parts.Add($"가이딩 {s.GuidingRms:F1}″");
         parts.Add("\"시험\" 폴더에 보관함");
         var caption = string.Join(" · ", parts);
 
-        if (s.Background > BackgroundLimit && exposureSeconds > 30)
+        if ((s.Background > BackgroundLimit || s.SaturatedPercent > SaturatedLimit) && exposureSeconds > 30)
             return new Verdict(caption, Tone.Warn, (int)Math.Round(exposureSeconds * 0.75 / 10) * 10, null);
         if (focusHfr is { } fh && s.Hfr > fh * HfrGrowthLimit)
             return new Verdict(caption, Tone.Warn, null, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"));

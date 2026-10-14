@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Astro.Server.Prepare.Real;
 
-/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램</summary>
+/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램·포화 비율</summary>
 public static class Fits
 {
     public static byte[]? ToPng(string path, int maxWidth = 960)
@@ -33,11 +33,15 @@ public static class Fits
         }
     }
 
+    /// <summary>시험 사진 화소 통계: 히스토그램(0~65535를 칸으로 나눈 픽셀 수)과 포화 비율(%)</summary>
+    public sealed record Pixels(int[] Histogram, double SaturatedPercent);
+
     /// <summary>
-    /// 히스토그램: 0~65535를 bins칸으로 나눈 픽셀 수 (N.I.N.A. API는 히스토그램을 주지 않음 — 통계만, 2026-10-09 확인).
-    /// 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
+    /// 히스토그램과 포화 비율을 한 번 읽어 함께 (N.I.N.A. API는 히스토그램·포화를 주지 않음 — 통계만, 2026-10-09 확인).
+    /// 포화 = 가장 밝은 값의 99% 이상인 화소 비율: 센서가 넘치면 같은 값에 몰리고, 넘친 곳이 없으면 가장 밝은 별 꼭대기 몇 점뿐이라 0에 가깝다.
+    /// 센서 최대값(14비트 카메라가 16비트 칸에 담기는지 등)을 몰라도 된다. 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
     /// </summary>
-    public static int[]? Histogram(string path, int bins = 256)
+    public static Pixels? Analyze(string path, int bins = 256)
     {
         try
         {
@@ -47,15 +51,26 @@ public static class Fits
             var n = (long)w * h;
             var step = (int)Math.Max(1, n / 2_000_000);
             if (step % 2 == 0) step++; // 컬러 센서(RGGB)에서 한 색만 고르지 않게 홀수 간격
-            var counts = new int[bins];
-            for (long i = 0; i < n; i += step)
+            var each = new int[65536];
+            long seen = 0;
+            for (long i = 0; i < n; i += step, seen++)
             {
                 var v = bitpix == 16
-                    ? Math.Clamp(BinaryPrimitives.ReadInt16BigEndian(bytes.AsSpan(dataStart + (int)(i * 2), 2)) + bzero, 0, 65535)
+                    ? (int)Math.Clamp(BinaryPrimitives.ReadInt16BigEndian(bytes.AsSpan(dataStart + (int)(i * 2), 2)) + bzero, 0, 65535)
                     : bytes[dataStart + i] * 257;
-                counts[(int)(v * bins / 65536)]++;
+                each[v]++;
             }
-            return counts;
+            var counts = new int[bins];
+            var max = 0;
+            for (var v = 0; v < each.Length; v++)
+            {
+                if (each[v] == 0) continue;
+                counts[(int)((long)v * bins / 65536)] += each[v];
+                max = v;
+            }
+            long saturated = 0;
+            for (var v = (int)Math.Ceiling(max * 0.99); v <= max; v++) saturated += each[v];
+            return new Pixels(counts, seen == 0 || max == 0 ? 0 : saturated * 100.0 / seen);
         }
         catch (Exception e) when (e is IOException or ArgumentOutOfRangeException or UnauthorizedAccessException)
         {

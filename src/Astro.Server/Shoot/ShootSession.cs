@@ -284,6 +284,46 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         lock (_gate) return _mode is ShootMode.Ended && _guideStopped && _mountStill;
     }
 
+    /// <summary>
+    /// [임시] 건너뛰기 (2026-10-14 — 장비 없이 모든 단계를 넘겨 볼 때): 지금 사진을 기다리지 않고 촬영을 끝낸다. 성공 = 계획 장수를 다 찍은 것으로, 실패 = 일부만 찍고 오류로 끝난 것으로.
+    /// 끝낼 때는 평소처럼 가이딩 정지·추적 끄기를 시도하고, 정지를 확인하지 못했으면 그 이유를 돌려준다(멈춘 척하지 않는다). 지울 때: 이 메서드 · AppServer의 /shoot/temp-skip · 웹 ShootScreen
+    /// </summary>
+    public async Task<string?> TempSkipAsync(bool success)
+    {
+        CancellationTokenSource? cts;
+        Task run;
+        bool ended;
+        PrepContext ctx;
+        lock (_gate)
+        {
+            if (_ctx is null || _mode is ShootMode.Idle) return "찍고 있지 않습니다.";
+            ctx = _ctx;
+            cts = _cts;
+            run = _run;
+            ended = _mode is ShootMode.Ended;
+        }
+        if (!ended)
+        {
+            cts?.Cancel();
+            try { await run.WaitAsync(TimeSpan.FromSeconds(20)); } catch (Exception) { /* 취소·시간 초과 */ }
+        }
+        var planned = Math.Max(1, ctx.Plan.EstimatedFrames);
+        Set(() =>
+        {
+            _good = success ? planned : Math.Max(1, planned / 3);
+            _excluded = success ? 0 : 2;
+            foreach (var l in ShotGrader.Letters) _tally[l] = 0;
+            _tally["A"] = _good;
+            _tally["F"] = _excluded;
+            _note = success ? new StatusLine("[임시] 다 찍은 것으로 넘겼어요", Tone.Ok) : new StatusLine("[임시] 오류로 끝난 것으로 넘겼어요", Tone.Fail);
+            _noteUntil = DateTimeOffset.MaxValue;
+        });
+        if (ended) Record(ctx);
+        else await EndAsync(success ? "frames" : "error", CancellationToken.None);
+        log.LogInformation("[임시] 촬영 건너뛰기({Outcome})", success ? "성공" : "실패");
+        return BlocksNext();
+    }
+
     /// <summary>"촬영 중단": 지금 사진은 끝까지 찍고 멈춘다. 찍고 있지 않으면 이유</summary>
     public string? Stop()
     {

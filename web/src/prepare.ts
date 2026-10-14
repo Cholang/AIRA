@@ -44,6 +44,8 @@ export interface PrepView {
   group: PrepGroup
   /** 다른 묶음이 장비를 쓰는 동안 멈춰 둠: 화면이 그 묶음으로 간다 (예: 가이딩 → 캘리브레이션 다시 → rig) */
   handoff: PrepGroup | null
+  /** [임시] 건너뛰기 버튼이 넘길 작업 (진행 중, 끝났으면 다음 작업). canFail = 실패로도 넘길 수 있음 */
+  tempSkip: { taskId: string; title: string; canFail: boolean } | null
 }
 
 /** 묶음을 시작하고(같은 밤·같은 계획이면 이어서) 상태가 바뀔 때마다 onState. 끝내려면 돌려준 함수를 부른다 */
