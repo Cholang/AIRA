@@ -8,8 +8,9 @@ namespace Astro.Server.Prepare.Real;
 /// 2026-10-06 실기(X-T5): 1초 노출에 결과까지 약 25초(RAW 84MB). 카메라 화질이 JPEG면 모든 값 0인 사진이 온다 → 받지 못한 것으로 본다.
 /// 실패해도 이전 사진이 올 수 있어 NinaRig가 이벤트로 이번 사진인지 확인한다.
 /// 별 길쭉함(이심률)·포화 비율은 N.I.N.A.가 주지 않아 0으로 둔다 (판정에서 빠짐 — 나중에 사진을 직접 분석).
+/// 받은 사진은 같은 날짜 폴더의 "시험" 폴더로 옮긴다 (2026-10-14, 못 옮기면 SNAPSHOT 폴더에 그대로).
 /// </summary>
-public sealed class RealTestShotDevices(NinaRig rig, LiveImages live) : ITestShotDevices
+public sealed class RealTestShotDevices(NinaRig rig, LiveImages live, ILogger<RealTestShotDevices>? log = null) : ITestShotDevices
 {
     private NinaRig.Shot? _shot;
     private DateTimeOffset _started = DateTimeOffset.MinValue;
@@ -33,7 +34,18 @@ public sealed class RealTestShotDevices(NinaRig rig, LiveImages live) : ITestSho
         var rms = await rig.GuideRmsArcsecAsync(ct) ?? 0;
         // 히스토그램: 저장된 FITS를 직접 읽어 센다 (N.I.N.A.는 통계만 줌). 80MB 읽기라 따로
         var hist = file.Length > 0 && File.Exists(file) ? await Task.Run(() => Fits.Histogram(file), ct) : null;
+        if (file.Length > 0 && File.Exists(file)) file = MoveToTestFolder(file);
         return new ShotStats(s.Hfr, 0, s.Median / 65535.0, 0, rms, file, hist);
+    }
+
+    private string MoveToTestFolder(string file)
+    {
+        try { return ImageFolders.Move(file, "SNAPSHOT", ImageFolders.Test); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            log?.LogWarning(e, "시험 사진을 시험 폴더로 옮기지 못해 SNAPSHOT 폴더에 둠: {File}", file);
+            return file;
+        }
     }
 
     public Task<bool> StopAsync(CancellationToken ct) => rig.AbortExposureAsync(ct);

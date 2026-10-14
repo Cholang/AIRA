@@ -78,12 +78,15 @@ export function textBytes(text: string) {
   return n
 }
 
-/** 최대 byte를 넘는 뒷부분을 잘라 낸다. */
+/** 최대 byte를 넘는 뒷부분을 잘라 낸다. 이모지(두 칸짜리 글자)는 반으로 자르지 않는다 */
 export function clampBytes(text: string, max: number) {
   let n = 0
   for (let i = 0; i < text.length; i++) {
     n += text.charCodeAt(i) < 0x80 ? 1 : 2
-    if (n > max) return text.slice(0, i)
+    if (n > max) {
+      const low = text.charCodeAt(i)
+      return text.slice(0, low >= 0xdc00 && low <= 0xdfff && i > 0 ? i - 1 : i)
+    }
   }
   return text
 }

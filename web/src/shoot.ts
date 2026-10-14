@@ -142,3 +142,17 @@ export function hm(seconds: number) {
 
 export const clock = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
+
+/** 가이딩 판정: 주 카메라 한 픽셀 이하 충분 / 1.5배 이하 지켜보기 / 그 위 아쉬움 (준비 ⑥과 같은 기준) */
+export function guideWord(rms: number, pixel: number) {
+  return rms <= pixel ? '충분해요' : rms <= pixel * 1.5 ? '지켜볼게요' : '아쉬워요'
+}
+
+/** 이슬 여유와 열선 (열선은 WandererEmpire 자동이 맡음): "이슬 여유 16°C · 열선 0% (자동)" */
+export function dewText(d: ShootView['dew']) {
+  if (!d) return null
+  const parts: string[] = []
+  if (d.marginC !== null) parts.push(`이슬 여유 ${d.marginC.toFixed(0)}°C`)
+  if (d.heaterPower !== null) parts.push(`열선 ${Math.round(d.heaterPower * 100)}%${d.heaterAuto ? ' (자동)' : ''}`)
+  return parts.length ? parts.join(' · ') : null
+}

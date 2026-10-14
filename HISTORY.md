@@ -8,7 +8,23 @@
 
 ---
 
-## 2026-10-14 · [Claude] 팝업 공통 부품 `Modal` — 확인 창·설정·새 버전 알림을 한 껍데기로
+## 2026-10-14 · [Claude] 웹 계산 단위 시험(vitest)과 시험 사진 "시험" 폴더
+
+**요청**: 웹 계산 함수 단위 시험 — 작으니 바로. 시험 사진을 같은 밤 폴더의 "시험" 폴더로([계획] 항목).
+
+**변경**:
+- 웹 시험: `vitest` 추가, `npm test`. 화면 파일 안에 있던 계산을 따로 옮김 — `components/nightGraphMath.ts`(시각의 고도·고도 곡선·이름표 줄), `components/liveViewMath.ts`(사진 맞춤·초점 곡선 2차 맞춤), `shoot.ts`(`guideWord`·`dewText`). 시험 7개 파일 39개: 조사(받침·로/으로·제품 이름), 글자 수 byte, 그래프 시각·대상 이름, 밤 그래프 계산, 초점 곡선, 가이딩 판정·이슬 문구·시간 표시, 전원 배선 요약.
+- 시험이 찾은 결함 2개: `clampBytes`가 이모지를 반으로 잘라 깨진 글자를 남김 → 이모지 앞에서 자름. 밤 그래프 다른 대상 툴팁 "○○로 바꾸기"가 받침을 안 봄(예: "성운로") → `withRo`.
+- 시험 사진: `Prepare/Real/ImageFolders.cs`(새) — 저장된 사진을 같은 날짜 폴더의 다른 폴더로(…\날짜\SNAPSHOT\파일 → …\날짜\시험\파일, 종류 폴더가 아니면 그 아래, 같은 이름은 덮지 않음). `RealTestShotDevices.DownloadAndAnalyzeAsync`가 히스토그램을 읽은 뒤 옮기고 옮긴 경로를 돌려줌, 못 옮기면 SNAPSHOT에 두고 경고 기록.
+- 문서: OPERATION_PROCEDURE(⑦ [계획] → 지금 규칙), DECISION_HISTORY, FIELD_TEST_CHECKLIST, implementation/PREPARE, README(시험 명령).
+
+**확인**: 웹 시험 39개 통과, tsc·lint(기존 경고만)·웹 빌드·데스크톱 빌드 오류 0. 서버 시험 245개 중 244 통과·1 건너뜀(새 `ImageFoldersTests` 4개 포함). 기존에 시간에 민감하던 `다크_장수는_5장씩…`이 전체 실행 중 가끔 실패(따로·다시 돌리면 통과, 이번 변경과 무관). 실제 N.I.N.A.로 옮기기는 실기 미확인(체크리스트에 추가).
+
+**남은 것**: 다크플랫 옮기기(`RealWrapDevices.MoveToDarkFlatAsync`)도 `ImageFolders.Move`로 — Codex가 그 파일을 리뷰 중이라 리뷰 뒤에. 밤 그래프에 세 대상이 같은 시각에 시작하면 이름표 1·3번이 겹침(줄이 두 개뿐) — 사용자 결정 대기.
+
+---
+
+## 2026-10-14 · 2695a0d [Claude] 팝업 공통 부품 `Modal` — 확인 창·설정·새 버전 알림을 한 껍데기로
 
 **요청**: 팝업이 예쁘지 않고 재사용 구조인지 확인 못 했으니 팝업 모듈을 하나 만들자. 시안(`mockups/aira-modal.html`)을 보고 글자 +1px·크기 맞춤·기본 외곽선 조금 더 보이게·모든 버튼 호버. 팝업 안 문구는 상황별로 나중에.
 

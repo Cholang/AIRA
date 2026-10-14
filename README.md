@@ -68,6 +68,8 @@ dotnet run --project src/Astro.Server
 
 화면을 고치면서 볼 때는 서버를 켜 둔 채로 `web/`에서 `npm run dev`를 실행한다 (`/api`는 서버로 넘어감).
 
+시험: 서버는 `dotnet test`, 화면의 계산(조사·글자 수·그래프·초점 곡선 등)은 `web/`에서 `npm test`.
+
 ## 설정
 
 `src/Astro.Server/appsettings.json`의 `Nina` 항목:
