@@ -59,6 +59,20 @@ describe('대상 이름표 줄', () => {
     expect(tags.map((t) => t.row)).toEqual([0, 1])
   })
 
+  it('두 줄이 다 차면 세 번째는 옆으로 비켜 놓는다 (시작점은 그대로)', () => {
+    const tags = layoutTags([pick('a', 'M31'), pick('b', 'M33'), pick('c', 'M45')], at({ a: 100, b: 100, c: 100 }))
+    expect(tags.map((t) => t.row)).toEqual([0, 1, 0])
+    const [a, , c] = tags
+    expect(c.x).toBe(100)
+    expect(c.cx - c.w / 2).toBeGreaterThanOrEqual(a.cx + a.w / 2 + 12)
+    expect(a.cx).toBe(a.x)
+  })
+
+  it('비켜 놓아도 오른쪽 끝을 넘지 않는다', () => {
+    const tags = layoutTags([pick('a', 'M31'), pick('b', 'M33'), pick('c', 'M45')], at({ a: 100, b: 100, c: 100 }), 140)
+    expect(tags[2].cx + tags[2].w / 2).toBeLessThanOrEqual(140)
+  })
+
   it('이름표 너비는 글자 수에 비례', () => {
     const [t] = layoutTags([pick('a', 'NGC 7000')], at({ a: 0 }))
     expect(t.w).toBe(8 * 13.5)

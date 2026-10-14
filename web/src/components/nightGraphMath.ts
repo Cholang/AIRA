@@ -38,16 +38,22 @@ export function trackPath(
   return d
 }
 
-/** 이름표 줄 배치: 왼쪽부터, 앞 이름표와 겹치면 아래 줄 */
-export function layoutTags(picks: ChartPick[], at: (p: ChartPick) => { x: number; y: number }) {
+/**
+ * 이름표 줄 배치: 왼쪽부터, 앞 이름표와 겹치면 아래 줄. 두 줄 모두 겹치면(세 대상이 거의 같은 시각에 시작) 덜 비키는 줄에서 오른쪽으로 비켜 놓는다
+ * (2026-10-14 사용자 결정 — 이름표에서 시작점까지 선은 비스듬해도 된다). cx = 이름표 가운데, x = 시작점. maxX를 넘지 않게
+ */
+export function layoutTags(picks: ChartPick[], at: (p: ChartPick) => { x: number; y: number }, maxX = Infinity) {
+  const GAP = 12
   const rowEnd = [-1e9, -1e9]
   return picks
     .map((p) => ({ p, ...at(p), w: displayName(p).length * 13.5 }))
     .sort((a, b) => a.x - b.x)
     .map((t) => {
       const left = t.x - t.w / 2
-      const row = left >= rowEnd[0] + 12 ? 0 : left >= rowEnd[1] + 12 ? 1 : 0
-      rowEnd[row] = t.x + t.w / 2
-      return { ...t, row }
+      const free = left >= rowEnd[0] + GAP ? 0 : left >= rowEnd[1] + GAP ? 1 : -1
+      const row = free >= 0 ? free : rowEnd[1] < rowEnd[0] ? 1 : 0
+      const cx = free >= 0 ? t.x : Math.min(rowEnd[row] + GAP + t.w / 2, maxX - t.w / 2)
+      rowEnd[row] = cx + t.w / 2
+      return { ...t, row, cx }
     })
 }

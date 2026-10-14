@@ -63,11 +63,13 @@ export default function NightGraph({
     e.preventDefault()
     const w = p.window
     const startX = e.clientX
+    // 누른 곳이 아니라 움직인 만큼 옮긴다 (이름표가 시작점 옆으로 비켜 있어도 누르는 순간 튀지 않게)
+    const from = minuteAt(startX)
     // 마지막 위치는 화면을 다시 그리기 전에 놓아도 잃지 않게 여기에 둔다
     const last = { minute: w.start, moved: false }
     setDrag({ id: p.id, minute: w.start })
     const move = (ev: PointerEvent) => {
-      last.minute = Math.round(Math.max(w.dragFrom, Math.min(w.dragTo, minuteAt(ev.clientX))))
+      last.minute = Math.round(Math.max(w.dragFrom, Math.min(w.dragTo, w.start + minuteAt(ev.clientX) - from)))
       last.moved ||= Math.abs(ev.clientX - startX) > 3
       setDrag({ id: p.id, minute: last.minute })
     }
@@ -90,11 +92,15 @@ export default function NightGraph({
   const alt = (p: ChartPick, t: number) => altitudeOn(p.track, t)
   const startOf = (p: ChartPick) => (drag?.id === p.id ? drag.minute : p.window?.start ?? null)
 
-  // 대상 이름표 자리: 촬영 시작점(못 찍으면 봉우리)에서 위로. 가까우면 아래 줄
-  const tags = layoutTags(chart.picks, (p) => {
-    const at = startOf(p) ?? p.peak?.at ?? 0
-    return { x: x(at), y: y(Math.max(0, alt(p, at))) }
-  })
+  // 대상 이름표 자리: 촬영 시작점(못 찍으면 봉우리)에서 위로. 가까우면 아래 줄, 두 줄 다 차면 옆으로 비켜 비스듬한 선으로
+  const tags = layoutTags(
+    chart.picks,
+    (p) => {
+      const at = startOf(p) ?? p.peak?.at ?? 0
+      return { x: x(at), y: y(Math.max(0, alt(p, at))) }
+    },
+    R,
+  )
 
   const nowIn = chart.now >= 0 && chart.now <= span
   const ridge = (h0: number, amp: number, f1: number, f2: number, ph: number) => {
@@ -217,7 +223,7 @@ export default function NightGraph({
             </g>
           )
         })}
-        {tags.map(({ p, x: tx, y: ty, row, w: tw }) => {
+        {tags.map(({ p, x: tx, y: ty, row, w: tw, cx }) => {
           const on = p.id === chart.current
           const ey = EM + row * ROW
           return (
@@ -230,13 +236,13 @@ export default function NightGraph({
               onClick={on ? undefined : () => onSelect(p.id)}
             >
               <g className={styles.dim}>
-                <line className={`${styles.stem} ${styles.on}`} x1={tx} x2={tx} y1={ty - 6} y2={ey + 13} />
+                <line className={`${styles.stem} ${styles.on}`} x1={tx} x2={cx} y1={ty - 6} y2={ey + 13} />
                 <circle className={`${styles.tagDotOff} ${styles.off}`} cx={tx} cy={ty} r={4} />
                 <circle className={`${styles.tagDotOn} ${styles.on}`} cx={tx} cy={ty} r={5} />
-                <rect x={tx - tw / 2} y={ey - 34} width={tw} height={48} fill="transparent" />
-                <Emblem type={p.type} cx={tx} cy={ey} r={13} />
-                <text x={tx} y={ey - 19} textAnchor="middle" className={`${styles.tagName} ${styles.off}`}>{displayName(p)}</text>
-                <text x={tx} y={ey - 19} textAnchor="middle" className={`${styles.tagNameOn} ${styles.on}`}>{displayName(p)}</text>
+                <rect x={cx - tw / 2} y={ey - 34} width={tw} height={48} fill="transparent" />
+                <Emblem type={p.type} cx={cx} cy={ey} r={13} />
+                <text x={cx} y={ey - 19} textAnchor="middle" className={`${styles.tagName} ${styles.off}`}>{displayName(p)}</text>
+                <text x={cx} y={ey - 19} textAnchor="middle" className={`${styles.tagNameOn} ${styles.on}`}>{displayName(p)}</text>
               </g>
               <title>{on ? '끌어서 촬영 시작 옮기기' : `${withRo(displayName(p))} 바꾸기`}</title>
             </g>
