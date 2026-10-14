@@ -29,13 +29,18 @@ public interface IPolarDevices
     Task<bool> StopAsync(CancellationToken ct);
     /// <summary>적도의만 다시 멈추고 멈춘 것을 확인 (SharpCap·PHD2는 건드리지 않음)</summary>
     Task<bool> MountStillAsync(CancellationToken ct) => StopAsync(ct);
+    /// <summary>극 찾기를 다시 하기 전: 적도의를 홈(시작 위치)으로 되돌리고 추적을 항성으로</summary>
+    Task<PolarReturn> ReturnToStartAsync(CancellationToken ct) => Task.FromResult(PolarReturn.AtStart);
     Task<PolarEndState> ReadEndStateAsync(CancellationToken ct);
 }
 
 /// <summary>UserSet = 노출을 사용자가 SharpCap에서 직접 정함</summary>
 public sealed record PoleProgress(string Stage, int Stars, double ExposureSeconds, double RotationDeg, bool UserSet = false);
-/// <summary>StopUnconfirmed = 회전 뒤 적도의가 멈춘 것을 확인하지 못함 — 다시 돌리지 않고 확인부터 (2026-10-14)</summary>
-public sealed record PoleFindResult(bool Ok, string? Problem = null, bool StopUnconfirmed = false);
+/// <summary>StopUnconfirmed = 회전 뒤 적도의가 멈춘 것을 확인하지 못함 — 다시 돌리지 않고 확인부터. Rotated = 이번에 RA축을 돌렸다(다시 하기 전에 시작 위치로) (2026-10-14)</summary>
+public sealed record PoleFindResult(bool Ok, string? Problem = null, bool StopUnconfirmed = false, bool Rotated = false);
+
+/// <summary>시작 위치(홈)로 되돌리기 결과: 도착 · 도착은 못 했지만 멈춤 확인 · 멈춤도 확인 못 함</summary>
+public enum PolarReturn { AtStart, Stopped, StopUnconfirmed }
 /// <summary>조절량(px): X = 방위(+는 왼쪽으로), Y = 고도(+는 아래로)</summary>
 public sealed record PolarOffset(double XPx, double YPx, DateTimeOffset At);
 public sealed record PolarEndState(bool SharpCapClosed, bool GuideCameraOnPhd2, bool Phd2Looping, bool NinaGuiderConnected, bool MountMoving);
@@ -69,6 +74,34 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         // 캘리브레이션 버튼(남쪽 하늘로 이동 / 가이딩 없이 진행)을 누르기 전에 구름 예보를 다시 본다
         return new Completed(result, line, grade ?? "정렬 완료",
             CloudNotice.With("가이드 카메라가 PHD2에 다시 연결되었습니다. 다음은 가이딩 보정값을 만드는 캘리브레이션입니다.", await CloudNotice.ReadAsync(run.Context, ct)));
+    }
+
+    /// <summary>
+    /// 극 찾기 "다시 시도" 전에 적도의를 홈(시작 위치)으로 되돌린다 (2026-10-14 사용자 결정 — 이 적도의는 홈에서 한쪽으로 약 60°까지만 돈다.
+    /// 되돌리지 않으면 같은 방향으로 60°를 또 돌려 케이블·한계 센서에 걸릴 수 있다). 되돌리지 못하면 손으로 홈 근처에 두고 다시 누르게 한다.
+    /// 건너뛰기를 고르면 false
+    /// </summary>
+    private async Task<bool> ReturnToStartAsync(ITaskRun run, CancellationToken ct)
+    {
+        while (true)
+        {
+            run.Guide("시작 위치로 되돌리기", "다시 돌리기 전에 적도의를 홈(시작 위치)으로 되돌립니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.");
+            run.Status("적도의를 홈으로 되돌리는 중입니다", Tone.Busy);
+            PolarReturn back;
+            await using (await run.Context.Mount.AcquireAsync(ct))
+                back = await devices.ReturnToStartAsync(ct);
+            if (back == PolarReturn.AtStart) return true;
+            var unconfirmed = back == PolarReturn.StopUnconfirmed;
+            while (unconfirmed)
+            {
+                run.Status("홈으로 가다 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
+                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                await using (await run.Context.Mount.AcquireAsync(ct))
+                    unconfirmed = !await devices.MountStillAsync(ct);
+            }
+            run.Status("홈으로 되돌리지 못했습니다. 적도의를 홈 근처(망원경이 북극성 쪽, 균형추가 아래)로 옮긴 뒤 다시 시도해 주세요", Tone.Fail);
+            if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+        }
     }
 
     /// <summary>
@@ -151,8 +184,11 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         // 케이블 확인은 출발 전 점검에서 빼고 크게 돌리기 직전에 (2026-10-12 사용자 결정)
         run.Guide("극 찾기", CloudNotice.With("적도의를 RA축으로 크게 돌려 회전 전후의 별 위치를 비교합니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.", cloud));
         run.Live("sharpcap", "/api/prepare/live/sharpcap");
+        var rotated = false; // 앞 시도에서 RA축을 돌렸다 → 다시 하기 전에 시작 위치로
         while (true)
         {
+            if (rotated && !await ReturnToStartAsync(run, ct)) return false;
+            rotated = false;
             // 극 찾기는 RA축을 돌린다 — 끝나고 멈춘 것을 확인할 때까지 적도의 잠금을 쥔다 (CX-30-02)
             PoleFindResult found;
             await using (await run.Context.Mount.AcquireAsync(ct))
@@ -166,6 +202,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 });
             }, ct);
             if (found.Ok) return true;
+            rotated = found.Rotated;
             // 멈춘 것을 확인하지 못했으면 다시 돌리지 않는다: 확인될 때까지 "장비 상태 다시 확인"만
             var unconfirmed = found.StopUnconfirmed;
             while (unconfirmed)

@@ -35,6 +35,7 @@ public partial class MainWindow : Window
         ApplyTheme(ReadSavedTheme());
         Loaded += OnLoaded;
         Closing += OnClosing;
+        Application.Current.SessionEnding += OnSessionEnding;
         // 처음부터 전체화면 (제목 표시줄·작업 표시줄 없이). F11로 창 모드와 오간다. 끄기는 Alt+F4.
         // 창 핸들이 생긴 뒤에 모니터 크기를 잴 수 있어 SourceInitialized에서
         SourceInitialized += (_, _) => SetFullScreen(true);
@@ -278,6 +279,31 @@ public partial class MainWindow : Window
             "적도의 추적이 켜져 있으면 N.I.N.A.에서 직접 꺼 주세요.",
             Product.Name, MessageBoxButton.OK, MessageBoxImage.Error);
     }
+
+    /// <summary>
+    /// Windows가 꺼지거나 다시 시작하거나 로그오프할 때(업데이트 자동 재시작 포함): 화면의 종료 절차를 밟을 시간이 없으니
+    /// 가이딩 멈춤·적도의 추적 끄기만 한 번 시도한다(최대 10초). 그동안 Windows 종료 화면에 이유가 보인다 — 사용자가 "그래도 종료"를 고를 수 있다.
+    /// 막지는 않는다(업데이트 재시작을 영영 막지 않게). 2026-10-14 자체 리뷰: 밤에 업데이트 재시작이 오면 적도의가 추적을 계속했다
+    /// </summary>
+    private void OnSessionEnding(object? sender, SessionEndingCancelEventArgs e)
+    {
+        Astro.Server.Engine.FileLogProvider.Write("WARN", "창", $"Windows 종료({e.ReasonSessionEnding}) — 추적 끄기를 시도합니다");
+        if (_server?.Services.GetService(typeof(Astro.Server.Prepare.MountHome)) is not Astro.Server.Prepare.MountHome home) return;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd != 0) ShutdownBlockReasonCreate(hwnd, $"{Product.Name}: 적도의 추적을 끄는 중입니다");
+        try
+        {
+            var safe = Task.Run(home.ForceSafeAsync);
+            if (safe.Wait(TimeSpan.FromSeconds(10)) && safe.Result is { } problem)
+                Astro.Server.Engine.FileLogProvider.Write("WARN", "창", $"Windows 종료: {problem}");
+        }
+        catch (Exception ex) { Astro.Server.Engine.FileLogProvider.Write("WARN", "창", $"Windows 종료: 추적 끄기 실패 {ex.Message}"); }
+        finally { if (hwnd != 0) ShutdownBlockReasonDestroy(hwnd); }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern bool ShutdownBlockReasonCreate(nint hwnd, string reason);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool ShutdownBlockReasonDestroy(nint hwnd);
 
     // 창의 × 버튼·Alt+F4: 진행 중이면 화면에 "종료할까요?"를 띄운다 (2026-10-08 사용자 결정). 화면이 답("close")하면 닫는다
     private bool _closeConfirmed;

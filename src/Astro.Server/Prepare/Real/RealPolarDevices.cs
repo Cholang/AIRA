@@ -85,16 +85,16 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         {
             var still = await StopMountAsync(ct);
             var why = rotated ?? "적도의가 멈췄는지 확인하지 못했습니다.";
-            return still ? new(false, $"{why} 적도의를 다시 멈춰 멈춘 것을 확인했습니다.") : new(false, $"{why} 적도의 상태를 직접 확인해 주세요.", StopUnconfirmed: true);
+            return still ? new(false, $"{why} 적도의를 다시 멈춰 멈춘 것을 확인했습니다.", Rotated: true) : new(false, $"{why} 적도의 상태를 직접 확인해 주세요.", StopUnconfirmed: true, Rotated: true);
         }
 
         // 둘째 사진
         if (await SolveStageAsync("second", progress, RotationDeg, ct) is { } why2)
-            return new(false, $"회전한 뒤 위치를 찾지 못했습니다. 회전 중 별이 가려졌을 수 있습니다. ({why2})");
+            return new(false, $"회전한 뒤 위치를 찾지 못했습니다. 회전 중 별이 가려졌을 수 있습니다. ({why2})", Rotated: true);
         sharpCap.Send("advance");
         return await sharpCap.WaitAsync(r => r.Adjusting, TimeSpan.FromSeconds(20), ct) is null
-            ? new(false, "SharpCap이 조절 단계로 넘어가지 않았습니다")
-            : new(true);
+            ? new(false, "SharpCap이 조절 단계로 넘어가지 않았습니다", Rotated: true)
+            : new(true, Rotated: true);
     }
 
     /// <summary>
@@ -190,6 +190,20 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
             catch (Phd2Exception) { /* 장비 상태 확인 필요로 남는다 — 아래 still과 별개로 사용자에게 보임 */ }
         }
         return still;
+    }
+
+    /// <summary>
+    /// 극 찾기를 다시 하기 전: 적도의를 홈(시작 위치)으로 되돌리고 추적을 항성으로 (2026-10-14 사용자 결정 — 같은 방향으로 60°를 또 돌려
+    /// 홈에서 120°까지 가지 않게). 홈 도착을 확인하지 못하면 멈추고 확인한다
+    /// </summary>
+    public async Task<PolarReturn> ReturnToStartAsync(CancellationToken ct)
+    {
+        if (await rig.HomeAsync(ct))
+        {
+            await SetSiderealTrackingAsync(ct); // 실패해도 다음 회전 전 정지 확인이 본다
+            return PolarReturn.AtStart;
+        }
+        return await StopMountAsync(ct) ? PolarReturn.Stopped : PolarReturn.StopUnconfirmed;
     }
 
     /// <summary>적도의만 멈추고 확인: 드라이버 비상 정지(이동 중단 + 두 축 멈춤)와 N.I.N.A. 정지를 함께 (드라이버가 답하지 않아도 N.I.N.A. 쪽 정지·확인은 한다, CX-30-04)</summary>

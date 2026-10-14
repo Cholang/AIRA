@@ -8,7 +8,23 @@
 
 ---
 
-## 2026-10-14 · [Claude] 자체 리뷰 반영 1차 — 장비 안전(추적 끄기·멈춤 확인·이동 승인)과 계획 v3 결함
+## 2026-10-14 · [Claude] 자체 리뷰 반영 2차 — 극 찾기 다시 시도는 홈부터, 멈춤 확인은 다른 갱신끼리, Windows 종료 때 추적 끄기
+
+**요청**: 결정 2(극 찾기 "다시 시도"는 시작 위치로 되돌린 뒤) 제안대로. 2차도 바로 — 장비가 없으니 N.I.N.A.가 값을 주는 기존 방식에 근거한 추정값으로, 집에서 그 값만 고칠 수 있게.
+
+**변경**:
+- 극 찾기: `PoleFindResult.Rotated`, `IPolarDevices.ReturnToStartAsync`(`RealPolarDevices` — Go Home 뒤 추적 항성, 홈 실패면 멈추고 확인 → `PolarReturn`). `PolarTask`가 돌린 뒤 실패해 다시 시도하면 먼저 홈으로, 못 가면 정지 확인 → "손으로 홈 근처에 두고 다시 시도 / 건너뛰기".
+- 멈춤·도착 판정: `Prepare/Real/MountTiming.cs`(새) — [실기 확인] 추정값 한곳(정보 갱신 2초, 읽는 간격 2.4초, 멈춤 0.005°, 도착 0.01°). `NinaRig.StillAsync`·`WaitSlewAsync`가 항성시가 같은 읽기(같은 갱신)는 건너뛰고, 적위 그대로 + 적경 또는 시간각 그대로면 멈춤(추적 끈 채 멈춤도).
+- Windows 종료·재시작·로그오프(`MainWindow.OnSessionEnding`): `MountHome.ForceSafeAsync`를 최대 10초 시도, 그동안 `ShutdownBlockReasonCreate`로 종료 화면에 이유. 막지는 않음.
+- 문서: OPERATION_PROCEDURE(극 찾기 다시 시도, Windows 종료), DECISION_HISTORY, FIELD_TEST_CHECKLIST(갱신 간격 확인 방법 포함 3개).
+
+**확인**: 서버 시험 237 통과·1 건너뜀(새 `MountTimingTests` 4개). 한 번은 전체 실행 중 `다크_장수는…`이 시간에 민감하게 실패 → 따로 3번·전체 2번 다시 돌려 모두 통과(이번 변경과 무관한 시간 경쟁으로 봄). 데스크톱 빌드 오류 0. 실장비·N.I.N.A. 갱신 간격·Windows 종료 동작은 실기 미확인.
+
+**남은 것**: 집에서 `MountTiming` 값 확인. 종료 때 N.I.N.A.가 적도의 미연결이라 답하면 조용히 통과(이론상). 팝업 공통 모듈(사용자 요청). Codex 리뷰 요청(65c0007..HEAD).
+
+---
+
+## 2026-10-14 · d268791 [Claude] 자체 리뷰 반영 1차 — 장비 안전(추적 끄기·멈춤 확인·이동 승인)과 계획 v3 결함
 
 **요청**: 계획 v3 구현(65c0007)과 장비 안전 경로를 Claude가 먼저 리뷰(계획 v3는 /code-review xhigh, 장비 안전은 영역 셋을 나눠 동시에 + 대조 확인) → 등급별로 보고 → 1차(장비 안전·겪음·쉬운 이론상) 반영. 결정 1(다시 들어오면 이동을 다시 묻기)은 사용자 승인. Codex 리뷰는 이 커밋까지 포함해 다음에 요청.
 

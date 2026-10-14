@@ -33,7 +33,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             m.TryGetProperty("SideOfPier", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "pierUnknown" : "pierUnknown");
     }
 
-    /// <summary>움직임이 멈출 때까지 (이동 중 아님 + 좌표가 연속 두 번 같음). timeout까지 안 멈추면 false</summary>
+    /// <summary>움직임이 멈출 때까지 (이동 중 아님 + 서로 다른 갱신 두 번 사이에 움직이지 않음 — MountTiming). timeout까지 안 멈추면 false</summary>
     public Task<bool> WaitStillAsync(TimeSpan timeout, CancellationToken ct) => StillAsync(timeout, int.MaxValue, ct);
 
     /// <summary>멈춘 것 확인 — 같은 판정을 12번까지 (멈춤 명령 뒤)</summary>
@@ -42,14 +42,16 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     private async Task<bool> StillAsync(TimeSpan timeout, int tries, CancellationToken ct)
     {
         var deadline = timeout == TimeSpan.MaxValue ? DateTime.MaxValue : DateTime.UtcNow + timeout;
-        (double, double)? last = null;
+        MountState? last = null;
         for (var i = 0; i < tries && DateTime.UtcNow < deadline; i++)
         {
             var m = await MountAsync(ct);
             if (m is null) return false;
-            if (!m.Slewing && last is { } l && Math.Abs(l.Item1 - m.RaDeg) < 0.005 && Math.Abs(l.Item2 - m.DecDeg) < 0.005) return true;
-            last = (m.RaDeg, m.DecDeg);
-            await Task.Delay(1200, ct);
+            // 같은 갱신을 다시 읽었으면 비교하지 않는다 (N.I.N.A.는 약 2초마다 갱신 — 같은 값끼리 "멈춤"으로 보던 것, 2026-10-14 자체 리뷰)
+            if (last is { } l && MountTiming.SameSnapshot(l.SiderealHours, m.SiderealHours)) { await Task.Delay(MountTiming.PollInterval, ct); continue; }
+            if (!m.Slewing && last is { } prev && MountTiming.Unmoved(prev, m, MountTiming.StillToleranceDeg)) return true;
+            last = m;
+            await Task.Delay(MountTiming.PollInterval, ct);
         }
         return false;
     }
@@ -66,8 +68,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     {
         var target = new Equatorial(raDeg, decDeg);
         var deadline = DateTime.UtcNow + timeout;
-        var stillSince = 0;
-        (double Ra, double Dec)? last = null;
+        MountState? last = null;
         await Task.Delay(1500, ct); // 시작 직후에는 Slewing이 아직 false일 수 있다
         while (DateTime.UtcNow < deadline)
         {
@@ -75,10 +76,11 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             if (m is null) return null;
             var d = Astronomy.Separation(new Equatorial(m.RaDeg, m.DecDeg), target);
             remaining?.Invoke(d);
-            stillSince = !m.Slewing && last is { } l && Math.Abs(l.Ra - m.RaDeg) < 0.01 && Math.Abs(l.Dec - m.DecDeg) < 0.01 ? stillSince + 1 : 0;
-            if (stillSince >= 1) return d;
-            last = (m.RaDeg, m.DecDeg);
-            await Task.Delay(1000, ct);
+            // 서로 다른 갱신 두 번 사이에 움직이지 않았으면 도착 (같은 갱신끼리 비교하지 않는다 — MountTiming)
+            if (last is { } l && MountTiming.SameSnapshot(l.SiderealHours, m.SiderealHours)) { await Task.Delay(MountTiming.PollInterval, ct); continue; }
+            if (!m.Slewing && last is { } prev && MountTiming.Unmoved(prev, m, MountTiming.ArrivedToleranceDeg)) return d;
+            last = m;
+            await Task.Delay(MountTiming.PollInterval, ct);
         }
         return null;
     }
