@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아이라 출발 전 점검 — 장비 선화 시안</title>
+<!--
+  시안 (Claude, 2026-10-14 집): 출발 전 점검을 카드 세 장 대신 장비 그림 한 장으로 (DECISION_HISTORY "출발 전 점검" 2026-10-12 [계획]).
+  - 사용자가 준 제미나이 그림(망원경·삼각대·노트북·별자리)을 로고와 같은 선화로: 둥근 끝 선 한 굵기, 칠하지 않음, 강조는 보라 한 색.
+  - 장비는 사용자 장비에 가깝게: 작은 굴절 망원경(Pleiades 68 — 이슬 가리개), 하모닉 적도의(균형추 없음), 포커서(Oasis) + 카메라(X-T5), 가이드 망원경.
+  - 점검 세 가지(설치 차례): ① 적도의 시작 위치(북쪽 · 홈 자세) ② 포커서 0점(드로튜브 끝까지 넣기) ③ 망원경 캡(본 망원경·가이드 망원경).
+    지금 항목의 부분만 보라로 빛나고, 확인하면 그림이 바뀐다: ① 극축 점선이 북극성에 닿고 체크 ② 드로튜브가 안으로 들어감 ③ 캡이 앞으로 빠지며 사라짐.
+  - 그림의 빛나는 부분이나 "확인했어요"를 누른다. "모두 확인 완료"는 남은 것을 차례로 넘김. 테마: 기본 / 다크(촬영용 적색).
+-->
+<style>
+:root { --page-bg:#141416; --page-surface:#1d1e21; --page-text:#e8e5df; --page-muted:#9d9a94; --page-line:#303236; --page-accent:#a9a6f7;
+  --font:'Pretendard Variable', Pretendard, 'Malgun Gothic', sans-serif; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:var(--font); font-size:15px; line-height:1.6; word-break:keep-all; }
+.page { max-width:1760px; margin:0 auto; padding:24px 20px 56px; display:grid; gap:14px; }
+.top h1 { margin:0; font-size:22px; font-weight:800; }
+.top p { margin:4px 0 0; color:var(--page-muted); font-size:14px; max-width:1240px; }
+.controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.controls .lbl { font-size:13px; color:var(--page-muted); margin-right:4px; }
+.ctl { padding:5px 12px; border:1px solid var(--page-line); border-radius:8px; background:var(--page-surface); color:var(--page-text); font:inherit; font-size:13px; cursor:pointer; }
+.ctl[aria-pressed="true"] { border-color:var(--page-accent); color:var(--page-accent); }
+.frame { position:relative; width:100%; aspect-ratio:16/10; overflow:hidden; border:1px solid var(--page-line); border-radius:12px; }
+
+/* ───────── 앱 틀 1920×1200 (index.css 토큰) ───────── */
+.app { --bg:#1e1f21; --surface:#27292c; --surface-2:#303236; --line:#3b3e42; --text:#ebe8e3; --muted:#a3a09a; --accent:#a9a6f7; --on-accent:#17153a;
+  --pass:#72bf8e; --conn:#a9a6f7; --star:#e8e6e1; --gold:#c6ad80; --radius:10px; --rail-w:150px;
+  /* 선화 */
+  --ink:#8f8c86; --ink-soft:#5d5b57; --ink-hi:var(--accent); --screen:rgb(169 166 247 / .10);
+  position:absolute; left:0; top:0; width:1920px; height:1200px; transform-origin:0 0; transform:scale(var(--s,1));
+  display:flex; flex-direction:column; overflow:hidden; font-family:var(--font); font-size:15.5px; line-height:1.6; color:var(--text); background:var(--bg); }
+.app[data-theme="night"] { --bg:#000; --surface:#0c0000; --surface-2:#170000; --line:#3c0000; --text:#b80000; --muted:#720000; --accent:#d00000; --on-accent:#000;
+  --pass:#b80000; --conn:#b80000; --star:#b80000; --gold:#9a0000; --ink:#6a0000; --ink-soft:#3c0000; --screen:rgb(184 0 0 / .08); }
+.bar { display:flex; align-items:center; gap:20px; min-height:44px; padding:0 96px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted); }
+.brand { font-weight:800; letter-spacing:.18em; color:var(--text); font-size:15px; }
+.body { flex:1; min-height:0; display:flex; }
+.screen { flex:1; min-width:0; display:grid; grid-template-rows:auto 1fr auto; padding:56px 96px 40px; }
+.title h2 { margin:0; font-size:30px; font-weight:700; letter-spacing:-.01em; }
+.title p { margin:6px 0 0; color:var(--muted); min-height:1.6em; }
+
+/* 그림 + 오른쪽 설명 한 묶음 (예전 카드덱 + 설명처럼 가로 가운데) */
+.stage { display:flex; align-items:center; justify-content:center; gap:56px; min-height:0; }
+.art { width:900px; height:620px; flex:none; }
+.art svg { width:100%; height:100%; overflow:visible; }
+.side { width:420px; display:grid; gap:10px; }
+.count { font-size:13.5px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; }
+.name { font-size:24px; font-weight:800; line-height:1.3; }
+.q { font-size:17px; line-height:1.6; min-height:3.2em; }
+.hint { color:var(--muted); font-size:14px; }
+.steps { display:grid; gap:8px; margin-top:12px; }
+.step { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
+.step i { width:22px; height:22px; flex:none; display:grid; place-items:center; border:1.5px dashed var(--line); border-radius:50%; font-style:normal; font-size:12px; }
+.step[data-s="now"] { color:var(--accent); font-weight:700; }
+.step[data-s="now"] i { border:2px solid var(--accent); }
+.step[data-s="done"] { color:var(--text); }
+.step[data-s="done"] i { border:1.5px solid var(--conn); color:var(--conn); }
+.btn { height:42px; padding:0 20px; border:1.5px solid var(--line); border-radius:var(--radius); background:transparent; color:var(--text); font:inherit; font-size:15.5px; font-weight:600; cursor:pointer; }
+.btn:hover { border-color:var(--accent); }
+.btn.primary { border-color:var(--accent); background:var(--accent); color:var(--on-accent); }
+.app[data-theme="night"] .btn.primary { background:#260000; border-color:#8a0000; color:#d00000; }
+.actions { display:flex; gap:10px; margin-top:16px; }
+.foot { display:flex; justify-content:center; min-height:48px; }
+
+/* ───────── 선화 ───────── */
+.ln { fill:none; stroke:var(--ink); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transition:stroke .4s ease; }
+.ln.soft { stroke:var(--ink-soft); stroke-width:1.6; }
+.ln.thin { stroke-width:1.4; }
+.ln.dash { stroke-dasharray:3 7; }
+.fillScreen { fill:var(--screen); stroke:none; }
+.starDot { fill:var(--star); opacity:.55; }
+.spark { fill:var(--star); }
+.polaris { fill:var(--star); }
+.lbl { font-family:var(--font); font-size:15px; font-weight:700; fill:var(--muted); }
+
+/* 지금 항목: 보라로 빛남(테두리를 따라 숨 쉬듯) */
+.part { cursor:default; }
+.part[data-now="true"] { cursor:pointer; }
+.part[data-now="true"] .ln { stroke:var(--ink-hi); filter:drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)); animation:breathe 2.4s ease-in-out infinite; }
+.part[data-done="true"] .ln { stroke:var(--ink); }
+@keyframes breathe { 0%,100% { opacity:1 } 50% { opacity:.62 } }
+
+/* ① 극축: 점선이 북극성까지 그려짐 */
+.poleLine { stroke:var(--ink-hi); stroke-width:1.6; stroke-dasharray:4 7; fill:none; opacity:0; transition:opacity .5s; }
+.part[data-now="true"] .poleLine, .part[data-done="true"] .poleLine { opacity:.9; }
+.part[data-done="true"] .poleLine { stroke:var(--conn); opacity:.5; }
+/* ② 드로튜브: 빠져 있다가 확인하면 안으로 (카메라도 같이) */
+.drawtube { transform:translateX(-26px); transition:transform .8s cubic-bezier(.3,.7,.2,1); }
+.part[data-done="true"] .drawtube { transform:translateX(0); }
+.tube { transform-box:fill-box; transform-origin:right center; transform:scaleX(1.81); vector-effect:non-scaling-stroke; transition:transform .8s cubic-bezier(.3,.7,.2,1); }
+.part[data-done="true"] .tube { transform:scaleX(1); }
+.inArrow { opacity:0; transition:opacity .4s; }
+.part[data-now="true"] .inArrow { opacity:1; }
+/* ③ 캡: 확인하면 앞으로 빠지며 사라짐 */
+.cap { transition:transform .7s cubic-bezier(.3,.7,.2,1), opacity .7s ease; }
+.part[data-done="true"] .cap { transform:translateX(46px); opacity:0; }
+/* 확인 체크 배지 */
+.badge { opacity:0; transition:opacity .4s; }
+.part[data-done="true"] .badge { opacity:1; }
+.badge circle { fill:var(--bg); stroke:var(--conn); stroke-width:1.6; }
+.badge path { fill:none; stroke:var(--conn); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+
+@media (prefers-reduced-motion: reduce) { .part[data-now="true"] .ln { animation:none } .drawtube, .cap { transition:none } }
+
+.rail { width:var(--rail-w); flex:none; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:22px; padding:0 22px 0 0; color:var(--muted); font-size:13px; }
+.rail .dot { width:26px; height:26px; border:1.5px dashed var(--line); border-radius:50%; }
+.rail .dot.done { border-style:solid; border-color:var(--conn); }
+.rail .dot.now { border:2px solid var(--accent); }
+.rail .row { display:flex; align-items:center; gap:14px; }
+.rail .now-name { color:var(--accent); font-size:20px; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1>출발 전 점검 — 장비 선화 시안</h1>
+    <p>제미나이 그림을 로고와 같은 선화로 옮겼습니다. 장비는 실제 장비에 가깝게(작은 굴절 망원경, 하모닉 적도의 — 균형추 없음, 포커서 + X-T5, 가이드 망원경). 지금 확인할 부분만 보라로 빛나고, 그림을 누르거나 "확인했어요"를 누르면 그림이 바뀝니다: ① 극축 점선이 북극성에 닿음 ② 드로튜브가 끝까지 들어감 ③ 캡이 빠지며 사라짐.</p>
+  </div>
+  <div class="controls">
+    <span class="lbl">테마</span>
+    <button class="ctl" data-theme-btn="dark" aria-pressed="true">기본</button>
+    <button class="ctl" data-theme-btn="night" aria-pressed="false">다크(촬영용)</button>
+    <span class="lbl" style="margin-left:16px">빠르게 보기</span>
+    <button class="ctl" id="again">처음부터</button>
+  </div>
+  <div class="frame" id="frame">
+    <div class="app" id="app" data-theme="dark">
+      <header class="bar"><span class="brand">AIRA</span><span style="flex:1"></span><span>19:02</span></header>
+      <div class="body">
+        <div class="screen">
+          <div class="title">
+            <h2>촬영 시작 전에 장비를 한 번 둘러봐 주세요</h2>
+            <p>아이라가 스스로 알 수 없는 것만 여쭤볼게요.</p>
+          </div>
+          <div class="stage">
+            <div class="art">
+              <svg viewBox="0 0 900 620" role="img" aria-label="망원경·적도의·삼각대·노트북 선화">
+                <!-- 하늘: 작은 별 · 반짝임 · 별자리 선 (꾸밈) -->
+                <g>
+                  <circle class="starDot" cx="70" cy="60" r="1.4"/><circle class="starDot" cx="190" cy="34" r="1.1"/><circle class="starDot" cx="300" cy="96" r="1.3"/>
+                  <circle class="starDot" cx="460" cy="40" r="1.2"/><circle class="starDot" cx="780" cy="160" r="1.2"/><circle class="starDot" cx="840" cy="70" r="1.4"/>
+                  <circle class="starDot" cx="120" cy="200" r="1.1"/><circle class="starDot" cx="720" cy="250" r="1.1"/><circle class="starDot" cx="560" cy="150" r="1"/>
+                  <path class="ln soft thin" d="M96 150 L168 118 L232 150 L262 210 M232 150 L300 140"/>
+                  <circle class="starDot" cx="96" cy="150" r="2"/><circle class="starDot" cx="168" cy="118" r="2"/><circle class="starDot" cx="232" cy="150" r="2.2"/>
+                  <circle class="starDot" cx="262" cy="210" r="1.8"/><circle class="starDot" cx="300" cy="140" r="1.8"/>
+                  <path class="spark" transform="translate(380 70) scale(.5)" d="M0-10 C1.2-10 1.1-5.8 2.9-3.1 C4.4-1.1 8-1.1 8 0 C8 1.1 4.4 1.1 2.9 3.1 C1.1 5.8 1.2 10 0 10 C-1.2 10-1.1 5.8-2.9 3.1 C-4.4 1.1-8 1.1-8 0 C-8-1.1-4.4-1.1-2.9-3.1 C-1.1-5.8-1.2-10 0-10 Z" opacity=".7"/>
+                  <path class="spark" transform="translate(820 230) scale(.45)" d="M0-10 C1.2-10 1.1-5.8 2.9-3.1 C4.4-1.1 8-1.1 8 0 C8 1.1 4.4 1.1 2.9 3.1 C1.1 5.8 1.2 10 0 10 C-1.2 10-1.1 5.8-2.9 3.1 C-4.4 1.1-8 1.1-8 0 C-8-1.1-4.4-1.1-2.9-3.1 C-1.1-5.8-1.2-10 0-10 Z" opacity=".6"/>
+                </g>
+                <!-- 땅 -->
+                <path class="ln soft" d="M0 548 Q450 500 900 552"/>
+                <path class="ln soft thin" d="M640 538 q4 -12 8 0 M652 537 q3 -9 6 0 M96 541 q3 -10 6 0"/>
+
+                <!-- ① 적도의 시작 위치: 적도의 머리 + 극축 점선 + 북극성 -->
+                <g class="part" id="p-mount" data-step="0">
+                  <path class="poleLine" d="M416 316 L742 70"/>
+                  <path class="polaris" transform="translate(752 62) scale(1.1)" d="M0-10 C1.2-10 1.1-5.8 2.9-3.1 C4.4-1.1 8-1.1 8 0 C8 1.1 4.4 1.1 2.9 3.1 C1.1 5.8 1.2 10 0 10 C-1.2 10-1.1 5.8-2.9 3.1 C-4.4 1.1-8 1.1-8 0 C-8-1.1-4.4-1.1-2.9-3.1 C-1.1-5.8-1.2-10 0-10 Z"/>
+                  <text class="lbl" x="772" y="58">북</text>
+                  <!-- 고도 쐐기 · 삼각대 머리판 -->
+                  <path class="ln" d="M386 350 L436 313 L448 362 L380 362 Z"/>
+                  <path class="ln" d="M372 362 L456 362 L456 372 L372 372 Z"/>
+                  <!-- 적경 몸통(극축과 나란히) · 적위 몸통 — 하모닉이라 균형추 없음 -->
+                  <g transform="translate(360 245) rotate(-37)">
+                    <rect class="ln" x="-62" y="68" width="104" height="34" rx="8"/>
+                    <path class="ln thin" d="M-40 68 L-40 102 M22 68 L22 102"/>
+                    <rect class="ln" x="-22" y="36" width="44" height="32" rx="6"/>
+                    <circle class="ln thin" cx="0" cy="52" r="7"/>
+                  </g>
+                  <g class="badge" transform="translate(470 336)"><circle r="13"/><path d="M-6 0 L-1.5 4.5 L6.5 -4.5"/></g>
+                </g>
+
+                <!-- 삼각대 -->
+                <g>
+                  <path class="ln" d="M396 372 L300 566 M432 372 L532 566 M414 372 L428 548"/>
+                  <path class="ln thin" d="M318 530 L332 506 M512 530 L498 506"/>
+                  <path class="ln soft" d="M352 470 L414 488 L478 470"/>
+                  <path class="ln soft thin" d="M352 470 L478 470"/>
+                </g>
+
+                <!-- 망원경 (극축과 나란히 = 홈 자세, 북쪽) -->
+                <g transform="translate(360 245) rotate(-37)">
+                  <!-- 도브테일 · 링 -->
+                  <rect class="ln" x="-82" y="26" width="164" height="10" rx="3"/>
+                  <path class="ln" d="M-56 -30 L-56 30 M-44 -30 L-44 30 M50 -30 L50 30 M62 -30 L62 30"/>
+                  <!-- 경통 -->
+                  <rect class="ln" x="-118" y="-26" width="236" height="52" rx="6"/>
+                  <!-- 이슬 가리개 -->
+                  <rect class="ln" x="118" y="-31" width="74" height="62" rx="5"/>
+                  <path class="ln thin" d="M126 -31 L126 31"/>
+                  <!-- 가이드 망원경 (위) -->
+                  <path class="ln thin" d="M-30 -26 L-30 -40 M50 -26 L50 -40"/>
+                  <rect class="ln" x="-46" y="-56" width="118" height="16" rx="4"/>
+                  <rect class="ln" x="-64" y="-58" width="18" height="20" rx="3"/>
+                </g>
+
+                <!-- ② 포커서 0점: 포커서 + 드로튜브 + 카메라 -->
+                <g class="part" id="p-focus" data-step="1">
+                  <g transform="translate(360 245) rotate(-37)">
+                    <!-- 포커서 몸통 · 모터(Oasis) -->
+                    <rect class="ln" x="-146" y="-18" width="28" height="36" rx="4"/>
+                    <rect class="ln" x="-142" y="18" width="22" height="16" rx="3"/>
+                    <!-- 드로튜브: 포커서에 붙은 채 늘어났다 줄어든다 -->
+                    <rect class="ln tube" x="-176" y="-12" width="32" height="24" rx="3"/>
+                    <g class="drawtube">
+                      <path class="ln thin" d="M-170 -12 L-170 12"/>
+                      <!-- 카메라 (X-T5) -->
+                      <rect class="ln" x="-226" y="-30" width="50" height="58" rx="7"/>
+                      <rect class="ln thin" x="-218" y="-40" width="18" height="10" rx="2"/>
+                      <circle class="ln thin" cx="-190" cy="-36" r="3"/>
+                    </g>
+                    <!-- 안으로 넣으라는 화살표 -->
+                    <path class="inArrow ln" d="M-182 -32 L-150 -32 M-158 -38 L-150 -32 L-158 -26" style="stroke:var(--ink-hi)"/>
+                  </g>
+                  <g class="badge" transform="translate(150 320)"><circle r="13"/><path d="M-6 0 L-1.5 4.5 L6.5 -4.5"/></g>
+                </g>
+
+                <!-- ③ 망원경 캡: 본 망원경 앞 · 가이드 망원경 앞 -->
+                <g class="part" id="p-caps" data-step="2">
+                  <g transform="translate(360 245) rotate(-37)">
+                    <g class="cap">
+                      <rect class="ln" x="192" y="-35" width="12" height="70" rx="4"/>
+                      <path class="ln thin" d="M204 -10 L210 -10 L210 10 L204 10"/>
+                    </g>
+                    <g class="cap">
+                      <rect class="ln" x="72" y="-59" width="8" height="22" rx="3"/>
+                    </g>
+                  </g>
+                  <g class="badge" transform="translate(560 130)"><circle r="13"/><path d="M-6 0 L-1.5 4.5 L6.5 -4.5"/></g>
+                </g>
+
+                <!-- 케이블 -->
+                <path class="ln soft thin" d="M300 330 C 320 380, 380 400, 404 440 S 330 524, 204 524"/>
+                <!-- 노트북 + 장비 상자 (아이라가 도는 곳) -->
+                <g>
+                  <rect class="ln" x="64" y="490" width="140" height="56" rx="6"/>
+                  <path class="ln thin" d="M64 506 L204 506 M120 498 L148 498"/>
+                  <path class="ln" d="M78 490 L190 490 L182 478 L86 478 Z"/>
+                  <rect class="fillScreen" x="92" y="412" width="88" height="62" rx="4"/>
+                  <rect class="ln" x="90" y="410" width="92" height="66" rx="5"/>
+                  <circle class="ln thin" cx="136" cy="442" r="6" style="stroke:var(--ink-hi)"/>
+                </g>
+              </svg>
+            </div>
+            <div class="side">
+              <div class="count" id="count">1 / 3</div>
+              <div class="name" id="name">적도의 시작 위치</div>
+              <div class="q" id="q">적도의를 북쪽으로 향하게 세우고 홈 자세로 두었나요?</div>
+              <div class="hint" id="hint">확인했으면 그림의 빛나는 부분이나 아래 버튼을 누르세요.</div>
+              <div class="actions"><button class="btn primary" id="ok">확인했어요</button></div>
+              <div class="steps" id="steps"></div>
+            </div>
+          </div>
+          <div class="foot"><button class="btn" id="all">모두 확인 완료</button></div>
+        </div>
+        <nav class="rail">
+          <div class="row"><span>연결</span><span class="dot done"></span></div>
+          <div class="row"><span class="now-name">점검</span><span class="dot now"></span></div>
+          <div class="row"><span></span><span class="dot"></span></div>
+          <div class="row"><span></span><span class="dot"></span></div>
+          <div class="row"><span></span><span class="dot"></span></div>
+          <div class="row"><span></span><span class="dot"></span></div>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var ITEMS = [
+    { part: 'p-mount', name: '적도의 시작 위치', q: '적도의를 북쪽으로 향하게 세우고 홈 자세로 두었나요?' },
+    { part: 'p-focus', name: '포커서 0점', q: '포커서를 달 때 초점 노브를 끝까지 넣어 0에 맞췄나요?' },
+    { part: 'p-caps', name: '망원경 캡', q: '망원경 앞 뚜껑과 가이드 망원경 뚜껑을 모두 열었나요?' },
+  ];
+  var at = 0, $ = function (id) { return document.getElementById(id); };
+  function render() {
+    ITEMS.forEach(function (it, i) {
+      var g = $(it.part);
+      g.dataset.now = String(i === at);
+      g.dataset.done = String(i < at);
+    });
+    var it = ITEMS[Math.min(at, ITEMS.length - 1)], done = at >= ITEMS.length;
+    $('count').textContent = done ? '3 / 3' : (at + 1) + ' / 3';
+    $('name').textContent = done ? '모두 확인했어요' : it.name;
+    $('q').textContent = done ? '장비 준비로 넘어갑니다.' : it.q;
+    $('hint').style.visibility = done ? 'hidden' : 'visible';
+    $('ok').style.visibility = done ? 'hidden' : 'visible';
+    $('steps').innerHTML = ITEMS.map(function (x, i) {
+      var s = i < at ? 'done' : i === at ? 'now' : 'todo';
+      return '<div class="step" data-s="' + s + '"><i>' + (i < at ? '✓' : i + 1) + '</i>' + x.name + '</div>';
+    }).join('');
+  }
+  function next() { if (at < ITEMS.length) { at++; render(); } }
+  $('ok').onclick = next;
+  ITEMS.forEach(function (it, i) { $(it.part).addEventListener('click', function () { if (i === at) next(); }); });
+  $('all').onclick = function () { (function step() { if (at < ITEMS.length) { next(); setTimeout(step, 700); } })(); };
+  $('again').onclick = function () { at = 0; render(); };
+  document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+    b.onclick = function () {
+      $('app').dataset.theme = b.dataset.themeBtn;
+      document.querySelectorAll('[data-theme-btn]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    };
+  });
+  var frame = $('frame'), app = $('app');
+  new ResizeObserver(function () { app.style.setProperty('--s', frame.clientWidth / 1920); }).observe(frame);
+  render();
+})();
+</script>
+</body>
+</html>
