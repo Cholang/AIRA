@@ -80,7 +80,8 @@ public class AscomAxisLateStartTests
     {
         var d = new StuckStopDriver();
         var axis = new AscomAxis(NullLogger<AscomAxis>.Instance) { CommandLimit = TimeSpan.FromMilliseconds(300), Factory = () => d };
-        Assert.Null(await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None)); // 회전은 됐지만 끝의 멈춤이 막힘
+        // 회전은 됐지만 끝의 멈춤이 막힘 → 성공이 아니다 (2026-10-14: 멈춤이 안 들어갔으면 부른 쪽이 비상 정지·확인을 하게)
+        Assert.Equal(AscomAxis.StopNotSent, await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None));
         var next = await axis.RotateRaAsync(0.5, 0.1, _ => { }, CancellationToken.None);
         Assert.NotNull(next); // 예전 멈춤이 남아 있으면 새 회전은 보내지 않는다 (새 회전 중에 늦게 멈추지 않게)
         Assert.Equal([0.5], d.Seen());

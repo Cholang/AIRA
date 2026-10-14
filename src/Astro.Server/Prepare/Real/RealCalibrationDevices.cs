@@ -16,9 +16,11 @@ public sealed class RealCalibrationDevices(NinaRig rig, Phd2Client phd2) : ICali
     {
         if (await rig.MountAsync(ct) is not { } m) return new(false, 0, "적도의가 응답하지 않습니다");
         var ra = ((m.SiderealHours - hourAngle) * 15 % 360 + 360) % 360;
-        if (await rig.StartSlewAsync(ra, decDeg, ct) is { } problem) return new(false, 0, problem);
+        // 시작 요청 실패·도착 확인 실패는 멈춤을 뜻하지 않는다 → 멈추고 멈춘 것을 확인 (2026-10-14 자체 리뷰: 움직이는 채로 다음 위치로 이동 명령을 보냈다)
+        if (await rig.StartSlewAsync(ra, decDeg, ct) is { } problem)
+            return new(false, 0, problem, StopUnconfirmed: !await rig.StopSlewAndConfirmAsync(ct));
         var arrived = await rig.WaitSlewAsync(ra, decDeg, null, TimeSpan.FromMinutes(4), ct);
-        return arrived is { } d ? new(true, d) : new(false, 0, "이동이 끝나지 않았습니다");
+        return arrived is { } d ? new(true, d) : new(false, 0, "이동이 끝나지 않았습니다", StopUnconfirmed: !await rig.StopSlewAndConfirmAsync(ct));
     }
 
     public async Task<StarPick> SelectStarAsync(CancellationToken ct)
@@ -101,10 +103,12 @@ public sealed class RealCalibrationDevices(NinaRig rig, Phd2Client phd2) : ICali
         catch (Exception e) when (e is Phd2Exception or InvalidOperationException) { return false; }
     }
 
+    /// <summary>적도의 멈춤과 PHD2 멈춤을 함께 보낸다 — PHD2가 답하지 않아도 적도의 멈춤이 뒤로 밀리지 않게 (2026-10-14 자체 리뷰)</summary>
     public async Task<bool> StopAsync(CancellationToken ct)
     {
-        var phd = await StopPhd2Async(ct);
-        return await rig.StopSlewAndConfirmAsync(ct) && phd;
+        var mount = rig.StopSlewAndConfirmAsync(ct);
+        var phd = StopPhd2Async(ct);
+        return await mount & await phd;
     }
 
     public async Task<CalibrationEndState> ReadEndStateAsync(CancellationToken ct)

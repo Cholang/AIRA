@@ -13,7 +13,7 @@ namespace Astro.Server.Assistant;
 
 public sealed class AssistantOptions
 {
-    /// <summary>gemini · scripted(연습 대화, AI 없음). 새 회사를 붙이면 여기에 이름을 더한다 (ChatModelFactory)</summary>
+    /// <summary>gemini · scripted(AI 없음 — 계획 화면은 이름 검색만). 새 회사를 붙이면 여기에 이름을 더한다 (ChatModelFactory)</summary>
     public string Provider { get; set; } = "gemini";
 
     /// <summary>앞에서부터 시도한다. 과부하면 다음 모델로</summary>
@@ -33,15 +33,15 @@ public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpCl
     private string Key(AssistantOptions o) =>
         (o.Provider == "gemini" ? settings?.GeminiKey : null) ?? o.ApiKeys.GetValueOrDefault(o.Provider) ?? "";
 
-    /// <summary>실제 AI를 쓸 수 없는 이유 (설정이 연습 대화이거나 키가 없음). 쓸 수 있으면 null</summary>
+    /// <summary>실제 AI를 쓸 수 없는 이유 (설정이 AI 없음이거나 키가 없음) — 화면에 "… 대상은 이름으로 찾을 수 있어요" 앞에 붙는다. 쓸 수 있으면 null</summary>
     public string? PracticeReason
     {
         get
         {
             var o = options.Value;
-            if (o.Provider == "scripted") return "지금은 연습 대화입니다. AI 없이 정해진 순서로 묻습니다.";
-            if (settings is { AiEnabled: false }) return "설정에서 AI 비서를 꺼 두어 연습 대화로 진행합니다.";
-            if (string.IsNullOrWhiteSpace(Key(o))) return "AI 키가 없어 연습 대화로 진행합니다. 설정에서 키를 넣을 수 있어요.";
+            if (o.Provider == "scripted") return "AI 비서를 쓰지 않는 설정이에요.";
+            if (settings is { AiEnabled: false }) return "설정에서 AI 비서를 꺼 두었어요.";
+            if (string.IsNullOrWhiteSpace(Key(o))) return "AI 키가 없어요(설정에서 넣을 수 있어요).";
             return null;
         }
     }
@@ -61,8 +61,6 @@ public sealed class ChatModelFactory(IOptions<AssistantOptions> options, IHttpCl
         }
     }
 
-    /// <summary>연습 대화 (AI 없음). 계획 칸은 같은 도구로 채운다</summary>
-    public static IChatModel Practice(Func<ShootingPlan> plan) => new ScriptedChatModel(plan);
 }
 
 /// <summary>화면에 보여 줄 대화 한 줄 (도구 호출 등은 빼고 글만)</summary>
@@ -95,10 +93,9 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
     private ShootingPlan _plan = new();
     private NightContext? _night;
     private DateOnly _evening;
-    /// <summary>AI 한도가 다 되어 연습 대화로 넘어간 경우, 한도가 다시 차는 시각까지</summary>
+    /// <summary>AI 한도·키 문제로 이름 검색만 쓰는 동안, 한도가 다시 차는 시각까지</summary>
     private DateTimeOffset _practiceUntil = DateTimeOffset.MinValue;
     private string _practiceReason = "";
-    private bool _noticeShown;
 
     public ShootingPlan Plan => _plan;
 
@@ -169,10 +166,16 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         _history.Clear();
         _display.Clear();
         _plan = new ShootingPlan { Asking = "target" };
-        _noticeShown = false;
         // AI가 없으면 대화 없이 이름 검색만 (2026-10-14 사용자 결정) — 인사도 두지 않는다. 오늘 밤 한 줄은 화면 오른쪽에 늘 있다
         if (PracticeReason is null) _display.Add(new DisplayMessage("assistant", Greeting, ["오늘 뭐가 좋을까?"]));
         return null;
+    }
+
+    /// <summary>방금 받은 사용자 말을 기록에서 뺀다 (답하지 못한 말 — 다시 보내면 처음처럼)</summary>
+    private void ForgetLastUserMessage()
+    {
+        if (_history.Count > 0 && _history[^1].Role == ChatRole.User) _history.RemoveAt(_history.Count - 1);
+        if (_display.Count > 0 && _display[^1].Role == "user") _display.RemoveAt(_display.Count - 1);
     }
 
     /// <summary>AI를 쓸 수 없는 이유 (설정·키 없음·오늘 한도). 쓸 수 있으면 null — 화면은 이때 대화 대신 이름 검색만</summary>
@@ -287,15 +290,15 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
             _display.Add(new DisplayMessage("user", text));
             _history.Add(ChatMessage.User(text));
 
-            // 실제 AI를 쓸 수 없으면 연습 대화 (설정·키 없음·오늘 한도 초과)
-            var reason = PracticeReason;
-            var model = reason is null ? models.Create() : ChatModelFactory.Practice(() => _plan);
-            if (reason is not null && !_noticeShown)
+            // AI를 쓸 수 없으면(설정·키 없음·오늘 한도) 대화하지 않는다 — 화면이 이름 검색만 보이게 (2026-10-14 사용자 결정 "AI가 없으면 이름 검색만".
+            // 예전의 연습 대화는 지운 도구 모양을 기대해 대상을 고르면 오류가 났다 — 자체 리뷰)
+            if (PracticeReason is { } reason)
             {
-                _noticeShown = true;
-                _display.Add(new DisplayMessage("notice", reason));
-                yield return Event("notice", new { message = reason });
+                ForgetLastUserMessage();
+                yield return Event("practice", new { reason });
+                yield break;
             }
+            var model = models.Create();
             var said = new StringBuilder();
             IReadOnlyList<string>? choices = null;
 
@@ -340,23 +343,15 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
                 await pump;
                 log.LogInformation("AI 호출 {Round}번째: 보낸 글자 약 {Sent} · 첫 응답 {First}ms · 전체 {Total}ms ({Model})", round + 1, sent, firstChunkMs, roundWatch.ElapsedMilliseconds, model.GetType().Name);
 
-                // 한도 초과·키 문제: 이 대화부터 연습 대화로 넘어가 같은 말을 이어서 처리한다
-                if (failure is not null && failureKind is ChatFailure.Quota or ChatFailure.Key && model is not ScriptedChatModel)
+                // 한도 초과·키 문제: 이제부터 이름 검색만 (화면이 바꾼다)
+                if (failure is not null && failureKind is ChatFailure.Quota or ChatFailure.Key)
                 {
                     // 한도: 다시 차는 시각까지 / 키: 앱을 다시 켤 때까지 (키를 고치면 다시 켜야 하므로)
                     _practiceUntil = failureKind == ChatFailure.Quota ? NextQuotaReset() : DateTimeOffset.MaxValue;
-                    _practiceReason = failureKind == ChatFailure.Quota
-                        ? "오늘 AI 사용 한도를 다 써서 연습 대화로 진행합니다."
-                        : "AI 키에 문제가 있어 연습 대화로 진행합니다.";
-                    var notice = failureKind == ChatFailure.Quota
-                        ? "AI 한도가 다 되어 연습 대화로 이어갑니다."
-                        : "AI 키에 문제가 있어 연습 대화로 이어갑니다.";
-                    _noticeShown = true;
-                    _display.Add(new DisplayMessage("notice", notice));
-                    yield return Event("notice", new { message = notice });
-                    model = ChatModelFactory.Practice(() => _plan);
-                    round--;
-                    continue;
+                    _practiceReason = failureKind == ChatFailure.Quota ? "오늘 AI 사용 한도를 다 썼어요." : "AI 키에 문제가 있어요.";
+                    if (round == 0) ForgetLastUserMessage();
+                    yield return Event("practice", new { reason = _practiceReason });
+                    yield break;
                 }
 
                 if (failure is not null || reply is null)
@@ -517,6 +512,8 @@ public static class PlanView
             asking = p.Asking,
             night = PlanAssistant.NightSummary(n),
             current = p.Target?.Id,
+            // 지금 대상의 시작을 사용자가 옮겼나 — 시간대가 없어져도 되돌리기를 보이게
+            startMoved = p.Target is { } cur && p.StartOverrides.ContainsKey(cur.Id),
             picks = p.Picks.Select(x => new
             {
                 id = x.Id, name = x.Name, koreanName = x.KoreanName, commonName = x.CommonName, type = x.Type, constellation = x.Constellation,

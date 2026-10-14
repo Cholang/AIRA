@@ -227,7 +227,9 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         _run = Task.Run(async () =>
         {
             try { await previous; } catch (Exception) { /* 이전 실행의 오류는 그쪽에서 기록 */ }
-            await RunAsync(ctx, ct);
+            // 찍는 동안 PC가 절전에 들지 않게 (끝·중단·오류 모두 풀림)
+            using (Engine.KeepAwake.Hold($"{Core.Product.Name} 촬영 중"))
+                await RunAsync(ctx, ct);
         }, CancellationToken.None);
     }
 
@@ -414,6 +416,9 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
                     _framesLastTry = DateTimeOffset.Now;
                 }
 
+                // 반전·초점·가이드 별 확인 사이에 끝 조건이 됐으면(멈춤 포함) 새 사진을 시작하지 않는다 (2026-10-14 자체 리뷰: 한 장 더 찍고 멈춰 종료 한도를 넘겼다)
+                if (EndReason(ctx) is { } lateWhy) { await EndAsync(lateWhy, ct); return; }
+
                 // 한 장 (찍는 동안에도 가이드 별을 지켜봄 — 오래 잃으면 이 장을 멈추고 버림)
                 Set(() => { _mode = _stopRequested ? ShootMode.Finishing : ShootMode.Shoot; _elapsed = 0; });
                 var (shot, lost) = await ExposeWatchedAsync(ctx, ct);
@@ -510,8 +515,10 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
     private string? EndReason(PrepContext ctx) =>
         _stopRequested ? "user"
         : _good >= ctx.Plan.EstimatedFrames ? "done"
-        : !ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < ctx.Plan.MinAltitude ? "low"
-        : ctx.Now() >= ctx.Plan.End ? "dawn"
+        // 고도로 끝내는 것은 대상이 내려갈 때(자오선을 지난 뒤)만 — 올라오는 중에 촬영을 시작하면(지금 이동·준비가 빨리 끝남) 첫 장 전에 끝나 버렸다 (2026-10-14 자체 리뷰)
+        : !ctx.IgnoreAltitude && devices.HourAngleDeg(ctx) > 0 && devices.TargetAltitude(ctx) < ctx.Plan.MinAltitude ? "low"
+        // 계획 끝 시각: 새벽이거나 고도 한계(계획이 그때를 끝으로 계산) — 고도가 한계 근처면 low로 알린다 (새벽 2시에 "새벽 박명"이라 하지 않게)
+        : ctx.Now() >= ctx.Plan.End ? (!ctx.IgnoreAltitude && devices.HourAngleDeg(ctx) > 0 && devices.TargetAltitude(ctx) < ctx.Plan.MinAltitude + 1 ? "low" : "dawn")
         : null;
 
     /// <summary>
@@ -864,11 +871,18 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
 
     private static int Median(List<int> xs) => xs.Order().ElementAt(xs.Count / 2);
 
-    /// <summary>끝: 가이딩을 멈추고(마무리·다른 대상 모두 필요) 끝 이유를 남긴다</summary>
+    /// <summary>
+    /// 끝: 가이딩을 멈추고(마무리·다른 대상 모두 필요) 추적도 끈 뒤 끝 이유를 남긴다. 추적을 끄는 까닭: 저절로 끝나면(장수·고도·새벽·오류) 사람이 없을 수 있어
+    /// 아침까지 RA축이 돌아 한계·케이블 쪽으로 간다 (2026-10-14 자체 리뷰 — 극축 정렬 중 종료 사고와 같은 상황). 마무리·다른 대상은 추적이 필요 없다
+    /// </summary>
     private async Task EndAsync(string reason, CancellationToken ct)
     {
         Set(() => { _mode = ShootMode.Finishing; _note = new StatusLine("가이딩을 멈추고 확인하는 중입니다", Tone.Busy); _noteUntil = DateTimeOffset.MaxValue; });
         var stopped = !_hasGuider || await TryStopGuidingAsync(ct);
+        bool trackingOff;
+        try { trackingOff = await devices.TrackingOffAsync(ct); }
+        catch (Exception e) when (e is not OperationCanceledException) { log.LogWarning(e, "촬영 끝 추적 끄기 실패"); trackingOff = false; }
+        if (!trackingOff) log.LogWarning("촬영 끝: 추적을 끄지 못함");
         Set(() =>
         {
             _mode = ShootMode.Ended;
@@ -877,6 +891,7 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
             // 끝 이유 알림(실패)이 있으면 그대로, 없으면 가이딩 정지 결과
             if (!_mountStill) _note = new StatusLine("적도의가 멈췄는지 확인하지 못했어요. 적도의를 확인한 뒤 \"장비 상태 다시 확인\"을 눌러 주세요", Tone.Fail);
             else if (!stopped) _note = new StatusLine("가이딩이 멈췄는지 확인하지 못했어요. PHD2를 확인한 뒤 \"장비 상태 다시 확인\"을 눌러 주세요", Tone.Fail);
+            else if (!trackingOff) _note = new StatusLine("적도의 추적을 끄지 못했어요. 켜 둔 채 두면 적도의가 계속 돌아가니 N.I.N.A.에서 추적을 꺼 주세요", Tone.Fail);
             else if (_note is not { Tone: Tone.Fail }) _note = new StatusLine(_hasGuider ? "가이딩을 멈췄어요" : "촬영을 마쳤어요", Tone.Ok);
             _noteUntil = DateTimeOffset.MaxValue;
         });
@@ -909,6 +924,9 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         Set(() => { _guideStopped = true; _note = new StatusLine("장비가 멈춘 것을 확인했어요", Tone.Ok); _noteUntil = DateTimeOffset.MaxValue; });
         return null;
     }
+
+    /// <summary>촬영이 끝났는데 적도의가 멈춘 것을 확인하지 못함 (반전 실패 뒤 등) — 종료 절차가 본다</summary>
+    public bool MountUnconfirmed { get { lock (_gate) return _ctx is not null && _mode == ShootMode.Ended && !_mountStill; } }
 
     /// <summary>마무리·다른 대상으로 가도 되는가 (찍는 중이거나 가이딩 정지를 확인하지 못했으면 이유)</summary>
     public string? BlocksNext()

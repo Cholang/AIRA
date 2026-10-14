@@ -18,7 +18,8 @@ public interface ICalibrationDevices
     Task<CalibrationEndState> ReadEndStateAsync(CancellationToken ct);
 }
 
-public sealed record SlewOutcome(bool Ok, double ArrivalErrorDeg, string? Problem = null);
+/// <summary>StopUnconfirmed = 이동이 끝나지 않아 멈췄지만 멈춘 것을 확인하지 못함 — 다음 위치로 가지 않고 확인부터 (2026-10-14)</summary>
+public sealed record SlewOutcome(bool Ok, double ArrivalErrorDeg, string? Problem = null, bool StopUnconfirmed = false);
 public sealed record StarPick(bool Found, double Snr, double ExposureSeconds);
 /// <summary>캘리브레이션 결과. Warnings = PHD2 경고(직교 오차·두 축 속도 차·Dec 백래시)</summary>
 public sealed record CalibrationData(bool Ok, double OrthogonalityErrorDeg, double RaRate, double DecRate, IReadOnlyList<string> Warnings, string? Problem = null);
@@ -144,6 +145,21 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         SlewOutcome moved;
         await using (await run.Context.Mount.AcquireAsync(ct))
             moved = await devices.SlewToHourAngleAsync(pos.HourAngle, 0, ct);
+        if (moved.StopUnconfirmed)
+        {
+            // 멈춘 것을 확인하기 전에는 다음 위치로 옮기지 않는다
+            var still = false;
+            while (!still)
+            {
+                run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
+                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                await using (await run.Context.Mount.AcquireAsync(ct))
+                    still = await devices.StopAsync(ct);
+            }
+            run.Status($"위치 {pos.Name}에 가지 못해 적도의를 멈췄습니다", Tone.Warn);
+            await run.AskAsync([new("next-position", "다음 위치로 이동", true)], ct);
+            return null;
+        }
         if (!moved.Ok || moved.ArrivalErrorDeg > ArrivalLimitDeg)
         {
             run.Status($"위치 {pos.Name}에 제대로 가지 못했습니다 — 다음 위치로 옮깁니다", Tone.Warn);

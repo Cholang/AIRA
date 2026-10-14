@@ -104,7 +104,12 @@ public sealed class DsoCatalog
             return found;
         }
 
-        foreach (var name in KoreanNames.Find(query)) Add(Find(name, 1));
+        // 한국어 통칭: 맞는 이름마다 한 번씩 찾되, 다 차면 멈춘다 ("성운"처럼 짧은 말은 수십 개가 맞는다)
+        foreach (var name in KoreanNames.Find(query))
+        {
+            if (found.Count >= limit) break;
+            Add(Find(name, 1));
+        }
         Add(Find(query, limit));
         return found;
     }

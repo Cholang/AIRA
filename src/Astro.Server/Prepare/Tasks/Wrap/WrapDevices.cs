@@ -135,6 +135,11 @@ public sealed class RealWrapDevices(NinaRig rig, Engine.NinaWatcher watcher, ILo
     // 마무리는 아이라가 켰든 아니든 닫는다 (장비 정리 끝 — 사용자가 전원을 끔)
     public Task<bool> CloseProgramsAsync(CancellationToken ct) => (closer ?? new Engine.ProgramCloser(watcher, Microsoft.Extensions.Logging.Abstractions.NullLogger<Engine.ProgramCloser>.Instance)).CloseAsync(ct);
 
-    public async Task<bool> StopAsync(CancellationToken ct) =>
-        await rig.AbortExposureAsync(ct) & await rig.StopSlewAndConfirmAsync(ct);
+    /// <summary>적도의 멈춤과 노출 중단을 함께 (적도의 멈춤이 카메라 기다림 뒤로 밀리지 않게, 2026-10-14 자체 리뷰)</summary>
+    public async Task<bool> StopAsync(CancellationToken ct)
+    {
+        var mount = rig.StopSlewAndConfirmAsync(ct);
+        var camera = rig.AbortExposureAsync(ct);
+        return await mount & await camera;
+    }
 }

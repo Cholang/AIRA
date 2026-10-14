@@ -43,6 +43,14 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
     private bool _acceptHere;
     /// <summary>시각이 이른데 사용자가 "지금 이동"을 골랐다 (한 번 쓰고 끈다)</summary>
     private bool _moveNow;
+    /// <summary>
+    /// 사용자가 이번에 이동을 누른 것이 있는가 (2026-10-14 사용자 결정 — 큰 이동은 늘 누른 뒤에만): 계획 화면에서 방금 누른 이동 버튼(확정 직후 한 번),
+    /// "지금 이동", 때가 된 뒤의 "이동", 멈춘 뒤의 "다시 이동"·실패 뒤의 "다시 시도". 기다리기에 들어가면 지운다(때가 되면 다시 누른다).
+    /// 장비 준비를 다시 하고 돌아올 때·아이라를 다시 켜 이어 갈 때·N.I.N.A.를 다시 켠 뒤에는 승인이 없어 "○○로 이동"을 묻는다
+    /// </summary>
+    private bool _approved;
+    /// <summary>계획 화면의 이동 버튼을 누르고 이만큼 안에 시작한 대상 이동만 그 누름을 이동 승인으로 본다</summary>
+    private static readonly TimeSpan ApprovalWindow = TimeSpan.FromMinutes(2);
 
     private Completed Accepted(PrepContext ctx) =>
         new(new SlewResult(0, devices.TargetAltitude(ctx), ctx.Now(), AcceptedHere: true), "지금 위치를 목표로", "지금 위치에서 찍어요",
@@ -53,11 +61,23 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         var ctx = run.Context;
         _acceptHere = false;
         _moveNow = false;
+        _approved = ctx.MoveApprovalUsed != ctx.Plan.ConfirmedAt && DateTimeOffset.Now - ctx.Plan.ConfirmedAt < ApprovalWindow;
+        ctx.MoveApprovalUsed = ctx.Plan.ConfirmedAt;
         run.Live("sky-map");
         while (true)
         {
             run.SubStep(0);
             await WaitUntilMoveAsync(run, ct);
+            if (!_approved)
+            {
+                // 누름 없이는 움직이지 않는다: 케이블 안내와 함께 이동 버튼
+                ShowAltitude(run, ctx);
+                run.Guide($"{Core.Josa.Ro(ctx.TargetName)} 이동합니다", "누르면 적도의가 대상 쪽으로 크게 돕니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.");
+                run.Status(null);
+                await run.AskAsync([new("move", $"{Core.Josa.Ro(ctx.TargetName)} 이동", true)], ct);
+                _approved = true;
+                if (TooLow(ctx)) continue; // 누르는 사이 낮아졌으면 다시 기다리기
+            }
             var moved = await MoveAsync(run, ct);
             if (_acceptHere) return Accepted(ctx);
             if (moved is null) continue; // 멈춤 → 다시 이동을 누르면 처음부터(고도 확인 포함)
@@ -90,6 +110,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         var ctx = run.Context;
         while (TooLow(ctx) || TooEarly(ctx))
         {
+            _approved = false;
             ShowAltitude(run, ctx);
             if (TooLow(ctx))
             {
@@ -113,6 +134,8 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
                 if (await run.AskAsync([new("wait", "기다리기", true), new("move-now", "지금 이동")], ct) == "move-now")
                 {
                     _moveNow = true;
+                    _approved = true;
+                    if (TooLow(ctx)) continue; // 묻는 사이 15° 아래로 내려갔으면 다시 (2026-10-14 자체 리뷰)
                     return;
                 }
             }
@@ -136,6 +159,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
                 asking.Cancel();
                 try { await endWait; } catch (OperationCanceledException) { }
                 await run.AskAsync([new("move", "이동", true)], ct);
+                _approved = true;
                 return;
             }
             if (TooLow(ctx))
@@ -164,16 +188,20 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         while (true)
         {
             run.SubStep(1);
-            run.Guide($"{ctx.TargetName}로 이동하고 있습니다", "적도의가 대상 쪽으로 돌고 있습니다. 케이블이 걸리면 멈춤을 누르세요.");
-            run.Status("이동 중입니다");
             using var moving = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var asking = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var stop = run.AskAsync([new("stop", "멈춤", true)], asking.Token);
+            Task<string?> stop;
             Task<SlewMove> slew;
             var stopPressed = false;
             var stopped = false;
+            // 적도의를 먼저 잡는다 — 홈 이동 등 다른 작업이 쥐고 있으면 끝나기를 기다린다. 멈춤 버튼은 잡은 뒤에만 보인다
+            // (2026-10-14 자체 리뷰: 잡기 전에 멈춤을 보여 눌러도 홈 이동은 계속되고, 홈이 끝나면 대상 이동이 잠깐 나갔다 멈췄다)
+            run.Status("적도의가 다른 동작을 마치기를 기다리는 중입니다");
             await using (await ctx.Mount.AcquireAsync(ct))
             {
+                run.Guide($"{Core.Josa.Ro(ctx.TargetName)} 이동하고 있습니다", "적도의가 대상 쪽으로 돌고 있습니다. 케이블이 걸리면 멈춤을 누르세요.");
+                run.Status("이동 중입니다");
+                stop = run.AskAsync([new("stop", "멈춤", true)], asking.Token);
                 slew = devices.SlewToTargetAsync(ctx.Plan.RaDegrees, ctx.Plan.DecDegrees,
                     d => run.Readout("distance", $"{d:F1}°", "대상까지 남은 거리 (적도의 위치)", Tone.Busy, new Dictionary<string, double> { ["remainingDeg"] = d }, live: true), moving.Token);
                 await Task.WhenAny(slew, stop);
@@ -205,9 +233,21 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
             try { await stop; } catch (OperationCanceledException) { }
             var result = await slew;
             if (result.Ok) return result;
+            // 응답 없음·시간 초과는 멈춤을 뜻하지 않는다 → 멈추고 멈춘 것을 확인한 뒤에만 다시 시도 (2026-10-14 자체 리뷰: 움직이는 적도의에 새 이동을 보낼 수 있었다)
             run.Guide("이동을 마치지 못했습니다", "적도의가 응답하지 않습니다. 적도의 전원과 케이블을 확인해 주세요.");
+            run.Status("적도의를 멈추고 확인하는 중입니다", Tone.Busy);
+            await using (await ctx.Mount.AcquireAsync(ct))
+                stopped = await TryStopAsync();
+            while (!stopped)
+            {
+                run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
+                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                await using (await ctx.Mount.AcquireAsync(ct))
+                    stopped = await TryStopAsync();
+            }
             run.Status(result.Problem ?? "이동하지 못했습니다", Tone.Fail);
             if (await run.AskAsync([new("move", "다시 시도", true), AcceptHere], ct) == "here") { _acceptHere = true; return null; }
+            return null; // 바깥 반복이 고도·시각을 다시 본 뒤 옮긴다 (다시 시도를 눌렀으니 승인은 그대로)
         }
     }
 

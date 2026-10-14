@@ -67,6 +67,8 @@ export interface Plan {
   /** 오늘 밤 한 줄 (어두운 시간 · 달 · 구름) */
   night: string
   current: string | null
+  /** 지금 대상의 시작을 사용자가 옮겼나 (시간대가 없어도 되돌리기를 보인다) */
+  startMoved: boolean
   picks: PlanPick[]
   fov: { width: number; height: number; camera: string; telescope: string }
   settings: PlanSettings | null
@@ -191,6 +193,8 @@ export type ChatEvent =
   /** AI가 도구를 쓰는 동안 지금 하는 일 (답 글자가 오기 전까지 점 옆에) */
   | { type: 'status'; message: string }
   | { type: 'error'; message: string }
+  /** AI를 쓸 수 없게 됨(한도·키) — 대화 대신 이름 검색만. 이 말은 답하지 않았다 */
+  | { type: 'practice'; reason: string }
   | { type: 'done' }
 
 /** 사용자 말 하나를 보내고, 서버가 보내는 이벤트(SSE)를 하나씩 넘겨준다 */

@@ -233,7 +233,10 @@ public sealed class PlanTools(DsoCatalog catalog, Engine.EquipmentChoices equipm
         var key = s.FilterKey ?? PlanRules.FilterKey(s.Filter);
         if (filter is not null)
         {
-            var newKey = PlanRules.Filters.Any(f => f.Key == filter) ? filter : PlanRules.FilterKey(filter);
+            // 모르는 필터는 조용히 기본 필터로 바꾸지 않는다 (Codex C06 원칙 — 2026-10-14 자체 리뷰)
+            if (!PlanRules.Filters.Any(f => f.Key == filter || f.Label == filter))
+                return $"필터는 {string.Join(", ", PlanRules.Filters.Select(f => f.Label))} 가운데에서 골라 주세요.";
+            var newKey = PlanRules.FilterKey(filter);
             var (oldExposure, oldIso) = DefaultsFor(n, key);
             var (newExposure, newIso) = DefaultsFor(n, newKey);
             s = s with

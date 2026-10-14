@@ -31,7 +31,7 @@ import styles from './PlanScreen.module.css'
  * 왼쪽 30%: 아이라와의 대화(AI가 없으면 이름 검색만). 오른쪽 70%: 오늘 밤 한 줄 · 프레임 미리보기 · 일몰~일출 그래프 · 촬영 설정 줄과 이동 버튼.
  * 화면 조작과 AI가 같은 계획(서버)을 고친다. 숫자는 모두 서버 계산 값이다. 이동 버튼을 누르면 적도의가 움직인다(기다려야 하면 기다리기 화면).
  */
-export default function PlanScreen({ onContinue }: { onContinue: () => void }) {
+export default function PlanScreen({ onContinue, notice = null }: { onContinue: () => void; /** 계획 화면에 오며 생긴 알림(추적을 끄지 못함 등) — 오류 줄에 */ notice?: string | null }) {
   const [state, setState] = useState<PlanState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -53,7 +53,7 @@ export default function PlanScreen({ onContinue }: { onContinue: () => void }) {
       </main>
     )
   if (!state) return <main className={styles.plan} aria-busy="true" />
-  return <PlanBody initial={state} onContinue={onContinue} />
+  return <PlanBody initial={state} onContinue={onContinue} notice={notice} />
 }
 
 /** 대상 단계의 작업 (진행 표시). 계획 화면에서는 계획이 지금 작업이고 나머지는 대상 묶음(서버)이 이어서 한다 */
@@ -66,11 +66,16 @@ const TARGET_ITEMS = [
   ['test', '시험 사진'],
 ] as const
 
-function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () => void }) {
+function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onContinue: () => void; notice: string | null }) {
   useRailExtra({ stage: '대상', items: TARGET_ITEMS.map(([id, label], i) => ({ id, label, state: i === 0 ? 'now' : 'todo' })) })
   const [plan, setPlan] = useState<Plan>(initial.plan)
   const [chart, setChart] = useState<Chart>(initial.chart)
-  const [error, setError] = useState<string | null>(null)
+  // AI를 쓸 수 없는 이유 — 대화 도중 한도가 다 되면 서버가 알려 이름 검색으로 바뀐다 (1분마다 받는 상태로도)
+  const [practiceReason, setPracticeReason] = useState<string | null>(initial.practiceReason)
+  const [error, setError] = useState<string | null>(notice)
+  useEffect(() => {
+    if (notice) setError(notice)
+  }, [notice])
 
   const refreshChart = useCallback(() => {
     fetch('/api/plan/chart')
@@ -79,15 +84,22 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
       .catch(() => {})
   }, [])
 
+  // 계획이 바뀐 횟수 (화면 고치기·AI 답) — 그 전에 보낸 1분 상태가 늦게 와서 새 값을 덮지 않게
+  const changes = useRef(0)
+  // 서버가 거절한 횟수 — 숫자 칸이 거절된 값을 그대로 보이지 않고 계획 값으로 돌아가게
+  const [rejects, setRejects] = useState(0)
+
   // 시각이 흐르면(지금 선·가장 이른 시작) 1분마다 다시 받는다
   useEffect(() => {
     const t = window.setInterval(() => {
+      const at = changes.current
       fetch('/api/plan/state')
         .then((r) => (r.ok ? r.json() : null))
         .then((s: PlanState | null) => {
-          if (!s || s.error) return
+          if (!s || s.error || changes.current !== at) return
           setPlan(s.plan)
           setChart(s.chart)
+          setPracticeReason(s.practiceReason ?? null)
         })
         .catch(() => {})
     }, 60_000)
@@ -97,13 +109,19 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
   /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에 */
   const edit = useCallback(async (change: () => Promise<Edited>) => {
     setError(null)
+    changes.current++
     try {
       const r = await change()
       setPlan(r.plan)
       setChart(r.chart)
     } catch (e) {
       setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
+      setRejects((n) => n + 1)
     }
+  }, [])
+  const planFromChat = useCallback((p: Plan) => {
+    changes.current++
+    setPlan(p)
   }, [])
 
   // 이동: 서버가 계획을 실행 값으로 확정하고 대상 묶음(이동부터)으로 넘어간다. 실행할 수 없는 계획이면 이유를 오류 줄에
@@ -131,10 +149,11 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
     <main className={styles.plan}>
       <PlanChat
         initialMessages={initial.messages}
-        practiceReason={initial.practiceReason}
+        practiceReason={practiceReason}
+        onPractice={setPracticeReason}
         error={error}
         onError={setError}
-        onPlan={setPlan}
+        onPlan={planFromChat}
         onTurnEnd={refreshChart}
         onPick={(id) => void edit(() => pickTarget(id))}
       />
@@ -165,6 +184,7 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
           waits={waits}
           moveAt={chartCurrent?.window ? clockOf(chart, chartCurrent.window.moveAt) : null}
           starting={starting}
+          rejects={rejects}
           onChange={(change) => void edit(() => changeSettings(change))}
           onGo={() => void start()}
         />
@@ -178,6 +198,7 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
 function PlanChat({
   initialMessages,
   practiceReason,
+  onPractice,
   error,
   onError,
   onPlan,
@@ -187,6 +208,8 @@ function PlanChat({
   initialMessages: Message[]
   /** AI를 쓸 수 없는 이유 — 있으면 대화 없이 이름 검색만 */
   practiceReason: string | null
+  /** 대화 도중 AI를 쓸 수 없게 됨 */
+  onPractice: (reason: string) => void
   error: string | null
   onError: (e: string | null) => void
   onPlan: (p: Plan) => void
@@ -212,7 +235,13 @@ function PlanChat({
     const q = draft.trim()
     if (!q) return setFound(null)
     let alive = true
-    const t = window.setTimeout(() => void searchTargets(q).then((r) => alive && setFound(r)), 150)
+    const t = window.setTimeout(
+      () =>
+        void searchTargets(q)
+          .then((r) => alive && setFound(r))
+          .catch(() => alive && setFound(null)),
+      150,
+    )
     return () => {
       alive = false
       window.clearTimeout(t)
@@ -237,6 +266,7 @@ function PlanChat({
         return [...next, { role: 'user', text }, { role: 'assistant', text: '' }]
       })
       let failed: string | null = null
+      let practice: string | null = null
       try {
         await sendChat(text, (e) => {
           if (e.type === 'status') setWorking(e.message)
@@ -255,11 +285,17 @@ function PlanChat({
             // 안내 줄은 지금 쓰는 답(마지막 빈 말풍선) 앞에 넣는다
             setMessages((list) => [...list.slice(0, -1), { role: 'notice', text: e.message }, list[list.length - 1]])
           else if (e.type === 'error') failed = e.message
+          else if (e.type === 'practice') practice = e.reason
         })
       } catch {
         failed = `${PRODUCT.name} 내부 서버와 연결이 끊겼습니다. 다시 보내 주세요.`
       }
-      if (failed) {
+      if (practice) {
+        // 답하지 않은 말은 빼고 입력창에 되돌려 둔다 — 그 글자로 바로 이름 검색이 된다
+        setMessages((list) => list.slice(0, -2))
+        if (!fromChoice) setDraft(text)
+        onPractice(practice)
+      } else if (failed) {
         // 실패한 말은 대화에서 빼고 입력창에 되돌려 둔다 (서버도 기록에서 뺐다)
         setMessages((list) => {
           const trimmed = list.slice(0, -2)
@@ -274,7 +310,7 @@ function PlanChat({
       setBusy(false)
       setWorking(null)
     },
-    [busy, onError, onPlan, onTurnEnd],
+    [busy, onError, onPlan, onTurnEnd, onPractice],
   )
 
   const choose = (t: FoundTarget) => {
@@ -418,7 +454,19 @@ function FramePreview({
           )}
         </div>
         <div className={styles.when}>
-          {current && (w ? <WhenLines w={w} minAltitude={minAltitude} onReset={() => onResetStart(current.id)} /> : <p className={styles.warnLine}>오늘 밤에는 찍을 수 있는 시간이 없어요.</p>)}
+          {current &&
+            (w ? (
+              <WhenLines w={w} minAltitude={minAltitude} onReset={() => onResetStart(current.id)} />
+            ) : (
+              <p className={styles.warnLine}>
+                {plan.startMoved ? '옮긴 시작으로는 찍을 수 있는 시간이 없어요. 시작을 기본으로 되돌려 보세요.' : '오늘 밤에는 찍을 수 있는 시간이 없어요.'}
+                {plan.startMoved && (
+                  <span className={styles.inlineReset}>
+                    <ResetMark shown onReset={() => onResetStart(current.id)} label={`시작을 기본으로 (${minAltitude}° 위가 되는 때)`} />
+                  </span>
+                )}
+              </p>
+            ))}
         </div>
       </div>
     </section>
@@ -485,6 +533,7 @@ function SettingsRow({
   waits,
   moveAt,
   starting,
+  rejects,
   onChange,
   onGo,
 }: {
@@ -494,6 +543,8 @@ function SettingsRow({
   waits: boolean
   moveAt: string | null
   starting: boolean
+  /** 서버가 거절한 횟수 — 바뀌면 숫자 칸이 계획 값으로 돌아간다 */
+  rejects: number
   onChange: (c: { filter?: string; iso?: number; exposure?: number; totalMinutes?: number }) => void
   onGo: () => void
 }) {
@@ -541,6 +592,7 @@ function SettingsRow({
               step={10}
               unit=""
               onCommit={(v) => onChange({ iso: v })}
+              revision={rejects}
               disabled={off}
               reset={<ResetMark shown={!!s && s.iso !== s.defaults.iso} onReset={() => s && onChange({ iso: s.defaults.iso })} />}
             />
@@ -555,6 +607,7 @@ function SettingsRow({
             step={o.exposure.step}
             unit="초"
             onCommit={(v) => onChange({ exposure: v })}
+            revision={rejects}
             disabled={off}
             reset={<ResetMark shown={!!s && s.exposure !== s.defaults.exposure} onReset={() => s && onChange({ exposure: s.defaults.exposure })} />}
           />
@@ -568,6 +621,7 @@ function SettingsRow({
             step={o.totalMinutes.step}
             unit="분"
             onCommit={(v) => onChange({ totalMinutes: v })}
+            revision={rejects}
             disabled={off}
             reset={<ResetMark shown={!!s && s.totalMinutes !== s.defaults.totalMinutes} onReset={() => s && onChange({ totalMinutes: s.defaults.totalMinutes })} />}
           />

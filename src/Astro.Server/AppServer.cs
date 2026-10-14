@@ -183,6 +183,9 @@ public static class AppServer
         {
             // 촬영 중이면 지금 사진이 끝나기를 기다려 촬영을 끝낸 뒤 평소 종료 절차로 (CX-30-01 — 아이라가 꺼지면 다음 사진·반전을 볼 주체가 없다.
             // X-T5는 일반 노출을 중단할 수 없어 끝까지 찍는다 — ShootSession.StopForQuitAsync)
+            // 촬영이 끝났지만 적도의가 멈춘 것을 확인하지 못한 상태(반전 실패 등)면 그대로 끄지 않는다 (2026-10-14 자체 리뷰)
+            if (!shoot.Active && shoot.MountUnconfirmed)
+                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영 중 적도의가 멈췄는지 확인하지 못한 채 끝났습니다. 촬영 화면에서 \"장비 상태 다시 확인\"을 누르거나 적도의를 직접 확인해 주세요." });
             if (shoot.Active && !await shoot.StopForQuitAsync())
                 return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영이 끝나기를 기다렸지만 끝나지 않았거나, 가이딩·적도의가 멈췄는지 확인하지 못했습니다. N.I.N.A.·PHD2와 적도의를 직접 확인해 주세요." });
             foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
@@ -203,6 +206,8 @@ public static class AppServer
         api.MapGet("/mount/home", async (Prepare.MountHome home, CancellationToken ct) => Results.Ok(await home.StateAsync(ct)));
         // 홈이 실패해 적도의가 멈췄는지도 확인하지 못했을 때: 사용자가 직접 확인했다고 알림 (CX-20-03)
         // 아이라 종료 전: 적도의 추적 끄기 (촬영 중·미연결이면 할 일 없음). ok=false면 끄지 못함
+        // "그래도 종료": 확인 없이 끄기 전에 가이딩 멈춤·추적 끄기를 한 번씩 시도 (끄지 못했으면 problem)
+        api.MapPost("/quit/force-safe", async (Prepare.MountHome home) => Results.Ok(new { problem = await home.ForceSafeAsync() }));
         api.MapPost("/mount/tracking-off-for-quit", async (Prepare.MountHome home, CancellationToken ct) =>
             Results.Ok(new { ok = await home.TrackingOffForQuitAsync(ct) != false }));
         api.MapPost("/mount/home/confirm", (Prepare.MountHome home) => { home.Confirm(); return Results.NoContent(); });
@@ -343,6 +348,9 @@ public static class AppServer
             await home.RestAfterRigAsync(ct);
             return Results.NoContent();
         });
+        // 다른 대상으로 계획에 돌아올 때: 움직이지 않고 추적만 끈다 (MountHome.RestForPlanAsync). 끄지 못한 까닭은 화면이 계획 위에 알린다
+        prepare.MapPost("/plan/rest", async (Prepare.MountHome home, CancellationToken ct) =>
+            Results.Ok(new { problem = await home.RestForPlanAsync(ct) }));
         prepare.MapPost("/wrap/start", async (Prepare.PrepareStarter starter, Prepare.Flow.PrepareFlow flow, CancellationToken ct) =>
             await starter.StartWrapAsync(ct) is { } problem ? Results.BadRequest(new { error = problem }) : Results.Ok(flow.Wrap.View()));
         prepare.MapPost("/target/start", (Prepare.PrepareStarter starter, Prepare.Flow.PrepareFlow flow) =>
@@ -466,7 +474,9 @@ public static class AppServer
 
         // 화면에서 계획 고치기 (AI 도구와 같은 함수) — 고친 뒤의 계획·그래프를 돌려준다. 고칠 수 없으면 이유
         IResult Edited(PlanAssistant a, string? problem) =>
-            problem is not null ? Results.BadRequest(new { error = problem }) : Results.Ok(new { plan = a.View(), chart = a.Chart() });
+            problem is not null ? Results.BadRequest(new { error = problem })
+            : a.Night is null ? Results.BadRequest(new { error = "오늘 밤 정보가 아직 없습니다. 화면을 다시 열어 주세요." })
+            : Results.Ok(new { plan = a.View(), chart = a.Chart() });
         plan.MapGet("/search", (string? q, PlanAssistant assistant) => Results.Ok(assistant.Search(q ?? "")));
         plan.MapPost("/pick", (PlanTargetInput input, PlanAssistant assistant) => Edited(assistant, assistant.Pick(input.Id)));
         plan.MapPost("/remove", (PlanTargetInput input, PlanAssistant assistant) => Edited(assistant, assistant.Remove(input.Id)));

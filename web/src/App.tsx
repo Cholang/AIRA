@@ -329,7 +329,16 @@ export default function App() {
     fadeTo('engine')
   }, [phase, fadeTo])
   const toRig = useCallback(() => fadeTo('rig'), [fadeTo])
-  const toPlan = useCallback(() => fadeTo('plan'), [fadeTo])
+  // 다른 대상으로 계획에 돌아갈 때: 적도의는 움직이지 않고 추적만 끈다 — 이동까지 오래 기다릴 수 있어서 (2026-10-14). 끄지 못했으면 계획 화면 오류 줄에
+  const [planNotice, setPlanNotice] = useState<string | null>(null)
+  const toPlan = useCallback(() => {
+    setPlanNotice(null)
+    void fetch('/api/prepare/plan/rest', { method: 'POST' })
+      .then((r) => (r.ok ? (r.json() as Promise<{ problem: string | null }>) : null))
+      .then((b) => b?.problem && setPlanNotice(b.problem))
+      .catch(() => null)
+    fadeTo('plan')
+  }, [fadeTo])
   const toTarget = useCallback(() => fadeTo('target'), [fadeTo])
   const toShoot = useCallback(() => fadeTo('shoot'), [fadeTo])
   const toWrap = useCallback(() => fadeTo('wrap'), [fadeTo])
@@ -473,7 +482,7 @@ export default function App() {
           />
         )}
         {phase === 'rig' && <PrepareScreen key="rig" group="rig" onDone={() => void rigDone()} />}
-        {phase === 'plan' && <PlanScreen onContinue={toTarget} />}
+        {phase === 'plan' && <PlanScreen onContinue={toTarget} notice={planNotice} />}
         {phase === 'target' && <PrepareScreen key="target" group="target" onDone={toShoot} onReplan={toPlan} onHandoff={handoff} />}
         {phase === 'shoot' && <ShootScreen onWrap={toWrap} onRetarget={toPlan} />}
         {phase === 'wrap' && <PrepareScreen key="wrap" group="wrap" onDone={toSummary} />}

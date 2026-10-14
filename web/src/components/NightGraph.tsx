@@ -69,14 +69,19 @@ export default function NightGraph({
       last.moved ||= Math.abs(ev.clientX - startX) > 3
       setDrag({ id: p.id, minute: last.minute })
     }
-    const up = () => {
+    const done = (commit: boolean) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', cancel)
       setDrag(null)
-      if (last.moved && Math.round(last.minute) !== Math.round(w.start)) onStartChange(p.id, last.minute)
+      if (commit && last.moved && Math.round(last.minute) !== Math.round(w.start)) onStartChange(p.id, last.minute)
     }
+    const up = () => done(true)
+    // 터치가 취소되면(스크롤 등) 옮기지 않고 끝 — 남은 이벤트가 계속 끌지 않게
+    const cancel = () => done(false)
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', cancel)
   }
   useEffect(() => setDrag(null), [chart])
 

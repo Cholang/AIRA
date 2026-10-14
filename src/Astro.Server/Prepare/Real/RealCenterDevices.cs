@@ -29,8 +29,10 @@ public sealed class RealCenterDevices(NinaRig rig, LiveImages live) : ICenterDev
         {
             // 솔빙으로 맞춘 동기화는 정상 (OPERATION_PROCEDURE.md ⑤) → 그 뒤 대상으로 다시 이동
             await rig.SyncAsync(solvedRa, solvedDec, ct);
-            if (await rig.StartSlewAsync(raDeg, decDeg, ct) is null)
-                await rig.WaitSlewAsync(raDeg, decDeg, null, TimeSpan.FromMinutes(2), ct);
+            // 맞춤 이동이 끝나지 않으면(응답 없음·시간 초과) 멈추고 확인 — 움직이는 채로 다음 사진·동기화로 넘어가지 않게 (2026-10-14 자체 리뷰)
+            var arrived = await rig.StartSlewAsync(raDeg, decDeg, ct) is null && await rig.WaitSlewAsync(raDeg, decDeg, null, TimeSpan.FromMinutes(2), ct) is not null;
+            if (!arrived && !await rig.StopSlewAndConfirmAsync(ct))
+                return new CenterAttempt(true, _lastError, double.IsFinite(angle) ? angle : null, StopUnconfirmed: true);
         }
         // 이 사진의 별 크기·별 수 (초점 확인이 장비 준비 때 초점과 비교). 못 읽으면 비교하지 않는다
         var stats = await rig.LastStatsAsync(ct);
@@ -38,8 +40,13 @@ public sealed class RealCenterDevices(NinaRig rig, LiveImages live) : ICenterDev
             stats is { Hfr: > 0 and var hfr } && double.IsFinite(hfr) ? hfr : null, stats?.Stars);
     }
 
-    public async Task<bool> StopAsync(CancellationToken ct) =>
-        await rig.AbortExposureAsync(ct) & await rig.StopSlewAndConfirmAsync(ct);
+    /// <summary>적도의 멈춤과 노출 중단을 함께 보낸다 — 후지 카메라는 노출이 끝나기를 기다리므로 적도의 멈춤이 그 뒤로 밀리지 않게 (2026-10-14 자체 리뷰)</summary>
+    public async Task<bool> StopAsync(CancellationToken ct)
+    {
+        var mount = rig.StopSlewAndConfirmAsync(ct);
+        var camera = rig.AbortExposureAsync(ct);
+        return await mount & await camera;
+    }
 
     public async Task<CenterEndState> ReadEndStateAsync(CancellationToken ct)
     {

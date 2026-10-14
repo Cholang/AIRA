@@ -27,8 +27,21 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
     // 하나라도 남아 있으면 새 이동은 보내지 않는다. 멈춤 재확인이 성공해도 마찬가지
     private readonly List<Task> _stops = [];
 
-    /// <summary>RA축을 rate(°/s)로 seconds 동안 돌리고 멈춘다. 진행 각도를 알린다. 실패면 이유</summary>
+    /// <summary>회전 끝의 멈춤 명령이 들어가지 않음 — 적도의가 계속 돌고 있을 수 있다</summary>
+    public const string StopNotSent = "회전을 멈추는 명령이 적도의에 들어가지 않았습니다. 적도의가 계속 돌고 있을 수 있습니다";
+
+    /// <summary>
+    /// RA축을 rate(°/s)로 seconds 동안 돌리고 멈춘다. 진행 각도를 알린다. 실패면 이유.
+    /// 회전 끝의 멈춤 명령이 들어가지 않았으면 회전이 끝났어도 실패(StopNotSent) — 성공으로 보면 부른 쪽이 정지 확인 실패만 보고 멈춤을 다시 보내지 않았다 (2026-10-14 자체 리뷰)
+    /// </summary>
     public async Task<string?> RotateRaAsync(double rate, double seconds, Action<double> progress, CancellationToken ct)
+    {
+        var stopFailed = false;
+        var result = await RotateCoreAsync(rate, seconds, progress, () => stopFailed = true, ct);
+        return stopFailed ? StopNotSent : result;
+    }
+
+    private async Task<string?> RotateCoreAsync(double rate, double seconds, Action<double> progress, Action stopFailed, CancellationToken ct)
     {
         object? scope = null;
         var connectedHere = false;
@@ -36,6 +49,8 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
         // 포기한 뒤에는 시작 명령이 스스로 돌리지 않고, 이미 돌렸으면 스스로 멈추고 드라이버를 놓는다
         var late = new LateStart();
         var mine = false; // 드라이버를 놓는 일을 이 함수가 맡는가 (포기했으면 시작 명령 쪽이 맡는다)
+        // 회전 시간은 시작 명령을 보내기 전부터 잰다 — 명령이 늦게 답해도(최대 CommandLimit) 그동안 이미 돌고 있으므로 정한 각도를 넘지 않게
+        var t0 = DateTime.UtcNow;
         try
         {
             var start = await CommandAsync("RA 회전 시작", () =>
@@ -91,7 +106,6 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
                 return start.Error ?? "적도의 축을 돌리지 못했습니다 (드라이버가 답하지 않음)";
             }
             if (start.Value is { } refused) return refused;
-            var t0 = DateTime.UtcNow;
             while ((DateTime.UtcNow - t0).TotalSeconds < seconds)
             {
                 progress(Math.Abs(rate) * (DateTime.UtcNow - t0).TotalSeconds);
@@ -110,7 +124,11 @@ public sealed class AscomAxis(ILogger<AscomAxis> log)
                     finally { Release(held, connectedHere); }
                     return true;
                 }, stop: true);
-                if (!stop.Done) log.LogWarning("RA 회전 멈춤 명령을 보내지 못함: {Why}", stop.Error ?? "드라이버가 답하지 않음");
+                if (!stop.Done)
+                {
+                    log.LogWarning("RA 회전 멈춤 명령을 보내지 못함: {Why}", stop.Error ?? "드라이버가 답하지 않음");
+                    stopFailed();
+                }
             }
         }
     }

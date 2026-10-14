@@ -126,6 +126,8 @@ public sealed class SimulatedShootDevices(SimOptions sim, SimFaults faults) : IS
     public async Task<bool> ResumeGuidingAsync(CancellationToken ct) { await sim.Delay(600, ct); Calls.Add("resume"); return !_mountStopped && !_disconnected; }
     public async Task<bool> StopGuidingAsync(CancellationToken ct) { await sim.Delay(200, ct); Calls.Add("stop"); return !faults.Take("stop.fail") && !faults.Take("shoot.stopfail"); }
     public Task<bool> MountTrackingAsync(CancellationToken ct) => Task.FromResult(!_mountStopped && !faults.Take("shoot.mount"));
+
+    public async Task<bool> TrackingOffAsync(CancellationToken ct) { await sim.Delay(100, ct); return !faults.Take("shoot.tracking-off"); }
     public void EndSession() { }
     // 가이딩 불안정: shoot.unstable = 디더링 안정화가 연속 실패하고 잠시 뒤(몇 번 지켜본 뒤) 안정됨, shoot.unstablelong = 사용자가 답할 때까지 안정되지 않음
     private int _unstableDithers, _unstableChecks;

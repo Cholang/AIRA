@@ -62,9 +62,13 @@ public sealed record ShootWindow(
         var moved = chosenStart is not null;
         var start = moved ? Clamp(Round(chosenStart!.Value), from, dragTo) : auto;
         var startAlt = altitude(start);
-        // 끝: 시작 고도와 30° 중 낮은 쪽 (시작을 30°보다 낮게 잡았으면 내려갈 때도 그만큼까지, 높게 잡아도 끝은 30°)
+        // 끝: 시작 고도와 30° 중 낮은 쪽 (시작을 30°보다 낮게 잡았으면 내려갈 때도 그만큼까지, 높게 잡아도 끝은 30°).
+        // 다만 내려가는 쪽에서 30°보다 낮게 시작하면 그 고도가 곧 끝이라 찍을 시간이 없어진다 → 그때는 가장 낮은 고도(15°)까지
+        // (2026-10-14 자체 리뷰: 지는 쪽 28°로 시작점을 끌면 시간대가 사라지고 손잡이·되돌리기도 함께 사라졌다)
+        var rising = altitude(start + Step) > startAlt;
         var endAlt = Math.Min(PlanRules.MinAltitude, startAlt);
         if (!reachesMin && !moved) endAlt = Math.Min(endAlt, floor);
+        if (!rising && startAlt < PlanRules.MinAltitude) endAlt = floor;
         var limit = start;
         while (limit + Step <= dawn && altitude(limit + Step) >= endAlt - 0.01) limit += Step;
         if (limit <= start) return null;
@@ -119,10 +123,12 @@ public sealed record ShootAmount(
         var exposure = Math.Max(PlanRules.MinExposureSeconds, exposureSeconds);
         var frames = Math.Max(1, (int)Math.Round(totalMinutes * 60.0 / exposure));
         var per = exposure + PlanRules.FrameOverheadSeconds;
-        var flip = w.Transit is not null ? PlanRules.FlipPause : TimeSpan.Zero;
-        var usable = Math.Max(0, (w.Limit - w.Start - flip).TotalSeconds);
+        // 자오선 반전 쉼은 찍는 동안 자오선을 지날 때만 더한다 (그 전에 다 찍으면 반전이 없다 — 2026-10-14 자체 리뷰)
+        var plain = w.Start + TimeSpan.FromSeconds(frames * per);
+        var flip = w.Transit is { } tr && tr < plain ? PlanRules.FlipPause : TimeSpan.Zero;
+        var usable = Math.Max(0, (w.Limit - w.Start - (w.Transit is not null ? PlanRules.FlipPause : TimeSpan.Zero)).TotalSeconds);
         var max = (int)(usable / per);
-        var end = w.Start + TimeSpan.FromSeconds(frames * per) + flip;
+        var end = plain + flip;
         var clipped = end > w.Limit;
         return new ShootAmount(frames, max, clipped, clipped ? w.Limit : end, per);
     }

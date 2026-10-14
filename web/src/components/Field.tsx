@@ -82,9 +82,12 @@ export function NumberField({
   disabled,
   name,
   reset,
+  revision,
 }: {
   value: number | null
   onCommit: (v: number) => void
+  /** 바뀌면 입력 중인 글자를 value로 되돌린다 (서버가 거절해 value가 그대로일 때) */
+  revision?: number
   min: number
   max: number
   step: number
@@ -95,7 +98,7 @@ export function NumberField({
   reset?: ReactNode
 }) {
   const [draft, setDraft] = useState(value === null ? '' : String(value))
-  useEffect(() => setDraft(value === null ? '' : String(value)), [value])
+  useEffect(() => setDraft(value === null ? '' : String(value)), [value, revision])
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v)))
   const commit = () => {
     const v = Number(draft)

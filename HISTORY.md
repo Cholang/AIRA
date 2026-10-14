@@ -8,7 +8,28 @@
 
 ---
 
-## 2026-10-14 · [Claude] 계획 화면 v3 구현 — 대상 + 촬영 설정, 시작점 끌기, 이동은 촬영 시작 − 준비 시간, 레일은 지금 작업만 글자
+## 2026-10-14 · [Claude] 자체 리뷰 반영 1차 — 장비 안전(추적 끄기·멈춤 확인·이동 승인)과 계획 v3 결함
+
+**요청**: 계획 v3 구현(65c0007)과 장비 안전 경로를 Claude가 먼저 리뷰(계획 v3는 /code-review xhigh, 장비 안전은 영역 셋을 나눠 동시에 + 대조 확인) → 등급별로 보고 → 1차(장비 안전·겪음·쉬운 이론상) 반영. 결정 1(다시 들어오면 이동을 다시 묻기)은 사용자 승인. Codex 리뷰는 이 커밋까지 포함해 다음에 요청.
+
+**변경** (장비 안전):
+- 촬영 끝(`ShootSession.EndAsync`): 가이딩 정지 뒤 **추적 끄기**(`IShootDevices.TrackingOffAsync`), 못 끄면 경고. 촬영 중 PC 절전 막기(`Engine/KeepAwake` — PowerCreateRequest).
+- "그래도 종료"(`QuitControl`)·화면 응답 없음·화면 죽음(`MainWindow`): `MountHome.ForceSafeAsync`(`/api/quit/force-safe`)로 가이딩 멈춤·추적 끄기를 한 번 시도, 못 끄면 한 번 더 알림. 촬영이 정지 미확인으로 끝났으면 종료 절차가 멈춤(`ShootSession.MountUnconfirmed`).
+- 극 찾기: `AscomAxis.RotateRaAsync`가 끝 멈춤이 안 들어가면 실패(`StopNotSent`), 회전 시간은 시작 명령 전부터. `RealPolarDevices`가 실패·정지 미확인이면 드라이버 비상 정지 + N.I.N.A. 정지, 그래도 모르면 `PoleFindResult.StopUnconfirmed` → `PolarTask`는 "장비 상태 다시 확인"만. 건너뛰기 실패 문구를 적도의 정지로.
+- 이동(`SlewTask`): 큰 이동은 누른 뒤에만(`PrepContext.MoveApprovalUsed` — 계획 확정 2분 안 한 번만 승인, 다시 들어오면 "○○로 이동"), 적도의 잠금을 잡은 뒤 멈춤 버튼, 실패하면 멈추고 확인한 뒤에만 다시 시도, 누르는 사이 15° 아래면 다시 기다리기. `Core.Josa.Ro` 추가.
+- 캘리브레이션·센터링: 이동 실패를 멈추고 확인(`SlewOutcome`/`CenterAttempt.StopUnconfirmed`), 적도의 멈춤을 카메라·PHD2 멈춤과 동시에(`RealCalibrationDevices`·`RealCenterDevices`·`WrapDevices.StopAsync`).
+- 다른 대상으로 계획에 돌아오면 추적만 끔(`MountHome.RestForPlanAsync`, `/api/prepare/plan/rest`, App `toPlan`). 홈 실행은 한 번만(`MountHome.Begin` Interlocked).
+
+**변경** (계획 v3 — 겪음·이론상): 고도 끝은 내려갈 때만·끝 시각이 고도 한계면 "low", 반전·재초점 뒤 끝 조건 다시 보기(`ShootSession`). 지는 쪽 30° 아래 시작은 15°까지(`ShootWindow`), 시간대가 없어도 시작 되돌리기(`startMoved`). 연습 대화 삭제(`ScriptedChatModel`) — AI 한도·키 문제면 `practice` 이벤트로 그 자리에서 이름 검색. 반전 쉼은 찍는 동안 자오선을 지날 때만. 1분 상태가 새 편집을 덮지 않게(`changes`), 거절된 숫자 되돌리기(`NumberField revision`), 끌기 pointercancel, 모르는 필터 오류, 밤 정보 없으면 편집 거절, 검색 실패 처리, 한국어 검색은 다 차면 멈춤.
+- 문서: OPERATION_PROCEDURE(계획·이동·극 찾기·촬영 끝·종료), DECISION_HISTORY, FIELD_TEST_CHECKLIST(5개 추가), README(AI 없음).
+
+**확인**: 서버 시험 231 통과·1 건너뜀(새 시험: 이동 다시 묻기, 지는 쪽 시작, 반전 쉼. CX34_01은 새 동작으로 기대값 바꿈). 웹 타입 검사·빌드, lint 새 오류 없음(경고만), 데스크톱 빌드. 실장비·실제 종료·절전·N.I.N.A. 응답 지연은 실기 미확인(체크리스트에 추가).
+
+**남은 것**: 2차 — 극 찾기 "다시 시도"가 같은 방향으로 또 60°(결정 2: 시작 위치로 되돌린 뒤 다시 제안, 사용자 답 대기), 정지 확인이 N.I.N.A. 같은 갱신 값을 두 번 읽는 문제(실기 확인과 함께), Windows 종료·로그오프 때 종료 절차. 종료 때 N.I.N.A.가 적도의 미연결이라 답하면 조용히 통과(이론상). 팝업 공통 모듈(사용자 요청).
+
+---
+
+## 2026-10-14 · 65c0007 [Claude] 계획 화면 v3 구현 — 대상 + 촬영 설정, 시작점 끌기, 이동은 촬영 시작 − 준비 시간, 레일은 지금 작업만 글자
 
 **요청**: v3 시안대로 계획 화면 구현(집 PC). 하드코딩하지 말고 규격화·모듈화, 다른 단계에 영향이 없게. 레일의 글자 생략·툴팁은 모든 단계에. 구현 전 결정: AI는 말로 부탁하면 설정도 바꿈(화면 값 기준) · AI 없으면 이름 검색만(장소·날짜상 못 찍는 대상 제외) · 필터 칸 유지 · 총 노출 기본 180분 고정 · 미리보기는 DSS2 사진 · 이동은 B안(촬영 시작 − 준비 시간, 15° 이상, 30° 이동 금지 폐기) · 기본 시작·끝 고도 30° · 대상 그림을 끌어도 시작이 옮겨짐.
 

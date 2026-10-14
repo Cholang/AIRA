@@ -228,6 +228,8 @@ public partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
 
     private bool _stopping, _stopped;
+    /// <summary>화면의 종료 절차 없이 닫음(화면 응답 없음·화면 죽음) — 서버를 멈추기 전에 가이딩 멈춤·추적 끄기를 시도한다 (2026-10-14)</summary>
+    private bool _forceClose;
 
     // 화면이 창 × 확인을 받았는지 · 화면(WebView2)이 다시 쓸 수 없게 죽었는지 (H4)
     private bool _closeAck, _webDead;
@@ -242,11 +244,12 @@ public partial class MainWindow : Window
         await Task.Delay(3000);
         if (_closeAck || _closeConfirmed || _stopping || _stopped) return;
         var answer = MessageBox.Show(this,
-            "화면이 응답하지 않습니다. 그래도 닫을까요?\n\n화면의 종료 절차(작업 멈춤 · 적도의 추적 끄기 · 프로그램 닫기)를 거치지 않습니다. " +
-            "적도의 추적이 켜져 있으면 N.I.N.A.에서 직접 꺼 주세요.",
+            "화면이 응답하지 않습니다. 그래도 닫을까요?\n\n화면의 종료 절차(작업 멈춤 · 프로그램 닫기)를 거치지 않습니다. " +
+            "가이딩 멈춤과 적도의 추적 끄기는 한 번 시도하지만, 꺼졌는지 N.I.N.A.에서 확인해 주세요.",
             Product.Name, MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (answer != MessageBoxResult.Yes) return;
         _closeConfirmed = true;
+        _forceClose = true;
         Close();
     }
 
@@ -299,6 +302,15 @@ public partial class MainWindow : Window
         _thumbnail?.Stop(); // 비추던 다른 프로그램 영상도 멈춘다 — 닫힌 화면에 상태를 보내지 않게 (M5)
         var server = _server;
         _server = null;
+        if (_forceClose || _webDead)
+        {
+            try
+            {
+                if (server.Services.GetService(typeof(Astro.Server.Prepare.MountHome)) is Astro.Server.Prepare.MountHome home)
+                    await home.ForceSafeAsync();
+            }
+            catch (Exception) { /* 닫는 중 — 시도만 */ }
+        }
         try
         {
             using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // 멈추지 않아도 창은 닫히게

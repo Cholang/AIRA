@@ -74,6 +74,19 @@ public static class Josa
     public static string Pick(string word, string withFinal, string withoutFinal) =>
         HasFinalConsonant(word) ? withFinal : withoutFinal;
 
+    /// <summary>"M31로" / "NGC 7000으로" — 받침이 없거나 ㄹ이면 "로" (웹 product.ts withRo와 같은 규칙)</summary>
+    public static string Ro(string word) => word + (HasFinalConsonant(word) && !EndsWithRieul(word) ? "으로" : "로");
+
+    /// <summary>받침이 ㄹ인가: 한글은 종성, 영문 L·R(엘·알), 숫자 1·7·8(일·칠·팔)</summary>
+    public static bool EndsWithRieul(string word)
+    {
+        var s = word.TrimEnd();
+        if (s.Length == 0) return false;
+        var c = s[^1];
+        if (c is >= '가' and <= '힣') return (c - '가') % 28 == 8;
+        return "LRlr178".Contains(c);
+    }
+
     public static bool HasFinalConsonant(string word)
     {
         var s = word.TrimEnd();

@@ -134,6 +134,22 @@ public class TaskIsolationTests
     }
 
     [Fact]
+    public async Task 대상_이동은_계획에서_방금_누른_이동이_아니면_이동을_다시_묻는다()
+    {
+        // 2026-10-14 사용자 결정: 다시 들어올 때(장비 준비 다시 하기 뒤·이어서·N.I.N.A. 다시 켠 뒤)는 누르기 전에 움직이지 않는다
+        var ctx = Harness.Context(plan: Harness.Plan(confirmed: DateTimeOffset.Now.AddHours(-2)));
+        var (_, run) = await RunAlone(new SlewTask(new SimulatedSlewDevices(Fast, new SimFaults())), ctx);
+        Assert.Equal("move", run.Asked[0]);
+
+        // 방금 확정했으면 그 누름이 승인 — 같은 확정으로 두 번째 들어오면 다시 묻는다
+        var fresh = Harness.Context(plan: Harness.Plan());
+        var (_, first) = await RunAlone(new SlewTask(new SimulatedSlewDevices(Fast, new SimFaults())), fresh);
+        Assert.DoesNotContain("move", first.Asked);
+        var (_, again) = await RunAlone(new SlewTask(new SimulatedSlewDevices(Fast, new SimFaults())), fresh);
+        Assert.Equal("move", again.Asked[0]);
+    }
+
+    [Fact]
     public async Task 대상_이동은_촬영_시작_빼기_준비시간까지_기다리고_지금_이동도_된다()
     {
         // 2026-10-14: 이동 = 계획의 촬영 시작 − 준비 시간. 대상이 이미 15° 위라도 그 전이면 기다리기 / 지금 이동

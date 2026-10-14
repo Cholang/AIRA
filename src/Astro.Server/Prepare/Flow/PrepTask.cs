@@ -120,6 +120,8 @@ public sealed class PrepContext(
     public string? StartChoice { get; set; }
     /// <summary>시간별 구름양 예보 (CloudNotice). 없으면 알리지 않음</summary>
     public Func<CancellationToken, Task<IReadOnlyList<Sky.CloudHour>>>? Clouds { get; init; }
+    /// <summary>계획 화면의 이동 버튼(확정)을 대상 이동이 이미 이동 승인으로 썼다 — 같은 확정으로 다시 들어오면 다시 묻는다 (2026-10-14)</summary>
+    public DateTimeOffset? MoveApprovalUsed { get; set; }
     /// <summary>[모의] 낮에 흐름을 볼 때 대상이 보인다고 가정</summary>
     public bool IgnoreAltitude { get; set; }
 

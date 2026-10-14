@@ -103,7 +103,7 @@ dotnet run --project src/Astro.Server
 
 | 키 | 기본값 | 설명 |
 |---|---|---|
-| `Provider` | `gemini` | AI 회사. `scripted`면 **연습 대화**: AI 없이 정해진 순서로 묻고, 계획 칸은 실제 계산으로 채운다 (시연·한도 걱정 없이). 다른 회사는 `src/Astro.Server/Assistant/Providers/`에 번역기를 하나 더 만들고 `ChatModelFactory`에 이름을 더한다 |
+| `Provider` | `gemini` | AI 회사. `scripted`면 **AI 없음**: 계획 화면은 대화 없이 이름 검색만 (시연·한도 걱정 없이). 다른 회사는 `src/Astro.Server/Assistant/Providers/`에 번역기를 하나 더 만들고 `ChatModelFactory`에 이름을 더한다 |
 | `Models` | `gemini-flash-latest` 등 | 앞에서부터 시도. 과부하(503)·한도(429)면 다음 모델로 |
 | `Effort` | `low` | 생각의 깊이 (low · medium · high). 대화는 low가 빠르고 충분 |
 
@@ -123,7 +123,7 @@ dotnet user-secrets set "Map:KakaoJavaScriptKey" "키" --project src/Astro.Serve
 
 키가 없거나 인터넷이 안 되면 지도 자리에 안내가 나오고, 좌표 붙여넣기로 관측지를 추가할 수 있다.
 
-키가 없거나, 오늘 무료 한도를 다 썼거나(모든 모델이 429), 키가 틀리면 계획 화면은 **자동으로 연습 대화로 넘어간다** (대화 안에 한 줄 안내). 한도는 다시 차는 시각(미국 태평양 자정, 한국 오후 4~5시)까지, 키 문제는 앱을 다시 켤 때까지 연습 대화로 둔다. 시연 때 처음부터 연습 대화만 쓰려면:
+키가 없거나, 오늘 무료 한도를 다 썼거나(모든 모델이 429), 키가 틀리면 계획 화면은 **대화 없이 이름 검색만** 보인다(대화 도중이면 그 자리에서 바뀌고, 답하지 못한 말은 입력창으로 돌아온다). 한도는 다시 차는 시각(미국 태평양 자정, 한국 오후 4~5시)까지, 키 문제는 앱을 다시 켤 때까지 그대로 둔다. 시연 때 처음부터 AI 없이 쓰려면:
 
 ```powershell
 $env:Assistant__Provider="scripted"; dotnet run --project src/Astro.Desktop

@@ -16,6 +16,8 @@ public interface IShootDevices
     Task<GuideRaw> GuideRawAsync(CancellationToken ct);
     /// <summary>적도의 추적 중인가 (가이더 없는 구성의 감시 — PHD2를 부르지 않는다, CX-APP-R3)</summary>
     Task<bool> MountTrackingAsync(CancellationToken ct);
+    /// <summary>추적 끄기 (촬영이 끝났을 때). 껐거나 이미 꺼져 있으면 true</summary>
+    Task<bool> TrackingOffAsync(CancellationToken ct);
     /// <summary>촬영이 끝났을 때: 가이딩 이벤트 수신 등 촬영 동안만 쓰던 것을 정리 (다시 필요하면 다시 시작)</summary>
     void EndSession();
     /// <summary>지금 가이드 노출(ms)</summary>

@@ -38,7 +38,7 @@ interface ClosingApp {
   state: 'waiting' | 'closing' | 'done' | 'failed' | 'kept'
 }
 
-type Step = 'tasks' | 'tracking' | 'focuser' | 'equipment' | 'programs'
+type Step = 'tasks' | 'tracking' | 'focuser' | 'equipment' | 'programs' | 'force'
 
 const STEP_TEXT: Record<Step, string> = {
   tasks: '진행 중인 작업을 멈추는 중입니다… (촬영 중이면 지금 사진이 끝나기를 기다립니다)',
@@ -46,6 +46,7 @@ const STEP_TEXT: Record<Step, string> = {
   focuser: '포커서를 0으로 되돌리는 중입니다…',
   equipment: '장비 연결을 멈추고 연결을 끊는 중입니다…',
   programs: '앱을 종료 중입니다.',
+  force: '가이딩을 멈추고 적도의 추적을 끄는 중입니다…',
 }
 
 const NOTE: Record<ClosingApp['state'], string> = { waiting: '', closing: '닫는 중', done: '닫음', failed: '닫지 못함', kept: '남겨 둠' }
@@ -69,11 +70,25 @@ export function QuitProvider({
 }) {
   const [quitting, setQuitting] = useState(false)
   // 종료 확인 뒤 단계(step). 확인하지 못한 것이 있으면 busy=false + problem — 프로그램은 더 닫지 않고 "그래도 종료"만 남긴다
-  const [closing, setClosing] = useState<{ busy: boolean; step?: Step; problem?: string } | null>(null)
+  // forced = "그래도 종료"에서 추적을 끄지 못했다고 이미 알림 — 한 번 더 누르면 그대로 끈다
+  const [closing, setClosing] = useState<{ busy: boolean; step?: Step; problem?: string; forced?: boolean } | null>(null)
   const [apps, setApps] = useState<ClosingApp[]>([])
 
   const quit = async () => {
-    if (closing && !closing.busy) return closeApp() // 확인하지 못한 것이 있어도 "그래도 종료" (남은 프로그램은 그대로 — 사용자가 직접 확인)
+    // "그래도 종료": 확인하지 못한 것이 있어도 끈다(남은 프로그램은 그대로 — 사용자가 직접 확인). 다만 끄기 전에 가이딩 멈춤·추적 끄기를 한 번 시도하고,
+    // 추적을 끄지 못했으면 그렇다고 분명히 알린 뒤 한 번 더 누르면 끈다 (2026-10-14 자체 리뷰: 아무것도 시도하지 않고 꺼져 적도의가 밤새 돌 수 있었다)
+    if (closing && !closing.busy) {
+      if (closing.forced) return closeApp()
+      setClosing({ busy: true, step: 'force' })
+      const safe = await post<{ problem: string | null }>('/api/quit/force-safe')
+      if (safe === null || safe.problem)
+        return setClosing({
+          busy: false,
+          forced: true,
+          problem: (safe?.problem ?? '적도의 추적을 껐는지 확인하지 못했습니다. 켜 둔 채 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요.') + ' 그래도 종료하면 이대로 끕니다.',
+        })
+      return closeApp()
+    }
     // 1. 진행 중인 준비 작업(이동·자동초점·가이딩)을 멈추고 멈춘 것을 확인 — 확인 없이 N.I.N.A.를 닫으면 장비를 놓친다
     setClosing({ busy: true, step: 'tasks' })
     const tasks = await post<{ stopped: boolean; problem: string | null }>('/api/prepare/stop-for-quit')

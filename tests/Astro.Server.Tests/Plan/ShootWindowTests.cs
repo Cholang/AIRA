@@ -106,4 +106,27 @@ public class ShootWindowTests
         Assert.Equal(b.MaxFrames, b.Planned);
         Assert.True(b.MaxFrames < b.Frames);
     }
+
+    [Fact]
+    public void 지는_쪽_30도_아래로_시작을_옮겨도_시간대가_사라지지_않는다()
+    {
+        // 2026-10-14 자체 리뷰: 내려가는 쪽 28°로 끌면 끝 고도 = 28°라 시간대가 없어지고 되돌리기도 사라졌다 → 15°까지 찍는다
+        var alt = Peak(At(23, 0), 60, 10); // 23:00에 60°, 02:12쯤 28°
+        var w = ShootWindow.Compute(alt, Night, At(19, 30), At(2, 12).AddDays(1))!;
+        Assert.NotNull(w);
+        Assert.Equal(15, w.EndAltitude);
+        Assert.True(w.Limit > w.Start.AddMinutes(30));
+    }
+
+    [Fact]
+    public void 자오선을_지나기_전에_다_찍으면_반전_쉼을_더하지_않는다()
+    {
+        var alt = Peak(At(1, 0).AddDays(1), 60, 10); // 01:00에 자오선
+        var w = ShootWindow.Compute(alt, Night, At(19, 30), null)!;
+        Assert.NotNull(w.Transit);
+        var per = 60 + PlanRules.FrameOverheadSeconds;
+        var minutes = (int)((w.Transit!.Value - w.Start).TotalMinutes / 2); // 자오선까지 절반만큼 찍는 양
+        var a = ShootAmount.Of(w, 60, minutes);
+        Assert.Equal(w.Start + TimeSpan.FromSeconds(a.Frames * per), a.End);
+    }
 }

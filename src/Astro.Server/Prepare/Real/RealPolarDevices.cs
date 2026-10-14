@@ -79,8 +79,14 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         // RA축만 돌린다 (SharpCap은 안내만)
         var rotated = await axis.RotateRaAsync(RotationRate, RotationDeg / RotationRate,
             deg => progress(new("rotate", 0, 0, deg)), ct);
-        if (rotated is not null) return new(false, rotated);
-        if (!await rig.ConfirmStillAsync(ct)) return new(false, "적도의가 멈췄는지 확인하지 못했습니다. 적도의 상태를 확인해 주세요.");
+        // 회전이 실패했거나(멈춤 명령이 안 들어감 포함) 멈춘 것을 확인하지 못하면: 드라이버 비상 정지와 N.I.N.A. 정지를 함께 보내고 확인한다.
+        // 그래도 확인하지 못하면 StopUnconfirmed — 극축 정렬이 "다시 시도" 대신 확인부터 하게 (2026-10-14 자체 리뷰: 멈춤 없이 잠금을 풀고 다시 시도를 보였다)
+        if (rotated is not null || !await rig.ConfirmStillAsync(ct))
+        {
+            var still = await StopMountAsync(ct);
+            var why = rotated ?? "적도의가 멈췄는지 확인하지 못했습니다.";
+            return still ? new(false, $"{why} 적도의를 다시 멈춰 멈춘 것을 확인했습니다.") : new(false, $"{why} 적도의 상태를 직접 확인해 주세요.", StopUnconfirmed: true);
+        }
 
         // 둘째 사진
         if (await SolveStageAsync("second", progress, RotationDeg, ct) is { } why2)
@@ -176,16 +182,24 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
     /// </summary>
     public async Task<bool> StopAsync(CancellationToken ct)
     {
-        // 드라이버 멈춤과 N.I.N.A. 멈춤을 함께 — 드라이버가 답하지 않아도 N.I.N.A. 쪽 정지·확인은 한다 (Codex CX-30-04: 동기 드라이버 호출이 막히면 뒤가 전부 막혔다)
-        var axisStop = axis.StopAsync();
-        var still = await rig.StopSlewAndConfirmAsync(ct);
-        if (!await axisStop) still = still && await rig.ConfirmStillAsync(ct); // 드라이버 멈춤을 못 보냈으면 정지를 한 번 더 확인
+        var still = await StopMountAsync(ct);
         if (sharpCap.OursRunning || await CameraAsync(ct) is { Connected: false })
         {
             await sharpCap.CloseAsync(ct);
             try { await phd2.CallAsync("set_connected", new object[] { true }, ct, TimeSpan.FromSeconds(60)); }
             catch (Phd2Exception) { /* 장비 상태 확인 필요로 남는다 — 아래 still과 별개로 사용자에게 보임 */ }
         }
+        return still;
+    }
+
+    /// <summary>적도의만 멈추고 확인: 드라이버 비상 정지(이동 중단 + 두 축 멈춤)와 N.I.N.A. 정지를 함께 (드라이버가 답하지 않아도 N.I.N.A. 쪽 정지·확인은 한다, CX-30-04)</summary>
+    public async Task<bool> MountStillAsync(CancellationToken ct) => await StopMountAsync(ct);
+
+    private async Task<bool> StopMountAsync(CancellationToken ct)
+    {
+        var axisStop = axis.EmergencyStopAsync();
+        var still = await rig.StopSlewAndConfirmAsync(ct);
+        if (!await axisStop) still = still && await rig.ConfirmStillAsync(ct); // 드라이버 멈춤을 못 보냈으면 정지를 한 번 더 확인
         return still;
     }
 

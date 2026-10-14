@@ -62,7 +62,7 @@ public enum ChatFailure
     Key,
 }
 
-/// <summary>AI를 부르지 못함. Message는 화면에 보여 줄 문장, Kind로 연습 대화로 넘어갈지 정한다</summary>
+/// <summary>AI를 부르지 못함. Message는 화면에 보여 줄 문장, Kind로 이름 검색만으로 넘어갈지 정한다(한도·키)</summary>
 public sealed class ChatModelException(string message, ChatFailure kind = ChatFailure.Other, Exception? inner = null) : Exception(message, inner)
 {
     public ChatFailure Kind { get; } = kind;

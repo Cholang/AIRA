@@ -15,6 +15,8 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     Tasks.Wrap.IWrapDevices wrap, ILogger<MountHome> log)
 {
     private volatile bool _homing;
+    /// <summary>홈 실행이 이미 시작됨 — 확인과 시작 사이에 await가 있어 두 번 눌러도(PC·휴대폰, 홈 버튼과 rig/rest) 한 번만 (2026-10-14 자체 리뷰)</summary>
+    private int _begun;
     /// <summary>홈 이동 중 (종료가 프로그램을 닫지 않는다)</summary>
     public bool Homing => _homing;
     /// <summary>마지막 홈이 실패했으면 그 안내</summary>
@@ -69,8 +71,7 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     {
         var s = await StateAsync(ct);
         if (!s.Available) return s.Reason;
-        Begin("홈 버튼");
-        return null;
+        return Begin("홈 버튼") ? null : "적도의를 홈으로 보내는 중입니다";
     }
 
     /// <summary>장비 준비 끝(rig/rest): 확인 필요 상태가 아니면 홈에 두고 추적을 끈다 (막힌 이유가 있으면 로그만)</summary>
@@ -83,6 +84,28 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
             return;
         }
         Begin("장비 준비 뒤");
+    }
+
+    /// <summary>
+    /// 다른 대상으로 계획에 돌아올 때(센터링·시험 사진·촬영의 "다른 대상"): 움직이지 않고 추적만 끈다 (2026-10-14 자체 리뷰 — 이동은 "촬영 시작 − 준비 시간"까지
+    /// 기다리므로 몇 시간 앞 대상을 추적한 채 한계 쪽으로 흘러갈 수 있었다. 장비 준비 뒤 쉬게 하기와 같은 이유, 다만 홈으로 옮기지는 않는다).
+    /// 끄려 했는데 끄지 못했으면 사용자에게 보일 문장. 껐거나, 끌 수 없는 때(촬영 중·작업 중·미연결 — 로그만)면 null
+    /// </summary>
+    public async Task<string?> RestForPlanAsync(CancellationToken ct)
+    {
+        if (mode.Simulate) return null;
+        var s = await StateAsync(ct);
+        if (!s.Available)
+        {
+            log.LogInformation("계획으로 돌아가며 추적 끄기를 하지 않음: {Reason}", s.Reason);
+            return null;
+        }
+        await using (await mount.AcquireAsync(ct))
+        {
+            if (await wrap.TrackingOffAsync(ct)) { log.LogInformation("계획으로 돌아가며 추적을 끔"); return null; }
+        }
+        log.LogWarning("계획으로 돌아가며 추적을 끄지 못함");
+        return "추적을 끄지 못했습니다. N.I.N.A.에서 추적이 꺼졌는지 확인해 주세요.";
     }
 
     /// <summary>
@@ -104,6 +127,30 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
         var off = await wrap.TrackingOffAsync(ct);
         log.LogInformation("종료 전 적도의 추적 끄기: {Result}", off ? "끔" : "실패");
         return off;
+    }
+
+    /// <summary>
+    /// 확인 없이 끌 때("그래도 종료", 화면이 응답하지 않아 창이 직접 닫을 때): 가이딩 멈춤과 추적 끄기를 한 번씩 시도한다 (각 10초 안).
+    /// 촬영 중이어도 끈다 — 아이라가 꺼지면 다음 사진·반전·끝을 볼 주체가 없다. 적도의 잠금은 기다리지 않는다(막힌 작업 때문에 끄는 경우라서).
+    /// 추적을 끄지 못했으면(또는 모르면) 사용자에게 보일 문장, 껐거나 미연결·모의면 null (2026-10-14 자체 리뷰: 그동안 아무것도 시도하지 않고 꺼졌다)
+    /// </summary>
+    public async Task<string?> ForceSafeAsync()
+    {
+        if (mode.Simulate) return null;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var guide = nina.RequestAsync("equipment/guider/stop", TimeSpan.FromSeconds(10), cts.Token);
+        bool? off;
+        try
+        {
+            off = await nina.GetInfoAsync("mount", cts.Token) is { ValueKind: System.Text.Json.JsonValueKind.Object } info
+                && info.TryGetProperty("Connected", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.False
+                ? null
+                : await wrap.TrackingOffAsync(cts.Token);
+        }
+        catch (Exception e) { log.LogWarning(e, "확인 없이 끄기: 추적 끄기 실패"); off = false; }
+        try { await guide; } catch (Exception e) { log.LogWarning(e, "확인 없이 끄기: 가이딩 멈춤 실패"); }
+        log.LogInformation("확인 없이 끄기: 추적 {Result}", off switch { true => "끔", false => "끄지 못함", null => "적도의 미연결" });
+        return off == false ? "적도의 추적을 끄지 못했습니다. 켜 둔 채 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요." : null;
     }
 
     /// <summary>사용자가 적도의가 멈춘 것을 직접 확인함 — 확인 필요 상태를 푼다</summary>
@@ -129,8 +176,10 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
         return !_homing && !NeedsCheck;
     }
 
-    private void Begin(string who)
+    /// <summary>홈 실행 시작. 이미 시작돼 있으면 false</summary>
+    private bool Begin(string who)
     {
+        if (Interlocked.CompareExchange(ref _begun, 1, 0) != 0) return false;
         _homing = true;
         _problem = null;
         var cts = new CancellationTokenSource();
@@ -171,8 +220,10 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
             finally
             {
                 _homing = false;
+                Volatile.Write(ref _begun, 0);
                 cts.Dispose();
             }
         });
+        return true;
     }
 }

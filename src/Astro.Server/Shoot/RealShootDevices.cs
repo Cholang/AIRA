@@ -86,6 +86,8 @@ public sealed class RealShootDevices(NinaRig rig, Phd2Client phd2, LiveImages li
 
     public async Task<bool> MountTrackingAsync(CancellationToken ct) => (await rig.MountAsync(ct))?.Tracking ?? false;
 
+    public Task<bool> TrackingOffAsync(CancellationToken ct) => rig.SetTrackingAsync(false, ct);
+
     private async Task ListenAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)

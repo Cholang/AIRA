@@ -27,12 +27,15 @@ public interface IPolarDevices
     /// <summary>조절량 단위·환산을 실기로 확인했는가 (CX-PREP-IMPL-03). 확인 전이면 등급 말을 쓰지 않는다</summary>
     bool OffsetUnitVerified { get; }
     Task<bool> StopAsync(CancellationToken ct);
+    /// <summary>적도의만 다시 멈추고 멈춘 것을 확인 (SharpCap·PHD2는 건드리지 않음)</summary>
+    Task<bool> MountStillAsync(CancellationToken ct) => StopAsync(ct);
     Task<PolarEndState> ReadEndStateAsync(CancellationToken ct);
 }
 
 /// <summary>UserSet = 노출을 사용자가 SharpCap에서 직접 정함</summary>
 public sealed record PoleProgress(string Stage, int Stars, double ExposureSeconds, double RotationDeg, bool UserSet = false);
-public sealed record PoleFindResult(bool Ok, string? Problem = null);
+/// <summary>StopUnconfirmed = 회전 뒤 적도의가 멈춘 것을 확인하지 못함 — 다시 돌리지 않고 확인부터 (2026-10-14)</summary>
+public sealed record PoleFindResult(bool Ok, string? Problem = null, bool StopUnconfirmed = false);
 /// <summary>조절량(px): X = 방위(+는 왼쪽으로), Y = 고도(+는 아래로)</summary>
 public sealed record PolarOffset(double XPx, double YPx, DateTimeOffset At);
 public sealed record PolarEndState(bool SharpCapClosed, bool GuideCameraOnPhd2, bool Phd2Looping, bool NinaGuiderConnected, bool MountMoving);
@@ -79,7 +82,8 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         {
             run.Status("가이드 카메라를 PHD2로 돌려주는 중입니다");
             if (await devices.StopAsync(ct)) break;
-            run.Status("가이드 카메라를 PHD2에 다시 연결하지 못했습니다. PHD2의 장비 연결 창을 확인해 주세요", Tone.Fail);
+            // StopAsync가 false = 적도의 정지를 확인하지 못함 (카메라 돌려주기 실패는 장비 상태 확인에서 따로 보인다)
+            run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 다시 시도해 주세요", Tone.Fail);
             await run.AskAsync([new("retry", "다시 시도", true)], ct);
         }
         return new Completed(new PolarResult(null, 0, 0, "건너뜀", run.Context.Now(), Skipped: true), "건너뜀", "극축 정렬을 건너뛰었어요",
@@ -162,6 +166,16 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 });
             }, ct);
             if (found.Ok) return true;
+            // 멈춘 것을 확인하지 못했으면 다시 돌리지 않는다: 확인될 때까지 "장비 상태 다시 확인"만
+            var unconfirmed = found.StopUnconfirmed;
+            while (unconfirmed)
+            {
+                run.Status(found.Problem ?? "적도의가 멈췄는지 확인하지 못했습니다. 적도의 상태를 직접 확인해 주세요.", Tone.Fail);
+                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                await using (await run.Context.Mount.AcquireAsync(ct))
+                    unconfirmed = !await devices.MountStillAsync(ct);
+            }
+            if (found.StopUnconfirmed) found = found with { Problem = "적도의가 멈춘 것을 확인했습니다. 다시 시도하거나 극축 정렬을 건너뛸 수 있습니다." };
             run.Status(found.Problem ?? "위치를 찾지 못했습니다. 망원경이 북극에서 멀리 향해 있을 수 있습니다. 삼각대 방향과 고도 나사로 망원경을 북극 쪽으로 조금 더 가깝게 향하게 한 뒤 다시 시도해 주세요.", Tone.Fail);
             if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
         }

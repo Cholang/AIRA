@@ -12,7 +12,8 @@ public interface ICenterDevices
 }
 
 /// <summary>한 회차 결과. Hfr·Stars = 그 사진의 별 크기·별 수 (못 재면 null — 초점 확인이 읽음)</summary>
-public sealed record CenterAttempt(bool Solved, double ErrorArcmin, double? CameraAngleDeg, double? Hfr = null, int? Stars = null);
+/// <summary>StopUnconfirmed = 맞춤 이동이 끝나지 않아 멈췄지만 멈춘 것을 확인하지 못함 — 다시 찍지 않고 확인부터 (2026-10-14)</summary>
+public sealed record CenterAttempt(bool Solved, double ErrorArcmin, double? CameraAngleDeg, double? Hfr = null, int? Stars = null, bool StopUnconfirmed = false);
 public sealed record CenterEndState(double ErrorArcmin, bool MountMoving, bool Tracking, bool CameraExposing);
 
 /// <summary>
@@ -53,6 +54,20 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                 CenterAttempt a;
                 await using (await ctx.Mount.AcquireAsync(ct))
                     a = await devices.AttemptAsync(ctx.Plan.RaDegrees, ctx.Plan.DecDegrees, exposure, blind, ct);
+                if (a.StopUnconfirmed)
+                {
+                    var still = false;
+                    while (!still)
+                    {
+                        run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
+                        await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                        await using (await ctx.Mount.AcquireAsync(ct))
+                            still = await devices.StopAsync(ct);
+                    }
+                    run.Status("적도의를 멈췄습니다. 다시 찍어 맞춥니다", Tone.Warn);
+                    await run.AskAsync([new("retry", "다시 맞추기", true)], ct);
+                    continue;
+                }
                 if (!a.Solved)
                 {
                     if (exposure < LongExposure) { exposure = LongExposure; run.Status("위치를 계산하지 못해 노출을 4초로 늘려 다시 찍습니다", Tone.Warn); i--; continue; }
