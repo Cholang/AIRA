@@ -1,0 +1,139 @@
+/* 가운데 뜨는 창 (Modal.tsx). 색은 모두 토큰(--modal-*), 두 테마가 같은 이름. 버튼 모양은 공통 Button */
+
+.dialog {
+  /* <dialog> 자체는 자리만 — 모양은 안의 카드. 빛 테두리의 후광이 밖으로 번지도록 넘침을 숨기지 않는다 */
+  width: min(var(--w), calc(100vw - 32px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  overflow: visible;
+}
+
+.dialog[data-size='sm'] { --w: 470px; }
+.dialog[data-size='md'] { --w: 600px; }
+.dialog[data-size='lg'] { --w: 800px; }
+
+.dialog::backdrop {
+  background: var(--modal-scrim);
+  animation: fade 220ms ease-out backwards;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  max-height: min(880px, calc(100vh - 48px));
+  border-radius: var(--modal-radius);
+  background: var(--modal-bg);
+  /* 접두어를 먼저 — 표준을 뒤에 두어야 빌드가 표준을 남긴다(반대로 쓰면 접두어만 남아 크롬 계열에서 흐림이 빠졌다) */
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 1px var(--modal-line), var(--modal-shadow);
+  /* 나타나기: 카드에는 투명도를 걸지 않는다 — 걸면 그동안 뒤 흐림(backdrop-filter)이 꺼졌다가 끝나면 툭 켜진다.
+     대신 면·흐림·그림자가 함께 짙어지고, 안의 글자·버튼만 투명도로 (아래 .head·.body·.actions) */
+  animation: surface 260ms ease-out backwards;
+}
+
+.head,
+.body,
+.actions {
+  animation: fade 260ms ease-out backwards;
+}
+
+/* 빛 테두리: 카드 모서리에 맞춤 */
+.glow {
+  --glow-radius: var(--modal-radius);
+  --glow-reach: 70px;
+  border-radius: var(--modal-radius);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 0 28px;
+}
+
+.head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 150ms, border-color 150ms, color 150ms;
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.close:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--modal-hover);
+}
+
+.close:focus-visible {
+  outline: none;
+  box-shadow: var(--state-focus-ring);
+}
+
+.body {
+  padding: 22px 28px 0;
+  overflow-y: auto;
+  font-size: var(--modal-text);
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.head + .body {
+  padding-top: 14px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 22px 28px 24px;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes surface {
+  from {
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(0) saturate(1);
+    backdrop-filter: blur(0) saturate(1);
+    box-shadow: inset 0 0 0 1px transparent, 0 0 0 rgb(0 0 0 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .head,
+  .body,
+  .actions,
+  .dialog::backdrop {
+    animation: none;
+  }
+}

@@ -1,8 +1,9 @@
 import { Settings as Gear } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { inDesktop, pickExe } from '../host'
 import { PRODUCT } from '../product'
 import Button from './Button'
+import Modal from './Modal'
 import styles from './Settings.module.css'
 
 /** 서버 /api/settings (AppServer.MapSettings) — AI 키 자체는 오지 않는다 */
@@ -35,7 +36,6 @@ export function SettingsButton() {
 }
 
 function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
   const [view, setView] = useState<SettingsView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -47,10 +47,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       .then((r) => (r.ok ? (r.json() as Promise<SettingsView>) : null))
       .then(setView, () => setView(null))
   }, [])
-  useEffect(() => {
-    ref.current?.showModal()
-    load()
-  }, [load])
+  useEffect(load, [load])
 
   const put = async (url: string, body: unknown) => {
     setError(null)
@@ -67,22 +64,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <dialog
-      ref={ref}
-      className={styles.dialog}
-      onCancel={(e) => {
-        e.preventDefault()
-        onClose()
-      }}
-      onClick={(e) => e.target === ref.current && onClose()}
-      aria-labelledby="settings-title"
-    >
-      <header className={styles.head}>
-        <h2 id="settings-title">설정</h2>
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          닫기
-        </Button>
-      </header>
+    <Modal open onClose={onClose} size="lg" title="설정" actions={<Button onClick={onClose}>닫기</Button>}>
 
       {!view ? (
         <p className={styles.muted}>설정을 읽는 중입니다</p>
@@ -95,13 +77,13 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
               <input type="checkbox" checked={view.aiEnabled} onChange={(e) => void put('/api/settings/ai', { enabled: e.target.checked })} />
               <span>
                 <b>계획 대화에 AI를 씁니다</b>
-                <small>끄면 AI에 묻지 않고 정해진 순서로 묻는 연습 대화로 계획합니다.</small>
+                <small>끄면 계획 화면은 대화 없이 대상 이름 검색만 씁니다.</small>
               </span>
             </label>
             <div className={styles.field}>
               <span className={styles.label}>Gemini API 키</span>
               <p className={styles.status}>
-                {view.keyFrom === 'settings' ? '이 화면에서 넣은 키를 씁니다' : view.keyFrom === 'system' ? '이 PC의 설정에서 읽은 키를 씁니다' : '키가 없습니다 — 계획 대화는 연습 대화로 합니다'}
+                {view.keyFrom === 'settings' ? '이 화면에서 넣은 키를 씁니다' : view.keyFrom === 'system' ? '이 PC의 설정에서 읽은 키를 씁니다' : '키가 없습니다 — 계획 화면은 대상 이름 검색만 씁니다'}
               </p>
               <div className={styles.row}>
                 <input
@@ -191,7 +173,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       <p className={styles.message} data-tone={error ? 'fail' : 'ok'} aria-live="polite">
         {error ?? note ?? ''}
       </p>
-    </dialog>
+    </Modal>
   )
 }
 

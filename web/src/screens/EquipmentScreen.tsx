@@ -774,6 +774,7 @@ function CameraPower() {
         open={asking !== null}
         message={`Wanderer Empire에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. 아이라는 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
         confirmLabel="맞췄어요"
+        size="md"
         onConfirm={() => {
           save(asking)
           setAsking(null)

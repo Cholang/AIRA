@@ -170,6 +170,7 @@ export function QuitProvider({
       {children}
       <ConfirmDialog
         open={quitting}
+        tone="device"
         message={message}
         confirmLabel={closing && !closing.busy ? '그래도 종료' : '종료'}
         busy={closing?.busy}

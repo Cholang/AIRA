@@ -65,6 +65,7 @@ export default function MountHomeButton() {
       </Button>
       <ConfirmDialog
         open={asking || error !== null}
+        tone="device"
         message={
           error ??
           (check

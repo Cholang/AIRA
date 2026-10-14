@@ -39,6 +39,12 @@
   --glass-bg: rgb(46 48 52 / 0.24); /* 2026-10-10 투명감 조금 더 (.38 → .24, 흐림 14 → 18px) */
   --glass-bg-strong: rgb(56 59 63 / 0.45);
   --glass-line: rgb(255 255 255 / 0.10);
+  /* 팝업 (Modal, 2026-10-14 시안 mockups/aira-modal.html): 덜 어두운 배경(하늘이 비침) + 유리 카드 + 또렷한 옅은 외곽선 */
+  --modal-scrim: rgb(8 8 12 / 0.38);
+  --modal-bg: rgb(32 33 37 / 0.74);
+  --modal-line: rgb(255 255 255 / 0.2);
+  --modal-shadow: 0 28px 70px rgb(0 0 0 / 0.5);
+  --modal-hover: rgb(255 255 255 / 0.06);
   /* 태양·행성 바탕 (2026-10-11 사용자 선택 — 시안 mockups/aira-body-colors.html 1안·1-a): 투명 글래스 대신 아주 옅은 회보라의 불투명 짙은 색, 태양이 조금 밝다.
      행성의 연결됨 테두리·빛은 보라를 회색 쪽으로(채도 약 60%) 줄여 태양이 주인공으로. 연결 순간의 반짝임(--conn-flash)은 그대로 */
   --sun-fill: radial-gradient(circle at 42% 40%, #2c2a33, #201f25 70%, #1a191d);
@@ -102,6 +108,11 @@
   --glass-bg: rgb(12 0 0 / 0.55);
   --glass-bg-strong: rgb(23 0 0 / 0.7);
   --glass-line: rgb(60 0 0 / 0.7);
+  --modal-scrim: rgb(0 0 0 / 0.5);
+  --modal-bg: rgb(10 0 0 / 0.78);
+  --modal-line: rgb(120 0 0 / 0.95);
+  --modal-shadow: 0 28px 70px rgb(0 0 0 / 0.7);
+  --modal-hover: #0e0000;
   --sun-fill: radial-gradient(circle at 42% 40%, #1a0000, #110000 70%, #0a0000);
   --planet-fill: radial-gradient(circle at 40% 35%, #160000, #0c0000);
   --planet-fill-strong: radial-gradient(circle at 40% 35%, #210000, #140000);
@@ -135,6 +146,9 @@
   --size-title: 30px;
   --size-body: 15.5px;
   --size-small: 13.5px;
+  /* 팝업 본문 (2026-10-14 사용자 — 앱 본문보다 1px 크게) */
+  --modal-text: 17px;
+  --modal-radius: 16px;
   --size-bar: 12.5px;
   /* 모든 도형은 둥근 모서리 (DESIGN.md "공통 부품"). 상자·버튼·입력창은 이 값, 쉐브론은 SVG로 같은 느낌의 곡선 */
   --radius: 10px;

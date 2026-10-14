@@ -1,35 +1,6 @@
-/* 확인 창: 가운데 작은 카드 + 어두운 배경. 색은 모두 토큰 (촬영 테마에서도 빨강만) */
-.dialog {
-  width: min(460px, calc(100vw - 32px));
-  padding: 26px 28px 22px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-family: inherit;
-}
-
-.dialog::backdrop {
-  background: var(--scrim-strong);
-}
-
+/* 확인 창 (ConfirmDialog.tsx): 문장만 — 껍데기·크기·버튼 줄은 공통 Modal */
 .message {
-  margin: 0 0 22px;
-  font-size: 16px;
-  line-height: 1.6;
-  word-break: keep-all;
+  margin: 0;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* 버튼 모양은 공통 Button */
-
-/* 확인한 일을 하는 중: 버튼을 잠근다 */
-.actions button:disabled {
-  opacity: 0.5;
-  cursor: progress;
-}
+/* 확인한 일을 하는 중: 버튼을 잠근다 (모양은 공통 Button의 비활성) */

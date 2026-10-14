@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아이라 팝업 시안</title>
+<!--
+  2026-10-14 (Claude): 팝업 공통 모듈(Modal) 시안. 사용자와 정한 방향: A 유리 카드를 기본으로, 장비가 움직이거나 앱이 꺼지는 확인에만 B 빛 테두리.
+  - 지금: ConfirmDialog(회색 불투명 카드 + 검은 배경 0.55), Settings·UpdateNotice는 껍데기를 따로 구현
+  - 새 시안: 하나의 Modal 껍데기 — 배경(덜 어둡게, 하늘이 비침) · 유리 카드(반투명 + 흐림 + 옅은 외곽선) · 크기 sm 440 / md 560 / lg 760 ·
+    제목 줄(제목 + 닫기) · 본문 · 버튼 줄(오른쪽, 주 버튼 하나). tone="device"면 GlowFrame 빛 테두리(장비 이동·앱 종료 확인).
+    나타날 때는 투명도만 (DESIGN.md "레이아웃 안정성"), 촬영 테마에서는 빨강만·빛 테두리는 돌지 않는 옅은 선.
+  - 문구는 실제 앱의 문구. 배경은 계획 화면을 단순하게 그린 것
+-->
+<style>
+:root { --page-bg:#141416; --page-surface:#1d1e21; --page-text:#e8e5df; --page-muted:#9d9a94; --page-line:#303236; --page-accent:#a9a6f7;
+  --font:'Pretendard Variable', Pretendard, 'Malgun Gothic', sans-serif; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:var(--font); font-size:15px; line-height:1.6; word-break:keep-all; }
+.page { max-width:1760px; margin:0 auto; padding:24px 20px 56px; display:grid; gap:12px; }
+.top h1 { margin:0; font-size:22px; font-weight:800; }
+.top p { margin:4px 0 0; color:var(--page-muted); font-size:14px; max-width:1240px; }
+.controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.controls .lbl { font-size:13px; color:var(--page-muted); margin:0 4px 0 10px; }
+.controls .lbl:first-child { margin-left:0; }
+.ctl { padding:5px 12px; border:1px solid var(--page-line); border-radius:8px; background:var(--page-surface); color:var(--page-text); font:inherit; font-size:13px; cursor:pointer; }
+.ctl[aria-pressed="true"] { border-color:var(--page-accent); color:var(--page-accent); font-weight:700; }
+.frame { position:relative; width:100%; aspect-ratio:16/10; overflow:hidden; border:1px solid var(--page-line); border-radius:12px; }
+
+/* ───── 앱 틀 1920×1200 · 토큰은 index.css 그대로 ───── */
+.app { position:absolute; left:0; top:0; width:1920px; height:1200px; transform-origin:0 0; transform:scale(var(--s,1));
+  display:flex; flex-direction:column; overflow:hidden; font-family:var(--font); font-size:15.5px; line-height:1.6; color:var(--text); background:var(--bg); --radius:10px; }
+.app[data-theme="dark"] {
+  --bg:#1e1f21; --surface:#27292c; --surface-2:#303236; --line:#3b3e42; --text:#ebe8e3; --muted:#a3a09a; --accent:#a9a6f7; --on-accent:#17153a;
+  --fail:#f07a52; --warn:#f0a93b; --pass:#72bf8e; --focus:#a9a6f7;
+  --glass-blur: blur(18px) saturate(1.2); --glass-line: rgb(255 255 255 / .10); --scrim-soft: rgb(0 0 0 / .35); --scrim-strong: rgb(0 0 0 / .55);
+  --sun-fill: radial-gradient(circle at 42% 40%, #2c2a33, #201f25 70%, #1a191d);
+  /* 새 토큰 (시안) */
+  --modal-scrim: rgb(8 8 12 / .38);
+  --modal-bg: rgb(32 33 37 / .74);
+  --modal-line: rgb(255 255 255 / .2);
+  --modal-shadow: 0 28px 70px rgb(0 0 0 / .5);
+}
+.app[data-theme="night"] {
+  --bg:#000; --surface:#0c0000; --surface-2:#170000; --line:#3c0000; --text:#b80000; --muted:#720000; --accent:#d00000; --on-accent:#000;
+  --fail:#b80000; --warn:#b80000; --pass:#b80000; --focus:#d00000;
+  --glass-blur: blur(18px) saturate(1.2); --glass-line: rgb(60 0 0 / .7); --scrim-soft: rgb(0 0 0 / .35); --scrim-strong: rgb(0 0 0 / .55);
+  --sun-fill: radial-gradient(circle at 42% 40%, #1a0000, #110000 70%, #0a0000);
+  --modal-scrim: rgb(0 0 0 / .5);
+  --modal-bg: rgb(10 0 0 / .78);
+  --modal-line: rgb(120 0 0 / .95);
+  --modal-shadow: 0 28px 70px rgb(0 0 0 / .7);
+}
+.app button { font-family:inherit; }
+
+/* 배경 (계획 화면을 단순하게) */
+.sky { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse 900px 520px at 72% 30%, rgb(120 110 200 / .08), transparent 70%), radial-gradient(ellipse 700px 600px at 25% 85%, rgb(90 120 180 / .07), transparent 70%); }
+.app[data-theme="night"] .sky { background:radial-gradient(ellipse 900px 520px at 72% 30%, rgb(120 0 0 / .1), transparent 70%); }
+.sky i { position:absolute; width:2px; height:2px; border-radius:50%; background:var(--text); }
+.bar { position:relative; z-index:1; display:flex; align-items:center; gap:20px; min-height:44px; padding:0 96px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted); }
+.bar b { color:var(--text); letter-spacing:.18em; }
+.sun { position:absolute; left:-38px; top:3px; width:593px; aspect-ratio:1; border-radius:50%; transform:translate(-50%,-50%); background:var(--sun-fill); box-shadow:inset 0 0 0 1px var(--glass-line), 0 0 60px 6px rgb(169 166 247 / .14); }
+.body { position:relative; flex:1; display:grid; grid-template-columns:1fr 2fr 150px; gap:0; padding:18px 0 18px 18px; }
+.chat { border:1px solid var(--glass-line); border-radius:16px; margin-right:24px; padding:22px; display:grid; align-content:start; gap:14px; }
+.bubble { max-width:88%; padding:10px 14px; border-radius:14px; border-top-left-radius:4px; background:rgb(39 41 44 / .62); font-size:14.5px; }
+.app[data-theme="night"] .bubble { background:rgb(20 0 0 / .7); }
+.right { display:grid; grid-template-rows:200px 1fr 90px; gap:16px; padding-right:24px; }
+.photo { border-radius:10px; background:radial-gradient(circle at 50% 50%, rgb(200 190 255 / .35), transparent 18%), radial-gradient(ellipse 60% 30% at 50% 50%, rgb(169 166 247 / .25), transparent 70%), #07080a; box-shadow:0 0 0 1px var(--line); width:300px; }
+.app[data-theme="night"] .photo { filter:sepia(1) saturate(6) hue-rotate(-50deg) brightness(.6); }
+.graph { border-radius:10px; border:1px solid var(--line); background:linear-gradient(transparent 70%, rgb(169 166 247 / .06)); position:relative; overflow:hidden; }
+.graph svg { position:absolute; inset:0; width:100%; height:100%; }
+.fields { display:flex; gap:12px; }
+.fields span { flex:1; height:42px; border:1px solid var(--line); border-radius:10px; background:rgb(39 41 44 / .5); }
+.rail { display:grid; align-content:center; justify-items:end; gap:26px; padding-right:22px; color:var(--muted); font-size:13px; }
+.rail b { color:var(--accent); font-size:20px; }
+
+/* ───── 지금(ConfirmDialog 그대로) ───── */
+.old-scrim { position:absolute; inset:0; z-index:20; background:var(--scrim-strong); display:grid; place-items:center; }
+.old-card { width:460px; padding:26px 28px 22px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); color:var(--text); }
+.old-card.wide { width:720px; }
+.old-msg { margin:0 0 22px; font-size:16px; line-height:1.6; }
+.old-actions { display:flex; justify-content:flex-end; gap:10px; }
+
+/* ───── 새 시안: Modal ───── */
+/* 주의: 카드나 그 조상에 투명도(남아 있는 애니메이션 포함)를 걸면 그 조상이 흐림의 바닥(backdrop root)이 되어 뒤 화면이 흐려지지 않고 비친다 →
+   어둡게 하는 면은 ::before 따로, 나타나기 애니메이션은 카드 자신에만 */
+.scrim { position:absolute; inset:0; z-index:20; display:grid; place-items:center; }
+.scrim::before { content:''; position:absolute; inset:0; background:var(--modal-scrim); animation:fadeIn 220ms ease-out both; }
+.modal { position:relative; width:var(--w); max-height:80%; display:flex; flex-direction:column; border-radius:16px;
+  background:var(--modal-bg); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:inset 0 0 0 1px var(--modal-line), var(--modal-shadow);
+  /* backwards: 끝난 뒤에는 애니메이션이 남지 않게 — 투명도 애니메이션이 남아 있으면 뒤 흐림(backdrop-filter)이 꺼져 뒤 화면이 그대로 비친다 */
+  animation:fadeIn 260ms ease-out backwards; }
+.modal[data-size="sm"] { --w:470px; } .modal[data-size="md"] { --w:600px; } .modal[data-size="lg"] { --w:800px; }
+.head { display:flex; align-items:center; gap:12px; padding:20px 20px 0 28px; }
+.head h2 { flex:1; margin:0; font-size:21px; font-weight:700; letter-spacing:-.01em; }
+.close { width:36px; height:36px; display:grid; place-items:center; border:1.5px solid transparent; border-radius:var(--radius); background:transparent; color:var(--muted); cursor:pointer; transition:background-color 150ms, border-color 150ms, color 150ms; }
+.close:hover { color:var(--text); border-color:var(--accent); background:rgb(255 255 255 / .06); }
+.close svg { width:18px; height:18px; }
+.content { padding:22px 28px 0; overflow:auto; }
+.head + .content { padding-top:14px; }
+.msg { margin:0; font-size:17px; line-height:1.65; }
+.actions { display:flex; justify-content:flex-end; gap:10px; padding:22px 28px 24px; }
+/* 버튼 (Button.module.css와 같은 모양) */
+.btn { height:44px; padding:0 19px; border-radius:var(--radius); font-size:16px; font-weight:600; border:1.5px solid var(--line); background:transparent; color:var(--text); cursor:pointer; }
+.btn { transition:filter 150ms, background-color 150ms, border-color 150ms, color 150ms; }
+.btn:not(.primary):not(:disabled):hover { border-color:var(--accent); background:rgb(255 255 255 / .05); }
+.btn.primary { border-color:var(--accent); background:var(--accent); color:var(--on-accent); font-weight:700; }
+.btn.primary:not(:disabled):hover { filter:brightness(1.12); }
+.btn:focus-visible, .close:focus-visible { outline:none; box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--focus); }
+.app[data-theme="night"] .btn:not(.primary):not(:disabled):hover { background:#0e0000; }
+.app[data-theme="night"] .btn.primary { background:#260000; border-color:#8a0000; color:#d00000; }
+.btn:disabled { opacity:.4; cursor:progress; }
+
+/* 종료 중 프로그램 목록 (QuitControl) */
+.apps { list-style:none; margin:16px 0 0; padding:0; display:grid; gap:6px; }
+.apps li { display:grid; grid-template-columns:22px 1fr auto; gap:10px; align-items:center; font-size:16px; }
+.apps .mark { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--line); display:grid; place-items:center; color:var(--accent); font-size:12px; font-weight:800; }
+.apps li[data-s="done"] .mark { border-color:var(--accent); }
+.apps li[data-s="closing"] .mark { border-color:var(--accent); border-top-color:transparent; animation:spin 1s linear infinite; }
+.apps .note { color:var(--muted); font-size:14px; }
+.problem { margin-top:14px; padding:10px 12px; border-radius:10px; background:color-mix(in srgb, var(--fail) 12%, transparent); color:var(--fail); font-size:15.5px; }
+
+/* 설정 (Settings) */
+.section { display:grid; gap:10px; padding:18px 0; border-top:1px solid var(--modal-line); }
+.section:first-child { border-top:none; padding-top:4px; }
+.section h3 { margin:0; font-size:16px; font-weight:700; color:var(--muted); }
+.row { display:flex; gap:10px; align-items:center; }
+.input { flex:1; height:40px; border:1px solid var(--line); border-radius:var(--radius); background:rgb(0 0 0 / .2); padding:0 12px; color:var(--muted); font-size:15px; display:flex; align-items:center; }
+.small { font-size:14px; color:var(--muted); }
+.switch { width:40px; height:22px; border-radius:999px; background:var(--accent); position:relative; flex:none; }
+.switch::after { content:''; position:absolute; right:3px; top:3px; width:16px; height:16px; border-radius:50%; background:var(--on-accent); }
+
+/* B: 빛 테두리 (GlowFrame과 같은 구조 — 링 위를 도는 빛 + 바깥 후광) */
+.glow { position:absolute; inset:-2px; border-radius:18px; padding:2px; pointer-events:none; overflow:hidden; container-type:size;
+  mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.glow::before, .halo::before { content:''; position:absolute; left:50%; top:50%; width:hypot(100cqw, 100cqh); aspect-ratio:1; translate:-50% -50%;
+  background:conic-gradient(transparent 0deg, color-mix(in srgb, var(--accent) 70%, #fff) 10deg, transparent 20deg, transparent 180deg, color-mix(in srgb, var(--accent) 70%, #fff) 190deg, transparent 200deg);
+  animation:turn 14s linear infinite; }
+.halo { position:absolute; inset:-70px; padding:70px; pointer-events:none; overflow:hidden; container-type:size;
+  mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.halo::before { background:conic-gradient(transparent 0deg, color-mix(in srgb, var(--accent) 50%, transparent) 9deg, transparent 26deg, transparent 180deg, color-mix(in srgb, var(--accent) 50%, transparent) 189deg, transparent 206deg); filter:blur(26px); }
+.app[data-theme="night"] .glow::before, .app[data-theme="night"] .halo::before { animation:none; opacity:.5; }
+
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes turn { to { rotate:360deg; } }
+@keyframes spin { to { transform:rotate(360deg); } }
+.note-under { font-size:13px; color:var(--page-muted); margin:0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1>팝업 시안 — 공통 Modal (유리 카드 + 장비·종료 확인은 빛 테두리)</h1>
+    <p>지금 앱의 팝업은 확인 창(ConfirmDialog)만 공통이고, 설정 창·새 버전 알림은 껍데기를 따로 만들어 모양이 제각각입니다. 새 시안은 하나의 Modal 껍데기 위에 모든 팝업을 얹습니다. 배경은 덜 어둡게(하늘이 비침), 카드는 반투명 유리 + 옅은 외곽선, 크기 세 단계, 제목 줄·닫기·버튼 줄 자리가 정해져 있습니다. 적도의가 움직이거나 앱이 꺼지는 확인은 사진 틀과 같은 빛 테두리가 은은하게 돕니다. 문구는 실제 앱 그대로입니다.</p>
+  </div>
+  <div class="controls">
+    <span class="lbl">팝업</span>
+    <button class="ctl" data-k="quitBusy" aria-pressed="true">종료 중 (빛)</button>
+    <button class="ctl" data-k="quitProblem">종료 문제 · 그래도 종료 (빛)</button>
+    <button class="ctl" data-k="home">적도의 홈 (빛)</button>
+    <button class="ctl" data-k="resume">이어서 할까요</button>
+    <button class="ctl" data-k="delete">프로필 삭제</button>
+    <button class="ctl" data-k="settings">설정 (큰 창)</button>
+    <button class="ctl" data-k="update">새 버전</button>
+  </div>
+  <div class="controls">
+    <span class="lbl">모양</span>
+    <button class="ctl" data-look="new" aria-pressed="true">새 시안</button>
+    <button class="ctl" data-look="old">지금</button>
+    <span class="lbl">테마</span>
+    <button class="ctl" data-theme="dark" aria-pressed="true">기본</button>
+    <button class="ctl" data-theme="night">촬영 (적색)</button>
+    <button class="ctl" id="replay" style="margin-left:10px">나타나는 모습 다시 보기</button>
+  </div>
+  <p class="note-under">촬영 테마에서는 빛 테두리가 돌지 않고 옅은 선만 남습니다(어둠 적응을 깨지 않게). 나타날 때는 투명도만 바뀝니다.</p>
+  <div class="frame" id="frame">
+    <div class="app" id="app" data-theme="dark">
+      <div class="sky" id="sky"></div>
+      <div class="sun"></div>
+      <header class="bar"><b>AIRA</b><span>프로필 · ● 적도의 ● 카메라 ● 포커서 ● 가이드 ● 전원 허브</span><span style="flex:1"></span><span>집 37.50°N 127.03°E</span><span>21:04</span></header>
+      <div class="body">
+        <aside class="chat"><div class="bubble">찍고 싶은 대상이 있으면 이름을 말해 주세요. 고민되면 오늘 밤 조건에 맞는 대상을 추천해 드릴게요.</div></aside>
+        <div class="right">
+          <div class="photo"></div>
+          <div class="graph"><svg viewBox="0 0 1000 500" preserveAspectRatio="none"><path d="M0,420 C250,250 420,60 560,60 S850,250 1000,420" fill="none" stroke="var(--accent)" stroke-width="3"/><line x1="0" x2="1000" y1="330" y2="330" stroke="var(--line)" stroke-dasharray="6 6"/></svg></div>
+          <div class="fields"><span></span><span></span><span></span><span></span><span style="flex:.8;background:var(--accent);border-color:var(--accent)"></span></div>
+        </div>
+        <nav class="rail"><span>연결 ✓</span><span>점검 ✓</span><span>장비 준비 ✓</span><b>대상 ●</b><span>촬영</span><span>마무리</span></nav>
+      </div>
+      <div id="layer"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  var apps = [['N.I.N.A.', 'done', '닫음'], ['PHD2', 'done', '닫음'], ['SharpCap', 'closing', '닫는 중'], ['Wanderer Empire', 'waiting', '']];
+  var list = '<ul class="apps">' + apps.map(function (a) { return '<li data-s="' + a[1] + '"><span class="mark">' + (a[1] === 'done' ? '✓' : '') + '</span><span>' + a[0] + '</span><span class="note">' + a[2] + '</span></li>'; }).join('') + '</ul>';
+  // 실제 앱 문구
+  var P = {
+    quitBusy: { size: 'sm', glow: true, msg: '앱을 종료 중입니다.', extra: list, actions: [['종료', true, true], ['취소', false, true]] },
+    quitProblem: { size: 'sm', glow: true, msg: '대상 진행을 종료하고 아이라를 종료합니다.', extra: '<div class="problem">적도의 추적을 끄지 못했습니다. 켜 둔 채 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요. 그래도 종료하면 이대로 끕니다.</div>', actions: [['그래도 종료', true], ['취소']] },
+    home: { size: 'sm', glow: true, msg: '적도의를 홈 위치로 보내고 추적을 끕니다. 경통 주변에 걸리는 것이 없는지 확인해 주세요.', actions: [['홈으로 보내기', true], ['취소']] },
+    resume: { size: 'md', msg: '오늘 밤 진행 기록이 있어요 · 장비 준비 끝, M31 안드로메다 촬영 42장. 이어서 할까요? 출발 전 점검은 건너뛰고, 끝낸 작업은 장비가 그대로인지 확인한 뒤 건너뛰어요.', actions: [['이어서 하기', true], ['새로 시작']] },
+    delete: { size: 'sm', msg: "'집 마당' 프로필을 삭제합니다. 관측지 목록과 전원 배선도 함께 지워지고 되돌릴 수 없습니다.", actions: [['삭제', true], ['취소']] },
+    settings: { size: 'lg', title: '설정', settings: true, actions: [['닫기']] },
+    update: { size: 'md', title: '새 버전이 있어요', msg: 'N.I.N.A. 3.2.1 → 3.2.2가 나왔어요. 촬영 중이 아닐 때 N.I.N.A. 공식 페이지에서 내려받아 설치합니다. 아이라는 지금 버전으로도 그대로 동작합니다.', actions: [['내려받기 페이지 열기', true], ['나중에']] },
+  };
+  var settingsBody =
+    '<div class="section"><h3>AI 비서</h3><div class="row"><span class="switch"></span><div><b>계획 대화에 AI를 씁니다</b><div class="small">끄면 계획 화면은 대화 없이 대상 이름 검색만 씁니다.</div></div></div>' +
+    '<div class="small">Gemini API 키 · 이 화면에서 넣은 키를 씁니다</div><div class="row"><span class="input">새 키로 바꾸려면 붙여 넣기</span><button class="btn primary" disabled>저장</button><button class="btn">지우기</button></div>' +
+    '<div class="small">키는 이 PC의 Windows 계정으로만 풀 수 있게 암호화해 저장합니다.</div></div>' +
+    '<div class="section"><h3>프로그램 경로</h3><div class="row"><b style="width:110px">N.I.N.A.</b><span class="input">C:\\Program Files\\N.I.N.A. - Nighttime Imaging \'N\' Astronomy\\NINA.exe (자동으로 찾음)</span><button class="btn">찾아보기</button></div>' +
+    '<div class="row"><b style="width:110px">SharpCap</b><span class="input">C:\\Program Files\\SharpCap 4.1 (64 bit)\\SharpCap.exe (자동으로 찾음)</span><button class="btn">찾아보기</button></div><div class="small">PHD2는 N.I.N.A.가 켭니다 — 경로는 N.I.N.A.의 가이더 설정에서 정합니다.</div></div>' +
+    '<div class="section"><h3>기록</h3><div class="small">아이라의 단계·장비 연결 기록은 날짜별 파일로 남습니다 (14일 보관).</div><div class="row"><button class="btn">기록 폴더 열기</button></div></div>';
+
+  var cur = 'quitBusy', look = 'new';
+  function render() {
+    var p = P[cur], layer = document.getElementById('layer');
+    var body = p.settings ? settingsBody : '<p class="' + (look === 'new' ? 'msg' : 'old-msg') + '">' + p.msg + '</p>' + (p.extra || '');
+    var btns = p.actions.map(function (a) { return '<button class="btn' + (a[1] ? ' primary' : '') + '"' + (a[2] ? ' disabled' : '') + '>' + a[0] + '</button>'; }).join('');
+    if (look === 'old') {
+      layer.innerHTML = '<div class="old-scrim"><div class="old-card' + (p.size === 'lg' ? ' wide' : '') + '">' + (p.title ? '<h2 style="margin:0 0 14px;font-size:20px">' + p.title + '</h2>' : '') + body + '<div class="old-actions">' + btns + '</div></div></div>';
+      return;
+    }
+    layer.innerHTML = '<div class="scrim"><div class="modal" data-size="' + p.size + '" role="dialog" aria-modal="true">' +
+      (p.glow ? '<span class="halo"></span><span class="glow"></span>' : '') +
+      (p.title ? '<div class="head"><h2>' + p.title + '</h2><button class="close" aria-label="닫기">' + X + '</button></div>' : '') +
+      '<div class="content">' + body + '</div><div class="actions">' + btns + '</div></div></div>';
+  }
+  function press(sel, attr, val) { document.querySelectorAll(sel).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute(attr) === val)); }); }
+  document.querySelectorAll('[data-k]').forEach(function (b) { b.onclick = function () { cur = b.dataset.k; press('[data-k]', 'data-k', cur); render(); }; });
+  document.querySelectorAll('[data-look]').forEach(function (b) { b.onclick = function () { look = b.dataset.look; press('[data-look]', 'data-look', look); render(); }; });
+  document.querySelectorAll('.ctl[data-theme]').forEach(function (b) { b.onclick = function () { document.getElementById('app').dataset.theme = b.dataset.theme; press('.ctl[data-theme]', 'data-theme', b.dataset.theme); }; });
+  document.getElementById('replay').onclick = function () { var l = document.getElementById('layer'); l.innerHTML = ''; setTimeout(render, 60); };
+
+  var sky = document.getElementById('sky'), seed = 7, rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (var i = 0; i < 70; i++) { var st = document.createElement('i'); st.style.left = (rnd() * 1920) + 'px'; st.style.top = (rnd() * 1200) + 'px'; st.style.opacity = (.15 + rnd() * .5).toFixed(2); sky.appendChild(st); }
+  var frame = document.getElementById('frame'), app = document.getElementById('app');
+  var fit = function () { app.style.setProperty('--s', frame.clientWidth / 1920); };
+  new ResizeObserver(fit).observe(frame); fit(); render();
+})();
+</script>
+</body>
+</html>

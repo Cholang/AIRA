@@ -7,9 +7,20 @@ import styles from './GlowFrame.module.css'
  * 자리는 className/style로, 빛 색 `--glow-color`(기본 --accent), 한 바퀴 `--glow-period`(14초), 선 `--glow-width`, 후광 거리 `--glow-reach`,
  * 모서리 `--glow-radius`. 빛은 transform 회전만 써서 그래픽 하드웨어가 합성한다. 동작 줄이기면 멈춘 빛
  */
-export default function GlowFrame({ className, style, children }: { className?: string; style?: CSSProperties; children?: ReactNode }) {
+export default function GlowFrame({
+  className,
+  style,
+  still = false,
+  children,
+}: {
+  className?: string
+  style?: CSSProperties
+  /** 빛을 돌리지 않음 (촬영 테마의 팝업 — 어둠 적응) */
+  still?: boolean
+  children?: ReactNode
+}) {
   return (
-    <div className={`${styles.frame} ${className ?? ''}`} style={{ position: 'relative', ...style }}>
+    <div className={`${styles.frame} ${className ?? ''}`} style={{ position: 'relative', ...style }} data-still={still || undefined}>
       <span className={styles.halo} aria-hidden="true">
         <span className={styles.spin} />
       </span>

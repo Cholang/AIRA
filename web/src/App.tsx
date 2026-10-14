@@ -529,6 +529,7 @@ export default function App() {
         }
         confirmLabel={pending?.kind === 'resume' ? (pending.error ? '다시 시도' : '이어서 하기') : '확인'}
         cancelLabel="새로 시작"
+        size="md"
         single={pending?.kind !== 'resume'}
         dismissable={false}
         onConfirm={() => void answerPending(true)}

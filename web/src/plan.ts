@@ -120,7 +120,7 @@ export interface Chart {
 }
 
 export interface Message {
-  /** notice: 연습 대화로 넘어감 등 안내 한 줄 */
+  /** notice: 장비가 바뀜 등 안내 한 줄 */
   role: 'assistant' | 'user' | 'notice'
   text: string
   choices?: string[] | null
