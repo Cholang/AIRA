@@ -83,7 +83,8 @@ function progressKey(stage: number, items: RailItem[] | undefined) {
 
 /**
  * 진행 표시: 화면 오른쪽 세로 열 (2026-10-05 사용자 결정, 시안 v8·v9). 단계 → (지금 단계의) 작업.
- * 작업은 제목만(결과·세부 과정 없음). 지금 작업만 보이고, 나머지는 마우스를 올리거나 키보드 초점일 때 보인다. 맨 아래 화면 버튼(준비 중단)과 App이 넣는 도구 자리(foot — 적도의 홈·종료). 레일은 단계·작업 표시만 맡는다(2026-10-10).
+ * 글자는 지금 하는 것 하나만(지금 작업, 작업이 없으면 지금 단계 — 문제 작업도 보임). 나머지 단계·작업 이름은 원에 마우스를 올리거나
+ * 키보드 초점일 때 툴팁으로 (2026-10-14 사용자 결정, 시안 mockups/aira-plan-v3.html). 작업은 제목만(결과·세부 과정 없음). 맨 아래 화면 버튼(준비 중단)과 App이 넣는 도구 자리(foot — 적도의 홈·종료). 레일은 단계·작업 표시만 맡는다(2026-10-10).
  * 화면이 바뀌어도 같은 자리·같은 너비. 단계·작업이 바뀌면 상태만 바꿔 부드럽게 넘어간다.
  */
 export default function StepRail({ current, extra: given, foot }: { current: Stage; extra?: RailExtra | null; foot?: ReactNode }) {
@@ -238,6 +239,13 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
           const k = index(`${i}`)
           const state = i < shown.stage ? 'done' : i === shown.stage ? 'now' : 'todo'
           const items = groups[i]
+          // 지금 단계라도 펼친 작업 가운데 지금(또는 문제) 작업이 보이면 그 작업 이름만 글자로
+          const busyItem = state === 'now' && !!items?.some((it) => {
+            const ik = index(`${i}:${it.id}`)
+            const st = itemState(nodes[ik], ik)
+            return st === 'now' || st === 'problem'
+          })
+          const stageKey = `stage:${i}`
           return [
             // 맨 끝 선 숨기기: 마지막 단계는 작업 묶음이 펼쳐져 있으면 점 아래 선을 이어 그리고, 대신 마지막 작업 아래 선을 숨긴다
             // (2026-10-08 실기: 마무리 점 아래가 끊기고 마지막 작업 아래로 선이 삐져나옴)
@@ -245,6 +253,8 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
               key={s}
               className={`${styles.node} ${styles.stage}`}
               data-state={state}
+              data-label={state === 'now' && !busyItem}
+              data-open={open === stageKey}
               data-first={i === 0}
               data-last={i === STAGES.length - 1 && !(items?.length && shown.stage === i)}
             >
@@ -253,7 +263,7 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
               <span className={styles.name} aria-current={state === 'now' ? 'step' : undefined}>
                 {s}
               </span>
-              <span className={styles.dot}>
+              <span className={styles.dot} onMouseEnter={() => setOpen(stageKey)} onMouseLeave={() => setOpen(null)}>
                 <Check strokeWidth={2.5} aria-hidden="true" />
               </span>
             </li>,
@@ -278,8 +288,6 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
                         data-open={open === key}
                         data-tail={i === STAGES.length - 1 && j === items.length - 1}
                         tabIndex={i === shown.stage ? 0 : -1}
-                        onMouseEnter={() => setOpen(key)}
-                        onMouseLeave={() => setOpen(null)}
                         onFocus={() => setOpen(key)}
                         onBlur={() => setOpen(null)}
                         onClick={() => setOpen(open === key ? null : key)}
@@ -289,7 +297,7 @@ export default function StepRail({ current, extra: given, foot }: { current: Sta
                         {line(nodes[ik], ik, 'in')}
                         {line(nodes[ik], ik, 'out')}
                         <span className={styles.itemName}>{it.label}</span>
-                        <span className={styles.itemDot} />
+                        <span className={styles.itemDot} onMouseEnter={() => setOpen(key)} onMouseLeave={() => setOpen(null)} />
                       </li>
                     )
                   })}

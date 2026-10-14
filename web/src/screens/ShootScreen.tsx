@@ -22,7 +22,7 @@ type Then = 'wrap' | 'retarget'
 
 const ENDED: Record<string, string> = {
   done: '계획한 장수를 다 찍었어요. ',
-  low: '대상이 30° 아래로 내려가 계획대로 끝냈어요. ',
+  low: '대상이 계획한 고도 아래로 내려가 계획대로 끝냈어요. ',
   dawn: '새벽 박명이 시작돼 끝냈어요. ',
   user: '',
   error: '사진을 계속 받지 못해 촬영을 멈췄어요. ',

@@ -16,7 +16,7 @@ public sealed class SimulatedSlewDevices(SimOptions sim, SimFaults faults) : ISl
         return _lowAltitude ?? 42;
     }
 
-    public int? MinutesUntilUsable(PrepContext ctx) => _lowAltitude is { } a && a < SlewTask.UsableAltitude ? (int)Math.Ceiling((SlewTask.UsableAltitude - a) / 17.0 * 18) : 0;
+    public int? MinutesUntilUsable(PrepContext ctx) => _lowAltitude is { } a && a < SlewTask.LowestAltitude ? (int)Math.Ceiling((SlewTask.LowestAltitude - a) / 17.0 * 18) : 0;
 
     public async Task WaitTickAsync(CancellationToken ct)
     {

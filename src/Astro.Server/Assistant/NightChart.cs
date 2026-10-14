@@ -1,56 +1,97 @@
 using Astro.Core.Sky;
-using Astro.Server.Sky;
 
 namespace Astro.Server.Assistant;
 
 /// <summary>
-/// 화면 "오늘 밤" 그래프 자료: 시간축 하나에 어두운 시간, 달, 구름, 대상 고도, 촬영 시간대.
-/// 시각은 모두 시간축 시작부터의 분(min)으로 보낸다 (화면이 시간대를 따로 계산하지 않게).
+/// 계획 화면 "오늘 밤" 그래프 자료 (2026-10-14 개편, 시안 mockups/aira-plan-v3.html): 일몰~일출 시간축 하나에
+/// 천문 박명, 지금, 정각마다 구름, 30분마다 달(위상·고도), 고른 대상들의 고도 곡선·촬영 시간대·시작점을 옮길 수 있는 범위.
+/// 시각은 모두 일몰부터의 분(min)으로 보낸다 (화면이 시간대를 따로 계산하지 않게). 표시용 시각 글자도 함께.
 /// </summary>
 public static class NightChart
 {
-    private static readonly TimeSpan Step = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan TrackStep = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MoonStep = TimeSpan.FromMinutes(30);
 
-    public static object Build(NightContext n, ShootingPlan plan, DsoCatalog catalog)
+    public static object Build(NightContext n, ShootingPlan plan, DateTimeOffset now)
     {
-        // 축: 18시~6시. 일몰·일출이 그 밖이면 넓힌다
-        var sunset = n.Window.Sunset;
-        var from = new DateTimeOffset(sunset.Year, sunset.Month, sunset.Day, 18, 0, 0, sunset.Offset);
-        if (sunset.AddMinutes(-30) < from) from = new DateTimeOffset(sunset.Year, sunset.Month, sunset.Day, sunset.AddMinutes(-30).Hour, 0, 0, sunset.Offset);
-        var to = from.Date.AddDays(1) is var next ? new DateTimeOffset(next.Year, next.Month, next.Day, 6, 0, 0, sunset.Offset) : from;
-        var sunrise = n.Window.Sunrise;
-        if (sunrise.AddMinutes(30) > to) to = new DateTimeOffset(sunrise.Year, sunrise.Month, sunrise.Day, sunrise.AddMinutes(90).Hour, 0, 0, sunrise.Offset);
+        var from = n.Window.Sunset;
+        var to = n.Window.Sunrise;
+        double Min(DateTimeOffset t) => Math.Round((t - from).TotalMinutes, 1);
+        static string Hm(DateTimeOffset t) => t.ToString("HH:mm");
 
-        double Min(DateTimeOffset t) => Math.Round((t - from).TotalMinutes);
+        // 정각들 (시간 눈금·구름)
+        var firstHour = new DateTimeOffset(from.Year, from.Month, from.Day, from.Hour, 0, 0, from.Offset).AddHours(1);
+        var hours = new List<DateTimeOffset>();
+        for (var h = firstHour; h <= to; h = h.AddHours(1)) hours.Add(h);
 
-        object? target = null;
-        if (plan.Target is { } pt && catalog.Get(pt.Id) is { } dso)
+        // 달: 30분마다(정각·30분), 지평선 위만. 위상은 밝기와 차고 기우는지
+        var firstHalf = new DateTimeOffset(from.Year, from.Month, from.Day, from.Hour, from.Minute >= 30 ? 30 : 0, 0, from.Offset).Add(MoonStep);
+        var moon = new List<object>();
+        for (var t = firstHalf; t <= to; t += MoonStep)
         {
-            target = new
-            {
-                name = pt.Name,
-                track = Night.Track(utc => Astronomy.Altitude(dso.Position, n.Site, utc), from, to, Step)
-                    .Select(x => new[] { Min(x.Time), Math.Round(x.Altitude, 1) }).ToList(),
-                transit = pt.Transit is { } tr ? Min(tr) : (double?)null,
-                transitLabel = pt.Transit?.ToString("HH:mm"),
-            };
+            var alt = Astronomy.MoonAltitude(n.Site, t.UtcDateTime);
+            if (alt >= 0) moon.Add(new { at = Min(t), alt = Math.Round(alt, 1), label = Hm(t) });
         }
+        var mid = n.Window.DarkStart + (n.Window.DarkEnd - n.Window.DarkStart) / 2;
+        var waxing = Astronomy.MoonIllumination(mid.AddHours(12).UtcDateTime) > Astronomy.MoonIllumination(mid.UtcDateTime);
+
+        var settings = plan.Settings;
+        var picks = plan.Picks.Select(p =>
+        {
+            var altitude = PlanTools.AltitudeOf(p.RaDegrees, p.DecDegrees, n.Site);
+            var track = new List<double[]>();
+            (DateTimeOffset At, double Alt) peak = (from, double.MinValue);
+            for (var t = from; t <= to; t += TrackStep)
+            {
+                var a = altitude(t);
+                track.Add([Min(t), Math.Round(a, 2)]);
+                if (a > peak.Alt) peak = (t, a);
+            }
+            // 봉우리는 1분 단위로 다듬는다
+            for (var t = peak.At - TrackStep; t <= peak.At + TrackStep; t += TimeSpan.FromMinutes(1))
+                if (t >= from && t <= to && altitude(t) is var a && a > peak.Alt) peak = (t, a);
+
+            var w = PlanTools.WindowOf(p, plan, n, now);
+            object? window = null;
+            if (w is not null)
+            {
+                var amount = settings is null ? null : ShootAmount.Of(w, settings.ExposureSeconds, settings.TotalMinutes);
+                window = new
+                {
+                    start = Min(w.Start), limit = Min(w.Limit), end = amount is null ? Min(w.Limit) : Min(amount.End),
+                    clipped = amount?.Clipped ?? false,
+                    startAltitude = Math.Round(w.StartAltitude, 1), endAltitude = Math.Round(w.EndAltitude, 1),
+                    transit = w.Transit is { } tr ? Min(tr) : (double?)null, transitLabel = w.Transit is { } tl ? Hm(tl) : null,
+                    dragFrom = Min(w.DragFrom), dragTo = Min(w.DragTo), moved = w.Moved, moveAt = Min(w.MoveAt),
+                };
+            }
+            return new
+            {
+                id = p.Id, name = p.Name, koreanName = p.KoreanName, type = p.Type,
+                track,
+                peak = peak.Alt > 0 ? new { at = Min(peak.At), alt = Math.Round(peak.Alt, 1), label = Hm(peak.At) } : null,
+                window,
+            };
+        }).ToList();
 
         return new
         {
-            start = from.ToString("HH:mm"),
-            minutes = Min(to),
-            hours = Enumerable.Range(0, (int)((to - from).TotalHours) + 1).Select(h => new { at = h * 60, label = from.AddHours(h).ToString("HH") }).ToList(),
-            dark = new { start = Min(n.Window.DarkStart), end = Min(n.Window.DarkEnd), label = $"{n.Window.DarkStart:HH:mm}–{n.Window.DarkEnd:HH:mm}" },
-            sun = new { set = Min(n.Window.Sunset), rise = Min(n.Window.Sunrise) },
-            moon = new
-            {
-                illumination = Math.Round(n.Moon.Illumination * 100),
-                up = n.Moon.UpIntervals.Select(u => new { start = Min(u.Start), end = Min(u.End), setLabel = u.End.ToString("HH:mm"), riseLabel = u.Start.ToString("HH:mm") }).ToList(),
-            },
-            clouds = n.Clouds.Where(c => c.Time >= from && c.Time < to).Select(c => new { at = Min(c.Time), cover = c.Cover }).ToList(),
-            target,
-            shooting = plan.Settings is { EstimatedFrames: > 0 } s ? new { start = Min(s.Start), end = Min(s.End) } : null, // 찍을 시간이 없으면 띠 없음
+            sunsetLabel = Hm(from),
+            sunriseLabel = Hm(to),
+            // 시간축 끝(일출)까지의 분
+            span = Min(to),
+            // 일몰의 하루 중 분 — 화면이 분을 시각 글자로 바꿀 때
+            startClock = from.Hour * 60 + from.Minute,
+            dark = new { start = Min(n.Window.DarkStart), end = Min(n.Window.DarkEnd), startLabel = Hm(n.Window.DarkStart), endLabel = Hm(n.Window.DarkEnd) },
+            now = Min(now),
+            nowLabel = Hm(now),
+            hours = hours.Select(h => new { at = Min(h), label = $"{h.Hour}시" }).ToList(),
+            clouds = n.Clouds.Where(c => c.Time >= from && c.Time <= to).Select(c => new { at = Min(c.Time), cover = c.Cover }).ToList(),
+            moon = new { illumination = Math.Round(n.Moon.Illumination * 100), waxing, samples = moon },
+            current = plan.Target?.Id,
+            picks,
+            minAltitude = PlanRules.MinAltitude,
+            lowestAltitude = PlanRules.LowestAltitude,
         };
     }
 }

@@ -452,15 +452,28 @@ public static class AppServer
             return Results.Ok(new
             {
                 messages = assistant.Display,
-                plan = PlanView.From(assistant.Plan, night),
-                chart = NightChart.Build(night, assistant.Plan, catalog),
+                plan = assistant.View(),
+                chart = assistant.Chart(),
                 catalogAvailable = catalog.Available,
                 cloudsAvailable = night.Clouds.Count > 0,
+                // AI를 쓸 수 없으면(이유 문장) 대화 대신 이름 검색만 (2026-10-14)
+                practiceReason = assistant.PracticeReason,
             });
         });
 
-        plan.MapGet("/chart", (PlanAssistant assistant, DsoCatalog catalog) =>
-            assistant.Night is { } night ? Results.Ok(NightChart.Build(night, assistant.Plan, catalog)) : Results.NotFound());
+        plan.MapGet("/chart", (PlanAssistant assistant) =>
+            assistant.Night is not null ? Results.Ok(assistant.Chart()) : Results.NotFound());
+
+        // 화면에서 계획 고치기 (AI 도구와 같은 함수) — 고친 뒤의 계획·그래프를 돌려준다. 고칠 수 없으면 이유
+        IResult Edited(PlanAssistant a, string? problem) =>
+            problem is not null ? Results.BadRequest(new { error = problem }) : Results.Ok(new { plan = a.View(), chart = a.Chart() });
+        plan.MapGet("/search", (string? q, PlanAssistant assistant) => Results.Ok(assistant.Search(q ?? "")));
+        plan.MapPost("/pick", (PlanTargetInput input, PlanAssistant assistant) => Edited(assistant, assistant.Pick(input.Id)));
+        plan.MapPost("/remove", (PlanTargetInput input, PlanAssistant assistant) => Edited(assistant, assistant.Remove(input.Id)));
+        plan.MapPost("/settings", (PlanSettingsInput input, PlanAssistant assistant) =>
+            Edited(assistant, assistant.ChangeSettings(input.Filter, input.Iso, input.Exposure, input.TotalMinutes)));
+        // 시작점 옮기기: 일몰부터의 분. null이면 기본(30° 위가 되는 때)으로
+        plan.MapPost("/start", (PlanStartInput input, PlanAssistant assistant) => Edited(assistant, assistant.SetStart(input.Id, input.Minute)));
 
         // 사용자 말 하나 → 글 조각·계획 변화·선택지를 차례로 (Server-Sent Events)
         plan.MapPost("/chat", (ChatInput input, PlanAssistant assistant, CancellationToken ct) =>
@@ -493,6 +506,9 @@ public static class AppServer
     };
 
     private sealed record ChatInput(string Text);
+    private sealed record PlanTargetInput(string Id);
+    private sealed record PlanSettingsInput(string? Filter, int? Iso, int? Exposure, int? TotalMinutes);
+    private sealed record PlanStartInput(string Id, double? Minute);
 
     private sealed record RigSelect(string Kind, string? DeviceId, string? Name);
     private sealed record CameraPowerChoice(string? Outlet);

@@ -119,9 +119,33 @@
   transition: transform 360ms cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
-.stage[data-state='done'] .name {
+/*
+ * 글자는 지금 하는 것 하나만 (2026-10-14): 지금 단계(작업이 없을 때)·지금 작업·문제 작업.
+ * 나머지 이름은 원을 가리키면(작업은 키보드 초점도) 툴팁 모양으로 같은 자리에 — 투명도만 바뀐다
+ */
+.stage[data-label='false'] .name,
+.item:not([data-state='now']):not([data-state='problem']) .itemName {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
   color: var(--text);
-  opacity: 0.75;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: 0 6px 18px var(--scrim-mid);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.stage[data-label='false'][data-open='true'] .name,
+.item[data-open='true']:not([data-state='now']):not([data-state='problem']) .itemName {
+  opacity: 1;
+}
+
+.stage .dot {
+  cursor: default;
 }
 
 .stage[data-state='done'] .dot {
@@ -135,7 +159,7 @@
 }
 
 /* 지금 단계: 크고 굵게 + 강조색 점 */
-.stage[data-state='now'] .name {
+.stage[data-state='now'][data-label='true'] .name {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -210,6 +234,13 @@
 
 .item[data-state='skipped'] .itemName {
   text-decoration: line-through;
+}
+
+.itemDot::before {
+  /* 작은 점이라 가리키는 자리를 넓힌다 */
+  content: '';
+  position: absolute;
+  inset: -8px;
 }
 
 .itemDot {

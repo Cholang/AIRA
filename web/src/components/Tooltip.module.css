@@ -1,0 +1,52 @@
+/* 툴팁: 가리키거나 초점이 들어오면 투명도만 바뀐다 (DESIGN.md 8장) */
+.anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  z-index: 20;
+  width: max-content;
+  max-width: 340px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--size-small);
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  word-break: keep-all;
+  box-shadow: 0 6px 18px var(--scrim-mid);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.anchor:hover > .tip,
+.anchor:focus-within > .tip {
+  opacity: 1;
+}
+
+.tip[data-placement='top'] { bottom: calc(100% + 8px); }
+.tip[data-placement='bottom'] { top: calc(100% + 8px); }
+.tip[data-placement='top'][data-align='start'],
+.tip[data-placement='bottom'][data-align='start'] { left: 0; }
+.tip[data-placement='top'][data-align='end'],
+.tip[data-placement='bottom'][data-align='end'] { right: 0; }
+.tip[data-placement='top'][data-align='center'],
+.tip[data-placement='bottom'][data-align='center'] { left: 50%; transform: translateX(-50%); }
+
+.tip[data-placement='left'] {
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip { transition: none; }
+}

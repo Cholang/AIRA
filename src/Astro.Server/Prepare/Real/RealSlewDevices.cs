@@ -16,7 +16,7 @@ public sealed class RealSlewDevices(NinaRig rig) : ISlewDevices
     {
         var now = ctx.Now();
         for (var m = 0; m <= 12 * 60; m += 1)
-            if (ctx.TargetAltitude(now.AddMinutes(m)) >= SlewTask.UsableAltitude) return m;
+            if (ctx.TargetAltitude(now.AddMinutes(m)) >= SlewTask.LowestAltitude) return m;
         return null;
     }
 

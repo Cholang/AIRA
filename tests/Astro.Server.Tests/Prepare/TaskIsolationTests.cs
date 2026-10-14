@@ -134,6 +134,18 @@ public class TaskIsolationTests
     }
 
     [Fact]
+    public async Task 대상_이동은_촬영_시작_빼기_준비시간까지_기다리고_지금_이동도_된다()
+    {
+        // 2026-10-14: 이동 = 계획의 촬영 시작 − 준비 시간. 대상이 이미 15° 위라도 그 전이면 기다리기 / 지금 이동
+        var plan = Harness.Plan() with { Start = DateTimeOffset.Now.AddHours(2) };
+        var ctx = Harness.Context(plan: plan);
+        var (done, run) = await RunAlone(new SlewTask(new SimulatedSlewDevices(Fast, new SimFaults())), ctx,
+            actions => actions.Any(a => a.Id == "move-now") ? "move-now" : actions.First(a => a.Primary).Id);
+        Assert.Contains("wait,move-now", run.Asked);
+        Assert.True(Assert.IsType<SlewResult>(done.Result).ArrivalErrorDeg <= SlewTask.ArrivalLimitDeg);
+    }
+
+    [Fact]
     public async Task 초점_단독_지난_위치를_기억한다()
     {
         var ctx = Harness.Context();

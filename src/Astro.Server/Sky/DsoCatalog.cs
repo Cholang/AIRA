@@ -71,6 +71,44 @@ public sealed class DsoCatalog
         return Load(db, like).OrderBy(d => d.Magnitude ?? 99).Take(limit).ToList();
     }
 
+    /// <summary>
+    /// 입력하면서 찾기 (계획 화면 검색창): 번호는 앞부분만 맞아도("M3" → M3, M30…, "NGC 70" → NGC 70xx), 한국어 통칭, 영문 통칭 일부.
+    /// 정확히 맞는 것이 먼저, 그다음 짧은 번호 순
+    /// </summary>
+    public IReadOnlyList<Dso> Search(string query, int limit = 8)
+    {
+        if (!Available || string.IsNullOrWhiteSpace(query)) return [];
+        query = query.Trim();
+        var found = new List<Dso>();
+        void Add(IEnumerable<Dso> list)
+        {
+            foreach (var d in list)
+                if (found.Count < limit && found.All(f => f.Id != d.Id)) found.Add(d);
+        }
+
+        using var db = Open();
+        var m = Regex.Match(query, @"^(M|NGC|IC|C|CALDWELL|SH\s*2|SH2|B|BARNARD)\s*-?\s*(\d+)$", RegexOptions.IgnoreCase);
+        if (m.Success)
+        {
+            var cat = m.Groups[1].Value.ToUpperInvariant().Replace(" ", "") switch
+            {
+                "C" or "CALDWELL" => "Caldwell",
+                "SH2" => "Sh2",
+                "B" or "BARNARD" => "Barnard",
+                var c => c,
+            };
+            var digits = m.Groups[2].Value;
+            Add(Load(db, Ids(db, "select dsodetailid from cataloguenr where catalogue = $c and designation = $d", ("$c", cat), ("$d", digits))));
+            Add(Load(db, Ids(db, "select dsodetailid from cataloguenr where catalogue = $c and designation like $d order by length(designation), designation limit 30",
+                ("$c", cat), ("$d", digits + "%"))));
+            return found;
+        }
+
+        foreach (var name in KoreanNames.Find(query)) Add(Find(name, 1));
+        Add(Find(query, limit));
+        return found;
+    }
+
     public Dso? Get(string id)
     {
         if (!Available) return null;

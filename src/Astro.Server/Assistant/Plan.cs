@@ -2,21 +2,29 @@ using System.Text.Json.Serialization;
 
 namespace Astro.Server.Assistant;
 
-// 촬영 계획 네 칸 (OPERATION_PROCEDURE.md "계획"): 대상 / 구도 / 촬영 설정 / 끝난 뒤.
-// 칸 상태: empty(아직) · asking(지금 묻는 중) · set(정해짐). 화면은 이 모양을 그대로 그린다.
+// 촬영 계획 (OPERATION_PROCEDURE.md "계획", 2026-10-14 개편): 계획 = 무엇을(대상) + 얼마나(촬영 설정).
+// 사용자는 화면에서 직접, AI는 도구로 같은 계획을 고친다. 구도·끝난 뒤는 묻지 않고 기본값으로 채운다(준비 단계가 읽는 모양은 그대로).
 // 칸에는 실행에 쓰는 값(좌표·종료 규칙·끝난 뒤 동작)을 두고, 화면 문장은 그 값에서 만든다 (Codex 리뷰 CX-PLAN-04·07)
 
 public sealed class ShootingPlan
 {
+    /// <summary>지금 대상 (Picks 가운데 하나). 설정·확정은 이 대상으로</summary>
     public PlanTarget? Target { get; set; }
+
+    /// <summary>그래프에 함께 그리는 고른 대상들. 먼저 고른 것부터, 다시 고르면 맨 뒤(가장 최근)로, 최대 PlanRules.MaxPicks</summary>
+    public List<PlanTarget> Picks { get; set; } = [];
+
+    /// <summary>사용자가 시작점을 옮긴 대상 (대상 id → 촬영 시작). 없으면 기본 시작</summary>
+    public Dictionary<string, DateTimeOffset> StartOverrides { get; set; } = [];
+
     public PlanFraming? Framing { get; set; }
     public PlanSettings? Settings { get; set; }
     public PlanAfter? After { get; set; }
 
-    /// <summary>지금 묻는 칸: target · framing · settings · after</summary>
+    /// <summary>지금 묻는 것 (예전 칸 이름: target · settings). 화면 강조용</summary>
     public string? Asking { get; set; }
 
-    /// <summary>네 칸이 모두 찼다 (입력 완료). 실제로 찍을 수 있는지는 준비 단계에서 확인한다 (CX-PLAN-05)</summary>
+    /// <summary>대상과 설정이 정해졌다. 실제로 찍을 수 있는지는 확정할 때·준비 단계에서 확인한다 (CX-PLAN-05)</summary>
     public bool Complete => Target is not null && Framing is not null && Settings is not null && After is not null;
 }
 
@@ -51,9 +59,15 @@ public enum EndRule
 public sealed record PlanSettings(
     int ExposureSeconds, int Iso, string Filter,
     EndRule EndRule,
-    /// <summary>촬영할 수 있는 시간대. 예상 장수는 이 시간을 한 장 시간(노출 + 쉬는 시간)으로 나눈 추정값이다 (목표 장수가 아님)</summary>
+    /// <summary>촬영 시작과 물리 한계(새벽 또는 대상이 EndAltitude 아래로). 계획 장수 = 총 노출 ÷ 노출, 시간대 안에 다 못 찍으면 그 최대</summary>
     DateTimeOffset Start, DateTimeOffset End, int EstimatedFrames,
-    bool ExposureRecommended, bool IsoRecommended)
+    bool ExposureRecommended, bool IsoRecommended,
+    /// <summary>총 노출(분) = 노출 × 장수 (쉬는 시간은 끝 시각에만)</summary>
+    int TotalMinutes = PlanRules.DefaultTotalMinutes,
+    /// <summary>필터 키 (PlanRules.Filters). Filter는 화면 이름</summary>
+    string? FilterKey = null,
+    /// <summary>촬영을 끝내는 대상 고도 = 시작 고도와 30° 중 낮은 쪽</summary>
+    double EndAltitude = PlanRules.MinAltitude)
 {
     /// <summary>화면용 문장</summary>
     public string EndCondition => EndRule switch
@@ -94,25 +108,26 @@ public sealed record PreparationPlan(
     int ExposureSeconds, int Iso, string Filter,
     EndRule EndRule, DateTimeOffset Start, DateTimeOffset End, int EstimatedFrames,
     bool Park, CalibrationFrames Calibration, bool Disconnect,
-    DateTimeOffset ConfirmedAt)
+    DateTimeOffset ConfirmedAt,
+    /// <summary>
+    /// 촬영을 끝내는 대상 고도 (계획에서 시작점을 30°보다 낮게 잡았으면 그 고도, 2026-10-14). 이동 단계는 Start − 준비 시간에 옮기고,
+    /// 촬영 단계는 대상이 이 고도 아래로 내려가면 끝낸다. 옛 기록에는 없으므로 기본 30°
+    /// </summary>
+    double MinAltitude = PlanRules.MinAltitude)
 {
-    /// <summary>계획에서 만든다. 실행할 수 없는 계획이면 이유(사용자에게 보여 줄 문장)를 돌려준다</summary>
+    /// <summary>계획에서 만든다. 실행할 수 없는 계획이면 이유(사용자에게 보여 줄 문장)를 돌려준다. 시간대는 확정 직전에 다시 계산해 둔 값</summary>
     public static (PreparationPlan? Plan, string? Problem) From(ShootingPlan p, DateTimeOffset now)
     {
         if (p is not { Target: { } t, Framing: { } f, Settings: { } s, After: { } a })
-            return (null, "계획 네 칸을 모두 정해 주세요.");
-        if (t.UsableStart is null)
-        {
-            var name = t.KoreanName is null ? t.Name : $"{t.Name} {t.KoreanName}";
-            return (null, $"{name}{Core.Josa.Pick(name, "은", "는")} 오늘 밤 어두운 시간에 30° 위로 올라오지 않습니다. 다른 대상을 골라 주세요.");
-        }
-        if (s.End <= now)
-            return (null, $"끝나는 시각({s.End:HH:mm})이 이미 지났습니다. 끝나는 조건을 다시 정해 주세요.");
+            return (null, "대상을 먼저 골라 주세요.");
+        var name = t.KoreanName is null ? t.Name : $"{t.Name} {t.KoreanName}";
         if (s.End <= s.Start || s.EstimatedFrames < 1)
-            return (null, "촬영할 수 있는 시간이 없습니다. 끝나는 조건이나 노출 시간을 다시 정해 주세요.");
+            return (null, $"{name}{Core.Josa.Pick(name, "은", "는")} 오늘 밤 찍을 수 있는 시간이 없습니다. 다른 대상을 골라 주세요.");
+        if (s.End <= now)
+            return (null, $"찍을 수 있는 시간({s.End:HH:mm}까지)이 이미 지났습니다. 다른 대상을 골라 주세요.");
         return (new PreparationPlan(t.Id, t.Name, t.KoreanName, t.RaDegrees, t.DecDegrees,
             f.Placement, f.RotationDegrees,
             s.ExposureSeconds, s.Iso, s.Filter, s.EndRule, s.Start, s.End, s.EstimatedFrames,
-            a.Park, a.Calibration, a.Disconnect, now), null);
+            a.Park, a.Calibration, a.Disconnect, now, s.EndAltitude), null);
     }
 }

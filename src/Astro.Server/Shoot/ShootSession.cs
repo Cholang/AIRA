@@ -30,7 +30,7 @@ public enum ShootMode { Idle, Shoot, Dither, Flip, Focus, Paused, Finishing, End
 /// <summary>
 /// 촬영 (OPERATION_PROCEDURE.md "촬영", 시안 mockups/aa-shoot-wrap-v10.html). 확정 계획·대상 묶음의 결과로 찍는다.
 /// 사진마다 등급(ShotGrader) → F면 제외 폴더로. 디더링(3장마다)·자오선 반전·초점 다시 맞추기·구름 멈춤은 묻지 않고 자동.
-/// 끝: 계획 장수(쓸 사진 기준) · 대상이 30° 아래 · 계획 끝 시각(새벽) — 또는 사용자의 "촬영 중단"(지금 사진까지 찍고).
+/// 끝: 계획 장수(쓸 사진 기준) · 대상이 계획의 끝 고도(기본 30°) 아래 · 계획 끝 시각(새벽) — 또는 사용자의 "촬영 중단"(지금 사진까지 찍고).
 /// 끝나면 가이딩을 멈춘다. 그 뒤(마무리 / 다른 대상)는 화면이 고른다.
 /// </summary>
 public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode, ILogger<ShootSession> log)
@@ -39,7 +39,6 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
     public const double FlipAfterDeg = 1.25;        // 자오선 지나 5분 뒤 반전
     public const double RefocusTempC = 2;
     public const double RefocusHfrFactor = 1.3;
-    public const double MinAltitude = 30;
     private const int Spark = 48;
 
     private readonly Lock _gate = new();
@@ -507,11 +506,11 @@ public sealed class ShootSession(IShootDevices devices, Prepare.PrepareMode mode
         finally { lock (_gate) _wake = null; }
     }
 
-    /// <summary>끝낼 이유: user(중단) · done(계획 장수) · low(고도 30° 아래) · dawn(계획 끝 시각). 아니면 null</summary>
+    /// <summary>끝낼 이유: user(중단) · done(계획 장수) · low(계획의 끝 고도 아래 — 기본 30°, 시작을 낮게 잡았으면 그 고도) · dawn(계획 끝 시각). 아니면 null</summary>
     private string? EndReason(PrepContext ctx) =>
         _stopRequested ? "user"
         : _good >= ctx.Plan.EstimatedFrames ? "done"
-        : !ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < MinAltitude ? "low"
+        : !ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < ctx.Plan.MinAltitude ? "low"
         : ctx.Now() >= ctx.Plan.End ? "dawn"
         : null;
 

@@ -57,6 +57,18 @@
   --star: #e8e6e1;
   --sky-muted: rgb(255 255 255 / 0.55);
   --sky-line: rgb(255 255 255 / 0.16);
+  /* 계획 그래프 (2026-10-14): 대상 종류 그림 · 달 · 박명 · 먼 산 */
+  --dso-galaxy: #a9a6f7;
+  --dso-galaxy-core: #d8d6ff;
+  --dso-cluster: #e6efff;
+  --dso-cluster-glow: #a9c4ff;
+  --dso-nebula: #e38aa8;
+  --moon-lit: #e8e4d8;
+  --moon-dark: #26272c;
+  --moon-line: #c9c6bd;
+  --graph-twilight: #3a3d4a;
+  --graph-ridge-far: #2a2b31;
+  --graph-ridge-near: #141518;
   color-scheme: dark;
 }
 
@@ -104,6 +116,17 @@
   --star: #b80000;
   --sky-muted: #9a0000;
   --sky-line: rgb(184 0 0 / 0.3);
+  --dso-galaxy: #b80000;
+  --dso-galaxy-core: #d00000;
+  --dso-cluster: #b80000;
+  --dso-cluster-glow: #6a0000;
+  --dso-nebula: #8a0000;
+  --moon-lit: #b80000;
+  --moon-dark: #100000;
+  --moon-line: #720000;
+  --graph-twilight: #1a0000;
+  --graph-ridge-far: #0c0000;
+  --graph-ridge-near: #050000;
   color-scheme: dark;
 }
 

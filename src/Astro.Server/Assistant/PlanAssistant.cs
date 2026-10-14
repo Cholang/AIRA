@@ -81,12 +81,13 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
     {
         "get_tonight" => "오늘 밤 조건을 보는 중…",
         "search_targets" or "suggest_targets" => "대상 후보를 찾는 중…",
-        "set_target" => "대상을 정리하는 중…",
-        "set_framing" => "구도를 계산하는 중…",
-        "recommend_settings" or "set_settings" => "촬영 설정을 계산하는 중…",
-        "set_after" => "끝난 뒤 할 일을 정리하는 중…",
+        "pick_target" or "set_target" or "remove_target" => "대상을 정리하는 중…",
+        "set_settings" or "set_start" or "recommend_settings" => "촬영 설정을 계산하는 중…",
         _ => "답을 정리하는 중…",
     };
+
+    /// <summary>계획을 고치는 곳이 둘(화면·AI 도구)이라 한 번에 하나씩</summary>
+    private readonly Lock _planGate = new();
 
     private readonly SemaphoreSlim _busy = new(1, 1);
     private readonly List<ChatMessage> _history = [];
@@ -104,10 +105,16 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
     /// <summary>"이 계획으로 준비 시작"으로 확정한 계획. 준비 단계가 이것을 읽는다 (없으면 null)</summary>
     public PreparationPlan? Confirmed { get; private set; }
 
-    /// <summary>지금 계획을 확정해 준비 단계로 넘긴다. 실행할 수 없는 계획이면 이유를 돌려준다</summary>
+    /// <summary>지금 계획을 확정해 준비 단계로 넘긴다. 실행할 수 없는 계획이면 이유를 돌려준다. 시간대는 지금 시각으로 다시 계산한 값</summary>
     public string? Confirm()
     {
-        var (plan, problem) = PreparationPlan.From(_plan, DateTimeOffset.Now);
+        PreparationPlan? plan;
+        string? problem;
+        lock (_planGate)
+        {
+            if (_night is { } n) PlanTools.Recount(_plan, n, DateTimeOffset.Now);
+            (plan, problem) = PreparationPlan.From(_plan, DateTimeOffset.Now);
+        }
         if (plan is null) return problem;
         Confirmed = plan;
         log.LogInformation("계획 확정: {Plan}", plan);
@@ -163,9 +170,62 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         _display.Clear();
         _plan = new ShootingPlan { Asking = "target" };
         _noticeShown = false;
-        _display.Add(new DisplayMessage("assistant", Greeting(_night), ["오늘 밤 추천 보기"]));
+        // AI가 없으면 대화 없이 이름 검색만 (2026-10-14 사용자 결정) — 인사도 두지 않는다. 오늘 밤 한 줄은 화면 오른쪽에 늘 있다
+        if (PracticeReason is null) _display.Add(new DisplayMessage("assistant", Greeting, ["오늘 뭐가 좋을까?"]));
         return null;
     }
+
+    /// <summary>AI를 쓸 수 없는 이유 (설정·키 없음·오늘 한도). 쓸 수 있으면 null — 화면은 이때 대화 대신 이름 검색만</summary>
+    public string? PracticeReason => models.PracticeReason ?? (DateTimeOffset.Now < _practiceUntil ? _practiceReason : null);
+
+    // ── 화면에서 계획 고치기 (AI 도구와 같은 함수). 문제가 있으면 사용자에게 보여 줄 문장 ─────────
+
+    public string? Pick(string id) => Edit((p, n) => tools.Pick(id, null, n, p));
+    public string? Remove(string id) => Edit((p, n) => tools.Remove(id, n, p));
+    public string? ChangeSettings(string? filter, int? iso, int? exposure, int? totalMinutes) =>
+        Edit((p, n) => tools.ChangeSettings(n, p, filter, iso, exposure, totalMinutes));
+    /// <summary>시작점 옮기기: 밤 시간축의 분(일몰부터) — null이면 기본으로</summary>
+    public string? SetStart(string id, double? minuteFromSunset) =>
+        Edit((p, n) => tools.SetStart(id, minuteFromSunset is { } m ? n.Window.Sunset.AddMinutes(m) : null, n, p));
+
+    private string? Edit(Func<ShootingPlan, NightContext, string?> change)
+    {
+        lock (_planGate)
+        {
+            if (_night is not { } n) return "오늘 밤 정보가 아직 없습니다. 화면을 다시 열어 주세요.";
+            return change(_plan, n);
+        }
+    }
+
+    /// <summary>화면에 보낼 계획 (지금 시각으로 시간대를 다시 계산)</summary>
+    public object View()
+    {
+        lock (_planGate)
+        {
+            var n = _night!;
+            PlanTools.Recount(_plan, n, DateTimeOffset.Now);
+            return PlanView.From(_plan, n, tools, DateTimeOffset.Now);
+        }
+    }
+
+    /// <summary>그래프 자료 (지금 시각 기준)</summary>
+    public object Chart()
+    {
+        lock (_planGate) return NightChart.Build(_night!, _plan, DateTimeOffset.Now);
+    }
+
+    /// <summary>화면 검색창: 입력하면서 찾기 (오늘 밤 못 찍는 대상은 뺌)</summary>
+    public IReadOnlyList<object> Search(string query)
+    {
+        if (_night is not { } n) return [];
+        return tools.Search(query, n).Select(d => (object)new
+        {
+            id = d.Id, name = d.Name, koreanName = Sky.KoreanNames.Of(d), commonName = d.CommonName, type = d.Type, constellation = d.Constellation,
+        }).ToList();
+    }
+
+    /// <summary>오늘 밤 한 줄 (화면 오른쪽 위, 늘): 어두운 시간 · 달 · 구름</summary>
+    public string NightLine => _night is { } n ? NightSummary(n) : "";
 
     public void Reset()
     {
@@ -183,25 +243,29 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
 
     /// <summary>
     /// 같은 밤에 장비만 바뀌었을 때: 대상(시각·고도)은 그대로, 화각에 달린 구도의 채움 비율은 다시 계산.
-    /// 노출 추천에 쓰는 것(F값·카메라·가이딩·필터휠)이 바뀌었으면 촬영 설정 칸을 비우고 다시 묻는다
+    /// 기본 노출·ISO에 쓰는 것(F값·카메라·가이딩)이 바뀌었으면 기본값 그대로이던 설정만 새 기본값으로 (사용자가 고친 값은 둔다)
     /// </summary>
     private void ApplyRig(Rig rig)
     {
-        var old = _night!.Rig;
-        _night = _night with { Rig = rig };
-        if (_plan.Framing is { } f && _plan.Target is { } t) _plan.Framing = f with { FillPercent = PlanTools.Fill(t.SizeArcmin, rig) };
-
-        var settingsStale = _plan.Settings is not null &&
-            (old.FocalRatio != rig.FocalRatio || old.Camera != rig.Camera || old.HasGuider != rig.HasGuider || old.HasFilterWheel != rig.HasFilterWheel);
-        if (settingsStale)
+        lock (_planGate)
         {
-            _plan.Settings = null;
-            _plan.Asking ??= "settings";
+            var old = _night!;
+            var oldDefaults = _plan.Settings is { } s0 ? tools.DefaultsFor(old, s0.FilterKey ?? PlanRules.FilterKey(s0.Filter)) : default;
+            _night = old with { Rig = rig };
+            if (_plan.Framing is { } f && _plan.Target is { } t) _plan.Framing = f with { FillPercent = PlanTools.Fill(t.SizeArcmin, rig) };
+            if (_plan.Settings is { } s)
+            {
+                var (exposure, iso) = tools.DefaultsFor(_night, s.FilterKey ?? PlanRules.FilterKey(s.Filter));
+                _plan.Settings = s with
+                {
+                    ExposureSeconds = s.ExposureSeconds == oldDefaults.ExposureSeconds ? exposure : s.ExposureSeconds,
+                    Iso = s.Iso == oldDefaults.Iso ? iso : s.Iso,
+                };
+                PlanTools.Recount(_plan, _night, DateTimeOffset.Now);
+            }
+            log.LogInformation("계획 중 장비가 바뀜: {Old} → {New}", old.Rig, rig);
+            _display.Add(new DisplayMessage("notice", "장비가 바뀌어 화각과 기본 설정을 다시 계산했어요."));
         }
-        log.LogInformation("계획 중 장비가 바뀜: {Old} → {New}", old, rig);
-        _display.Add(new DisplayMessage("notice", settingsStale
-            ? "장비가 바뀌어 화각을 다시 계산했어요. 촬영 설정은 새 장비에 맞춰 다시 정해 주세요."
-            : "장비가 바뀌어 화각을 다시 계산했어요."));
     }
 
     /// <summary>사용자 말 하나를 처리한다. 화면으로 보낼 이벤트: notice · text · plan · choices · error · done</summary>
@@ -224,7 +288,7 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
             _history.Add(ChatMessage.User(text));
 
             // 실제 AI를 쓸 수 없으면 연습 대화 (설정·키 없음·오늘 한도 초과)
-            var reason = models.PracticeReason ?? (DateTimeOffset.Now < _practiceUntil ? _practiceReason : null);
+            var reason = PracticeReason;
             var model = reason is null ? models.Create() : ChatModelFactory.Practice(() => _plan);
             if (reason is not null && !_noticeShown)
             {
@@ -313,7 +377,9 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
                 yield return Event("status", new { message = Doing(calls[^1].Name) });
                 foreach (var call in calls)
                 {
-                    var result = tools.Run(call.Name, call.Arguments, night, _plan, out var offered);
+                    JsonElement result;
+                    IReadOnlyList<string>? offered;
+                    lock (_planGate) result = tools.Run(call.Name, call.Arguments, _night ?? night, _plan, out offered);
                     log.LogInformation("도구 {Tool} {Args}", call.Name, call.Arguments.GetRawText());
                     results.Add(new ToolResultPart(call.Id, call.Name, result));
                     if (offered is not null)
@@ -322,7 +388,7 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
                         yield return Event("choices", new { choices });
                     }
                 }
-                yield return Event("plan", PlanView.From(_plan, night));
+                yield return Event("plan", View());
                 _history.Add(new ChatMessage(ChatRole.User, results));
             }
 
@@ -349,12 +415,12 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
 
     private static string Hm(DateTimeOffset t) => t.ToString("HH:mm");
 
-    private static string Greeting(NightContext n)
-    {
-        var dark = $"오늘 밤은 {Hm(n.Window.DarkStart)}부터 {Hm(n.Window.DarkEnd)}까지 어두워요.";
-        var moon = MoonLine(n);
-        return $"{dark} {moon} 오늘은 무엇을 촬영하실 계획인가요?";
-    }
+    /// <summary>첫 인사 (AI가 있을 때만). 오늘 밤 조건은 화면 오른쪽 위 한 줄에 늘 있으므로 되풀이하지 않는다</summary>
+    private const string Greeting = "찍고 싶은 대상이 있으면 이름을 말해 주세요. 고민되면 오늘 밤 조건에 맞는 대상을 추천해 드릴게요.";
+
+    /// <summary>오늘 밤 한 줄: "오늘은 19:20부터 05:05까지 어두워요. 달(9%)은 19:52에 져요. 01시쯤부터 구름이 많아진다는 예보예요."</summary>
+    public static string NightSummary(NightContext n) =>
+        $"오늘은 {Hm(n.Window.DarkStart)}부터 {Hm(n.Window.DarkEnd)}까지 어두워요. {MoonLine(n)} {CloudLine(n)}";
 
     private static string MoonLine(NightContext n)
     {
@@ -366,88 +432,116 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         return $"달({pct}%)은 {Hm(s)}에 떠요.";
     }
 
+    /// <summary>어두운 시간 동안의 구름 예보를 한 문장으로 (바뀌는 때만 시각을 붙인다)</summary>
+    private static string CloudLine(NightContext n)
+    {
+        var hours = n.Clouds.Where(c => c.Time >= n.Window.DarkStart.AddMinutes(-30) && c.Time <= n.Window.DarkEnd).OrderBy(c => c.Time).ToList();
+        if (hours.Count == 0) return "구름 예보는 받지 못했어요.";
+        const int Clear = 30, Cloudy = 60;
+        if (hours.All(c => c.Cover < Clear)) return "구름 없는 밤이라는 예보예요.";
+        if (hours.All(c => c.Cover >= Cloudy)) return "밤새 구름이 많다는 예보예요.";
+        if (hours[0].Cover < Cloudy && hours.FirstOrDefault(c => c.Cover >= Cloudy) is { } worse)
+            return $"{worse.Time:HH}시쯤부터 구름이 많아진다는 예보예요.";
+        if (hours[0].Cover >= Cloudy && hours.FirstOrDefault(c => c.Cover < Clear) is { } better)
+            return $"{better.Time:HH}시쯤부터 구름이 걷힌다는 예보예요.";
+        return "구름이 조금 있다는 예보예요.";
+    }
+
     private static readonly JsonSerializerOptions PlanJson = new(JsonSerializerDefaults.Web);
 
-    private static string SystemPrompt(NightContext n, ShootingPlan plan)
+    private string SystemPrompt(NightContext n, ShootingPlan plan)
     {
-        var state = JsonSerializer.Serialize(PlanView.From(plan, n), PlanJson);
+        var state = JsonSerializer.Serialize(View(), PlanJson);
         return $$"""
-            너는 {{Product.Name}} 앱의 천체사진 촬영 비서다. 사용자와 대화해서 오늘 밤 촬영 계획 네 칸(대상, 구도, 촬영 설정, 끝난 뒤)을 채운다.
-            화면 왼쪽이 대화, 오른쪽에 계획 네 칸과 오늘 밤 그래프가 있다. 화면은 이미 이렇게 인사했다: "{{Greeting(n)}}"
+            너는 {{Product.Name}} 앱의 천체사진 촬영 비서다. 사용자와 대화해서 오늘 밤 촬영 계획을 함께 정한다. 계획 = 무엇을(대상) + 얼마나(촬영 설정).
+            화면: 왼쪽이 대화, 오른쪽 위에 오늘 밤 한 줄("{{NightSummary(n)}}")과 고른 대상의 프레임 미리보기, 가운데에 일몰~일출 고도 그래프(고른 대상 최대 3개, 지금 대상만 밝게),
+            아래에 촬영 설정 칸(필터 · 게인 · 노출 · 총 노출 · 촬영 횟수)과 이동 버튼이 있다. 사용자는 화면에서 직접 값을 고칠 수도 있다.
+            화면은 이미 이렇게 인사했다: "{{Greeting}}"
 
             말하기
             - 한국어 존댓말(~요), 한 번에 2~3문장. 목록·표·마크다운을 쓰지 않는다.
-            - 시각·고도·화각·장수 같은 숫자는 도구 결과에 있는 값만 쓴다. 추측해서 만들지 않는다.
+            - 시각·고도·화각·장수 같은 숫자는 도구 결과나 아래 '지금 계획 상태'(화면에 보이는 값)에 있는 값만 쓴다. 추측해서 만들지 않는다.
             - 대상 이름은 번호와 한국어 통칭을 함께 (예: M45 플레이아데스).
             - 관측지 위치(위도·경도·지명)는 말하지 않는다.
 
             진행
-            - 순서: 대상 → 구도 → 촬영 설정 → 끝난 뒤. 사용자가 다른 칸부터 말하면 따른다.
-            - 질문할 때는 먼저 offer_choices로 그 칸과 선택지(2~4개)를 보여 준 다음 질문한다. 한 번에 한 가지만 묻는다.
-            - 사용자가 고르거나 동의하면 바로 set_* 도구로 칸을 채우고 다음으로 넘어간다. 다시 확인하지 않는다.
-            - 대상: 사용자가 정해 온 대상이 있으면 추천부터 하지 말고 그 대상을 찾아 바로 진행한다. 대안까지 말하면 오늘 조건에 맞는 쪽을 함께 비교한다. 추천을 원하면 suggest_targets, 이름을 말하면 search_targets. 대상을 정하면 언제 30°를 넘고 언제 가장 높은지, 화면을 얼마나 채우는지 한 문장으로 알려 준다.
-            - 달이 50% 넘게 밝고 대상과 30° 안쪽이면(moon_separation_degrees) 대상을 정하기 전에 그 사실을 알리고, 듀얼 내로우밴드 필터를 쓰거나 달과 먼 대상을 고를 수 있다고 제안한다. 사용자가 그대로 찍겠다면 따른다.
-            - 대상이 오늘 밤 30° 위로 올라오지 않으면(예상 장수 0) 오늘은 찍기 어렵다고 알리고 다른 대상을 제안한다.
-            - 구도: 기본은 대상을 가운데에 두고 카메라 방향은 지금 그대로다. 가운데에 둘지만 묻는다. 회전 각도는 사용자가 직접 말할 때만 넣는다. 실제 구도는 준비 단계에서 사진으로 확인한다고 말해도 좋다.
-            - 촬영 설정: 필터를 먼저 묻고(필터 없음 / 광해 필터 / 듀얼 내로우밴드), recommend_settings로 추천값을 받아 제안한다. 끝나는 조건 기본값은 '대상이 낮아지거나 새벽이 올 때까지'.
-            - 끝난 뒤: 기본값(적도의 파킹, 다크·플랫 찍지 않음, 장비 연결 해제)을 제안하고 확인만 받는다.
-            - 네 칸이 모두 차면 "오른쪽 계획을 확인해 주세요"라고 짧게 마무리한다.
-            - 사용자가 "(칸) 고치기"라고 하면 그 칸을 다시 묻는다.
-            - 대화 도중 장비가 바뀔 수 있다. 장비·화각·계획 값은 앞의 대화가 아니라 아래 '지금 계획 상태'와 get_tonight 결과를 기준으로 한다.
-            - 이 단계에서는 적도의를 움직이거나 촬영을 시작하지 않는다. 그런 요청은 다음 단계(준비)에서 한다고 말한다.
+            - 사용자가 정해 온 대상이 있으면 추천부터 하지 말고 search_targets로 찾아 pick_target으로 고른다. 추천을 원하면 suggest_targets.
+            - 대상을 고르면 언제부터 언제까지 찍을 수 있는지, 화면을 얼마나 채우는지 한 문장으로 알려 준다. 기다려야 하면 그 까닭(어두워짐·고도)을 말한다.
+            - 여러 대상을 비교하고 싶어 하면 차례로 pick_target — 그래프에 최대 3개까지 함께 그려진다.
+            - 설정을 바꿔 달라고 하면(예: "노출 90초로", "내로우밴드 끼웠어", "2시간만 찍을래") set_settings로 바로 바꾸고 바뀐 결과를 한 문장으로 말한다.
+            - 더 높이 올라온 뒤에 시작하고 싶다고 하면 set_start. 시작은 화면 그래프의 손잡이로도 옮길 수 있다고 알려 줘도 좋다.
+            - 달이 50% 넘게 밝고 대상과 30° 안쪽이면 그 사실을 알리고, 듀얼 내로우밴드 필터나 달과 먼 대상을 제안한다. 사용자가 그대로 찍겠다면 따른다.
+            - 오늘 밤 찍을 수 없는 대상(찍을 수 있는 시간 없음)이면 그렇게 알리고 다른 대상을 제안한다.
+            - 질문할 때는 offer_choices로 선택지(2~4개)를 먼저 보여 준 다음 질문한다. 한 번에 한 가지만 묻는다.
+            - 구도(대상은 가운데, 카메라 방향은 지금 그대로)와 끝난 뒤(파킹·다크·플랫)는 묻지 않는다.
+            - 계획이 정해지면 "오른쪽 아래 이동 버튼을 누르면 적도의가 대상으로 움직여요"라고 짧게 안내한다. 이 대화에서는 적도의를 움직이거나 촬영을 시작하지 않는다.
+            - 대화 도중 장비나 시각이 바뀔 수 있다. 장비·화각·계획 값은 앞의 대화가 아니라 아래 '지금 계획 상태'와 get_tonight 결과를 기준으로 한다.
             - 촬영과 관계없는 이야기는 짧게 답하고 계획으로 돌아온다.
 
-            지금 계획 상태(JSON): {{state}}
+            지금 계획 상태(JSON, 화면에 보이는 값): {{state}}
             """;
     }
 }
 
-/// <summary>화면에 보내는 계획 모양 (칸 상태 + 표시용 값)</summary>
+/// <summary>화면·AI에 보내는 계획 모양 (2026-10-14 개편): 고른 대상들, 지금 대상, 설정과 기본값, 고를 수 있는 값, 지금 대상의 시간대·장수</summary>
 public static class PlanView
 {
-    public static object From(ShootingPlan p, NightContext n)
+    public static object From(ShootingPlan p, NightContext n, PlanTools tools, DateTimeOffset now)
     {
-        static string? Hm(DateTimeOffset? t) => t?.ToString("HH:mm");
-        string State(string field, object? value) => value is not null ? "set" : p.Asking == field ? "asking" : "empty";
+        static string Hm(DateTimeOffset t) => t.ToString("HH:mm");
         var fov = n.Rig.FieldOfView;
+        var stepIso = PlanRules.IsStepIso(n.Rig.IsoMin, n.Rig.IsoMax);
+        var s = p.Settings;
+        var key = s is null ? PlanRules.DefaultFilter : s.FilterKey ?? PlanRules.FilterKey(s.Filter);
+        var (defaultExposure, defaultIso) = tools.DefaultsFor(n, key);
+
+        object? window = null;
+        if (p.Target is { } t && s is not null && PlanTools.WindowOf(t, p, n, now) is { } w)
+        {
+            var a = ShootAmount.Of(w, s.ExposureSeconds, s.TotalMinutes);
+            window = new
+            {
+                start = Hm(w.Start), limit = Hm(w.Limit), end = Hm(a.End), moveAt = Hm(w.MoveAt),
+                startAltitude = Math.Round(w.StartAltitude), endAltitude = Math.Round(w.EndAltitude),
+                wait = w.Wait.ToString().ToLowerInvariant(), stop = w.Stop.ToString().ToLowerInvariant(), moved = w.Moved,
+                transit = w.Transit is { } tr ? Hm(tr) : null,
+                frames = a.Frames, maxFrames = a.MaxFrames, planned = a.Planned, clipped = a.Clipped,
+                secondsPerFrame = a.SecondsPerFrame, overheadSeconds = PlanRules.FrameOverheadSeconds,
+                minutes = (int)Math.Round((w.Limit - w.Start).TotalMinutes),
+            };
+        }
+
         return new
         {
-            asking = p.Asking,
             complete = p.Complete,
-            fov = new { width = Math.Round(fov.Width, 2), height = Math.Round(fov.Height, 2) },
-            target = new
+            asking = p.Asking,
+            night = PlanAssistant.NightSummary(n),
+            current = p.Target?.Id,
+            picks = p.Picks.Select(x => new
             {
-                state = State("target", p.Target),
-                value = p.Target is { } t ? new
-                {
-                    t.Name, t.CommonName, t.KoreanName, t.Type, t.Constellation,
-                    sizeArcmin = t.SizeArcmin is { } s ? Math.Round(s, 1) : (double?)null,
-                    usableStart = Hm(t.UsableStart), usableEnd = Hm(t.UsableEnd),
-                    highestAt = Hm(t.HighestAt), highestAltitude = Math.Round(t.HighestAltitude),
-                    transit = Hm(t.Transit), moonSeparation = Math.Round(t.MoonSeparation),
-                } : null,
-            },
-            framing = new
+                id = x.Id, name = x.Name, koreanName = x.KoreanName, commonName = x.CommonName, type = x.Type, constellation = x.Constellation,
+                sizeArcmin = x.SizeArcmin is { } sz ? Math.Round(sz, 1) : (double?)null,
+                raDeg = Math.Round(x.RaDegrees, 4), decDeg = Math.Round(x.DecDegrees, 4),
+                fillPercent = PlanTools.Fill(x.SizeArcmin, n.Rig), moonSeparation = Math.Round(x.MoonSeparation),
+            }).ToList(),
+            fov = new { width = Math.Round(fov.Width, 2), height = Math.Round(fov.Height, 2), camera = n.Rig.Camera, telescope = n.Rig.Telescope },
+            settings = s is null ? null : new
             {
-                state = State("framing", p.Framing),
-                // rotation: null = 지금 카메라 방향 유지
-                value = p.Framing is { } f ? new { f.Placement, rotation = f.RotationDegrees is { } r ? Math.Round(r) : (double?)null, fillPercent = f.FillPercent } : null,
+                filter = key, iso = s.Iso, exposure = s.ExposureSeconds, totalMinutes = s.TotalMinutes,
+                defaults = new { iso = defaultIso, exposure = defaultExposure, totalMinutes = PlanRules.DefaultTotalMinutes },
             },
-            settings = new
+            options = new
             {
-                state = State("settings", p.Settings),
-                value = p.Settings is { } s2 ? new
-                {
-                    exposure = s2.ExposureSeconds, iso = s2.Iso, s2.Filter, s2.EndCondition,
-                    start = Hm(s2.Start), end = Hm(s2.End), frames = s2.EstimatedFrames,
-                    s2.ExposureRecommended, s2.IsoRecommended,
-                } : null,
+                filters = PlanRules.Filters.Select(f => new { key = f.Key, label = f.Label }).ToList(),
+                gain = stepIso
+                    ? (object)new { kind = "list", unit = "ISO", values = PlanRules.IsoOptions(n.Rig.IsoMin, n.Rig.IsoMax) }
+                    : new { kind = "range", unit = "게인", min = n.Rig.IsoMin, max = n.Rig.IsoMax },
+                exposure = new { min = PlanRules.MinExposureSeconds, max = PlanRules.MaxExposureSeconds, step = PlanRules.ExposureStepSeconds },
+                totalMinutes = new { min = PlanRules.MinTotalMinutes, max = PlanRules.MaxTotalMinutes, step = PlanRules.TotalStepMinutes },
+                maxPicks = PlanRules.MaxPicks,
+                prepMinutes = (int)PlanRules.PrepLead.TotalMinutes,
             },
-            after = new
-            {
-                state = State("after", p.After),
-                value = p.After is { } a ? new { mount = a.MountText, calibration = a.CalibrationText, equipment = a.EquipmentText } : null,
-            },
+            window,
         };
     }
 }

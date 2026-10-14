@@ -7,7 +7,7 @@ public interface ISlewDevices
 {
     /// <summary>대상의 지금 고도(도)</summary>
     double TargetAltitude(PrepContext ctx);
-    /// <summary>30° 위로 올라올 때까지 남은 분 (오늘 밤 안 올라오면 null)</summary>
+    /// <summary>이동할 수 있는 고도(SlewTask.LowestAltitude, 15°) 위로 올라올 때까지 남은 분 (오늘 밤 안 올라오면 null)</summary>
     int? MinutesUntilUsable(PrepContext ctx);
     /// <summary>기다리는 동안 다시 확인하는 간격</summary>
     Task WaitTickAsync(CancellationToken ct);
@@ -21,12 +21,14 @@ public sealed record SlewMove(bool Ok, double ArrivalErrorDeg, string? Problem =
 public sealed record SlewEndState(double DistanceToTargetDeg, bool Moving, bool Tracking);
 
 /// <summary>
-/// ③ 대상 이동 (OPERATION_PROCEDURE.md ④ 이동): ② 끝 버튼 "대상으로 이동"이 이동 승인. 낮은 대상은 계획 단계에서 알렸고 여기선
-/// "기다리기"(남은 시간 + 때가 되면 알림) → "기다리기 끝" → "이동". 30° 아래면 이동을 막는다. 이동 중 "멈춤".
+/// ③ 대상 이동 (OPERATION_PROCEDURE.md ④ 이동): 계획의 이동 버튼이 이동 승인. 이동하는 때는 계획에서 정한 "촬영 시작 − 준비 시간"이고
+/// 대상이 15° 이상이어야 한다 (2026-10-14 사용자 결정 — 예전의 "30° 아래면 막음"은 폐기). 그 전이면 "기다리기"(남은 시간 + 때가 되면 알림).
+/// 15° 아래면 이동을 막고, 시각만 이르면 "지금 이동"으로 먼저 옮길 수 있다. 이동 중 "멈춤".
 /// </summary>
 public sealed class SlewTask(ISlewDevices devices) : IPrepTask
 {
-    public const double UsableAltitude = 30;
+    /// <summary>이보다 낮은 대상으로는 옮기지 않는다 (PlanRules.LowestAltitude)</summary>
+    public const double LowestAltitude = Assistant.PlanRules.LowestAltitude;
     public const double ArrivalLimitDeg = 2;
 
     public string Id => "slew";
@@ -39,6 +41,8 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
     /// <summary>이동이 안 될 때 "지금 위치를 목표로" — 핸드 컨트롤러·성도 앱으로 이미 맞춘 경우 (2026-10-08 사용자 결정). 센터링도 건너뜀</summary>
     private static readonly PrepAction AcceptHere = new("here", "지금 위치를 목표로");
     private bool _acceptHere;
+    /// <summary>시각이 이른데 사용자가 "지금 이동"을 골랐다 (한 번 쓰고 끈다)</summary>
+    private bool _moveNow;
 
     private Completed Accepted(PrepContext ctx) =>
         new(new SlewResult(0, devices.TargetAltitude(ctx), ctx.Now(), AcceptedHere: true), "지금 위치를 목표로", "지금 위치에서 찍어요",
@@ -48,11 +52,12 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
     {
         var ctx = run.Context;
         _acceptHere = false;
+        _moveNow = false;
         run.Live("sky-map");
         while (true)
         {
             run.SubStep(0);
-            await WaitUntilUsableAsync(run, ct);
+            await WaitUntilMoveAsync(run, ct);
             var moved = await MoveAsync(run, ct);
             if (_acceptHere) return Accepted(ctx);
             if (moved is null) continue; // 멈춤 → 다시 이동을 누르면 처음부터(고도 확인 포함)
@@ -72,22 +77,44 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         }
     }
 
-    /// <summary>대상이 30° 위가 될 때까지: 기다리기 / 이동(막음) / 기다리기 끝</summary>
-    private async Task WaitUntilUsableAsync(ITaskRun run, CancellationToken ct)
+    /// <summary>옮길 때: 촬영 시작 − 준비 시간</summary>
+    private static DateTimeOffset MoveAt(PrepContext ctx) => ctx.Plan.Start - Assistant.PlanRules.PrepLead;
+    private bool TooLow(PrepContext ctx) => !ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < LowestAltitude;
+    private bool TooEarly(PrepContext ctx) => !ctx.IgnoreAltitude && !_moveNow && ctx.Now() < MoveAt(ctx);
+    private static int MinutesUntil(PrepContext ctx, DateTimeOffset at) => Math.Max(1, (int)Math.Ceiling((at - ctx.Now()).TotalMinutes));
+    private static string Topic(string name) => Core.Josa.Pick(name, "은", "는");
+
+    /// <summary>옮길 때가 될 때까지: 너무 낮으면 기다리기만(이동은 막음), 시각만 이르면 기다리기 / 지금 이동</summary>
+    private async Task WaitUntilMoveAsync(ITaskRun run, CancellationToken ct)
     {
         var ctx = run.Context;
-        while (!ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < UsableAltitude)
+        while (TooLow(ctx) || TooEarly(ctx))
         {
-            var minutes = devices.MinutesUntilUsable(ctx);
-            var when = minutes is { } m ? $"약 {m}분 뒤 30° 위로 올라옵니다" : "오늘 밤 30° 위로 올라오지 않습니다";
-            run.Guide($"{ctx.TargetName}{Core.Josa.Pick(ctx.TargetName, "은", "는")} 아직 낮습니다", $"{when}. 계획 단계에서 알려 드린 대기입니다.");
             ShowAltitude(run, ctx);
-            run.Status("대상이 30° 아래에 있습니다", Tone.Warn);
-            var choice = await run.AskAsync([new("wait", "기다리기", true), new("move", "이동")], ct);
-            if (choice == "move")
+            if (TooLow(ctx))
             {
-                run.Status($"아직 떠오르지 않아 이동할 수 없습니다{(minutes is { } mm ? $" (약 {mm}분 뒤 가능)" : "")}", Tone.Fail);
-                await run.AskAsync([new("wait", "기다리기", true)], ct);
+                var minutes = devices.MinutesUntilUsable(ctx);
+                var when = minutes is { } m ? $"약 {m}분 뒤 {LowestAltitude:F0}° 위로 올라오면 이동합니다" : $"오늘 밤 {LowestAltitude:F0}° 위로 올라오지 않습니다";
+                run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} 아직 낮습니다", $"{when}. 계획 단계에서 알려 드린 대기입니다.");
+                run.Status($"대상이 {LowestAltitude:F0}° 아래에 있습니다", Tone.Warn);
+                var choice = await run.AskAsync([new("wait", "기다리기", true), new("move", "이동")], ct);
+                if (choice == "move")
+                {
+                    run.Status($"아직 떠오르지 않아 이동할 수 없습니다{(minutes is { } mm ? $" (약 {mm}분 뒤 가능)" : "")}", Tone.Fail);
+                    await run.AskAsync([new("wait", "기다리기", true)], ct);
+                }
+            }
+            else
+            {
+                var at = MoveAt(ctx);
+                run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} {ctx.Plan.Start:HH:mm}부터 찍기로 했습니다",
+                    $"준비 시간을 생각해 {at:HH:mm}에 이동합니다. 먼저 옮겨도 됩니다.");
+                run.Status($"이동까지 약 {MinutesUntil(ctx, at)}분 남았습니다");
+                if (await run.AskAsync([new("wait", "기다리기", true), new("move-now", "지금 이동")], ct) == "move-now")
+                {
+                    _moveNow = true;
+                    return;
+                }
             }
             await WaitAsync(run, ct);
         }
@@ -102,28 +129,33 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         while (!endWait.IsCompleted)
         {
             ShowAltitude(run, ctx);
-            if (devices.TargetAltitude(ctx) >= UsableAltitude)
+            if (!TooLow(ctx) && !TooEarly(ctx))
             {
                 // 때가 됨: 알림(나중에 휴대폰 진동)
-                run.Status($"{ctx.TargetName}이 30° 위로 올라왔습니다 — 이동할 수 있어요", Tone.Ok);
+                run.Status($"이동할 때가 됐어요 — {ctx.TargetName} 고도 {devices.TargetAltitude(ctx):F0}°", Tone.Ok);
                 asking.Cancel();
                 try { await endWait; } catch (OperationCanceledException) { }
                 await run.AskAsync([new("move", "이동", true)], ct);
                 return;
             }
-            var m = devices.MinutesUntilUsable(ctx);
-            run.Status(m is { } mm ? $"대상이 올라오기를 기다리는 중입니다 · 약 {mm}분 남음" : "대상이 올라오기를 기다리는 중입니다");
+            if (TooLow(ctx))
+            {
+                var m = devices.MinutesUntilUsable(ctx);
+                run.Status(m is { } mm ? $"대상이 올라오기를 기다리는 중입니다 · 약 {mm}분 남음" : "대상이 올라오기를 기다리는 중입니다");
+            }
+            else run.Status($"이동 시각({MoveAt(ctx):HH:mm})을 기다리는 중입니다 · 약 {MinutesUntil(ctx, MoveAt(ctx))}분 남음");
             await Task.WhenAny(endWait, devices.WaitTickAsync(ct));
         }
-        await endWait; // 사용자가 일찍 "기다리기 끝" — 바깥 반복이 고도를 다시 본다
+        await endWait; // 사용자가 일찍 "기다리기 끝" — 바깥 반복이 다시 본다(시각만 이르면 "지금 이동"을 고를 수 있다)
     }
 
     private void ShowAltitude(ITaskRun run, PrepContext ctx)
     {
         var alt = devices.TargetAltitude(ctx);
-        run.Readout("altitude", $"{alt:F0}°", $"{ctx.Plan.TargetName} 지금 고도 · 30° 위로 올라오면 이동", alt >= UsableAltitude ? Tone.Ok : Tone.Warn,
+        run.Readout("altitude", $"{alt:F0}°", $"{ctx.Plan.TargetName} 지금 고도 · {LowestAltitude:F0}° 위면 이동", alt >= LowestAltitude ? Tone.Ok : Tone.Warn,
             new Dictionary<string, double> { ["altitudeDeg"] = alt });
     }
+
 
     /// <summary>이동. 멈춤을 누르면 정지를 확인하고 null</summary>
     private async Task<SlewMove?> MoveAsync(ITaskRun run, CancellationToken ct)

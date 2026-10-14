@@ -1,24 +1,35 @@
 import { ArrowRight } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Button from '../components/Button'
-import NightChart from '../components/NightChart'
+import { Field, NumberField, ResetMark, SelectField } from '../components/Field'
+import NightGraph, { Emblem } from '../components/NightGraph'
 import { useRailExtra } from '../components/StepRail'
-import { PRODUCT } from '../product'
-import { sendChat, type Message, type Plan, type PlanState } from '../plan'
+import Tooltip from '../components/Tooltip'
+import {
+  changeSettings,
+  clockOf,
+  displayName,
+  pickTarget,
+  removeTarget,
+  searchTargets,
+  sendChat,
+  setStart,
+  type Chart,
+  type Edited,
+  type FoundTarget,
+  type Message,
+  type Plan,
+  type PlanPick,
+  type PlanState,
+  type PlanWindow,
+} from '../plan'
+import { PRODUCT, withRo } from '../product'
 import styles from './PlanScreen.module.css'
 
-const CELL_NAMES = {
-  target: '대상',
-  framing: '구도',
-  settings: '촬영 설정',
-  after: '끝난 뒤',
-} as const
-type Field = keyof typeof CELL_NAMES
-
 /**
- * 촬영 계획 (DESIGN.md "계획"): 왼쪽 1/3 AA와의 대화, 오른쪽 위 오늘 밤 조건, 아래 계획 네 칸 + 계획 카드 줄.
- * 계획 칸은 AI가 도구로 채운다. 숫자는 모두 서버 계산 값이다.
- * 이 화면에서 적도의는 움직이지 않는다.
+ * 촬영 계획 (DESIGN.md "계획", 시안 mockups/aira-plan-v3.html — 2026-10-14 개편): 계획 = 무엇을(대상) + 얼마나(촬영 설정).
+ * 왼쪽 30%: 아이라와의 대화(AI가 없으면 이름 검색만). 오른쪽 70%: 오늘 밤 한 줄 · 프레임 미리보기 · 일몰~일출 그래프 · 촬영 설정 줄과 이동 버튼.
+ * 화면 조작과 AI가 같은 계획(서버)을 고친다. 숫자는 모두 서버 계산 값이다. 이동 버튼을 누르면 적도의가 움직인다(기다려야 하면 기다리기 화면).
  */
 export default function PlanScreen({ onContinue }: { onContinue: () => void }) {
   const [state, setState] = useState<PlanState | null>(null)
@@ -57,14 +68,137 @@ const TARGET_ITEMS = [
 
 function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () => void }) {
   useRailExtra({ stage: '대상', items: TARGET_ITEMS.map(([id, label], i) => ({ id, label, state: i === 0 ? 'now' : 'todo' })) })
-  const [messages, setMessages] = useState<Message[]>(initial.messages)
   const [plan, setPlan] = useState<Plan>(initial.plan)
-  const [chart, setChart] = useState(initial.chart)
-  const [busy, setBusy] = useState(false)
-  // AI가 도구를 쓰는 동안 지금 하는 일 (답 글자가 오면 지움)
-  const [working, setWorking] = useState<string | null>(null)
+  const [chart, setChart] = useState<Chart>(initial.chart)
   const [error, setError] = useState<string | null>(null)
+
+  const refreshChart = useCallback(() => {
+    fetch('/api/plan/chart')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c: Chart | null) => c && setChart(c))
+      .catch(() => {})
+  }, [])
+
+  // 시각이 흐르면(지금 선·가장 이른 시작) 1분마다 다시 받는다
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      fetch('/api/plan/state')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((s: PlanState | null) => {
+          if (!s || s.error) return
+          setPlan(s.plan)
+          setChart(s.chart)
+        })
+        .catch(() => {})
+    }, 60_000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에 */
+  const edit = useCallback(async (change: () => Promise<Edited>) => {
+    setError(null)
+    try {
+      const r = await change()
+      setPlan(r.plan)
+      setChart(r.chart)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
+    }
+  }, [])
+
+  // 이동: 서버가 계획을 실행 값으로 확정하고 대상 묶음(이동부터)으로 넘어간다. 실행할 수 없는 계획이면 이유를 오류 줄에
+  const [starting, setStarting] = useState(false)
+  const start = async () => {
+    if (starting) return
+    setStarting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/plan/confirm', { method: 'POST' })
+      if (res.ok) return onContinue()
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      setError(body?.error ?? '계획을 확정하지 못했습니다. 다시 눌러 주세요.')
+    } catch {
+      setError(`${PRODUCT.name} 내부 서버와 연결이 끊겼습니다. 다시 눌러 주세요.`)
+    }
+    setStarting(false)
+  }
+
+  const current = plan.picks.find((p) => p.id === plan.current) ?? null
+  const chartCurrent = chart.picks.find((p) => p.id === chart.current) ?? null
+  const waits = !!chartCurrent?.window && chartCurrent.window.moveAt > chart.now + 1
+
+  return (
+    <main className={styles.plan}>
+      <PlanChat
+        initialMessages={initial.messages}
+        practiceReason={initial.practiceReason}
+        error={error}
+        onError={setError}
+        onPlan={setPlan}
+        onTurnEnd={refreshChart}
+        onPick={(id) => void edit(() => pickTarget(id))}
+      />
+
+      <div className={styles.right}>
+        <FramePreview
+          plan={plan}
+          current={current}
+          minAltitude={chart.minAltitude}
+          onRemove={(id) => void edit(() => removeTarget(id))}
+          onResetStart={(id) => void edit(() => setStart(id, null))}
+        />
+
+        <section className={styles.graphWrap} data-empty={plan.picks.length === 0}>
+          <div className={styles.graphBox}>
+            <NightGraph
+              chart={chart}
+              onSelect={(id) => void edit(() => pickTarget(id))}
+              onStartChange={(id, minute) => void edit(() => setStart(id, minute))}
+            />
+          </div>
+          <p className={styles.graphEmpty}>오늘은 무엇을 찍을까요?</p>
+        </section>
+
+        <SettingsRow
+          plan={plan}
+          current={current}
+          waits={waits}
+          moveAt={chartCurrent?.window ? clockOf(chart, chartCurrent.window.moveAt) : null}
+          starting={starting}
+          onChange={(change) => void edit(() => changeSettings(change))}
+          onGo={() => void start()}
+        />
+      </div>
+    </main>
+  )
+}
+
+// ── 왼쪽: 대화 (AI) 또는 이름 검색 ─────────
+
+function PlanChat({
+  initialMessages,
+  practiceReason,
+  error,
+  onError,
+  onPlan,
+  onTurnEnd,
+  onPick,
+}: {
+  initialMessages: Message[]
+  /** AI를 쓸 수 없는 이유 — 있으면 대화 없이 이름 검색만 */
+  practiceReason: string | null
+  error: string | null
+  onError: (e: string | null) => void
+  onPlan: (p: Plan) => void
+  onTurnEnd: () => void
+  onPick: (id: string) => void
+}) {
+  const ai = practiceReason === null
+  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [busy, setBusy] = useState(false)
+  const [working, setWorking] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [found, setFound] = useState<FoundTarget[] | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
   // 새 글이 오면 맨 아래로
@@ -73,13 +207,25 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, busy])
 
+  // 입력하면서 찾기 (N.I.N.A. 대상 목록, 오늘 밤 못 찍는 대상은 빠짐)
+  useEffect(() => {
+    const q = draft.trim()
+    if (!q) return setFound(null)
+    let alive = true
+    const t = window.setTimeout(() => void searchTargets(q).then((r) => alive && setFound(r)), 150)
+    return () => {
+      alive = false
+      window.clearTimeout(t)
+    }
+  }, [draft])
+
   const send = useCallback(
     async (text: string, fromChoice = false) => {
       text = text.trim()
       if (!text || busy) return
       setBusy(true)
       setWorking(null)
-      setError(null)
+      onError(null)
       setDraft('')
       setMessages((list) => {
         const next = [...list]
@@ -104,7 +250,7 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
               const last = list[list.length - 1]
               return [...list.slice(0, -1), { ...last, choices: e.choices }]
             })
-          else if (e.type === 'plan') setPlan(e.plan)
+          else if (e.type === 'plan') onPlan(e.plan)
           else if (e.type === 'notice')
             // 안내 줄은 지금 쓰는 답(마지막 빈 말풍선) 앞에 넣는다
             setMessages((list) => [...list.slice(0, -1), { role: 'notice', text: e.message }, list[list.length - 1]])
@@ -122,281 +268,335 @@ function PlanBody({ initial, onContinue }: { initial: PlanState; onContinue: () 
             : trimmed
         })
         if (!fromChoice) setDraft(text)
-        setError(failed)
+        onError(failed)
       }
-      // 그래프: 대상 곡선·촬영 시간대가 바뀌었을 수 있다
-      fetch('/api/plan/chart')
-        .then((r) => (r.ok ? r.json() : null))
-        .then((c) => c && setChart(c))
-        .catch(() => {})
+      onTurnEnd()
       setBusy(false)
       setWorking(null)
     },
-    [busy],
+    [busy, onError, onPlan, onTurnEnd],
   )
 
-  // "이 대상으로 이동": 서버가 계획을 실행 값으로 확정하고 대상 묶음(이동부터)으로 넘어간다. 실행할 수 없는 계획이면(관측 가능한 시간 없음 등) 이유를 오류 줄에
-  const [starting, setStarting] = useState(false)
-  const start = async () => {
-    if (starting) return
-    setStarting(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/plan/confirm', { method: 'POST' })
-      if (res.ok) return onContinue()
-      const body = (await res.json().catch(() => null)) as { error?: string } | null
-      setError(body?.error ?? '계획을 확정하지 못했습니다. 다시 눌러 주세요.')
-    } catch {
-      setError(`${PRODUCT.name} 내부 서버와 연결이 끊겼습니다. 다시 눌러 주세요.`)
-    }
-    setStarting(false)
+  const choose = (t: FoundTarget) => {
+    setDraft('')
+    setFound(null)
+    onPick(t.id)
   }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    void send(draft)
+    // AI가 있으면 묻기, 없으면 찾은 것 가운데 첫 번째를 고른다
+    if (ai) void send(draft)
+    else if (found?.length) choose(found[0])
   }
 
+  // 지난 대화는 단계적으로 흐리게: 그 뒤에 사용자가 몇 번 말했나 (0 = 지금 대화)
+  const ages: number[] = []
+  for (let i = messages.length - 1, a = 0; i >= 0; i--) {
+    ages[i] = Math.min(3, a)
+    if (messages[i].role === 'user') a++
+  }
   const lastAssistant = messages.findLastIndex((m) => m.role === 'assistant')
 
   return (
-    <main className={styles.plan}>
-      <aside className={styles.chat} aria-label={`${PRODUCT.name}와 대화`}>
-        <div className={styles.messages} ref={listRef} aria-live="polite">
-          {messages.map((m, i) =>
-            m.role === 'notice' ? (
-              <p key={i} className={styles.notice}>
-                {m.text}
-              </p>
-            ) : (
-              <div key={i} className={styles.turn}>
-                <div className={styles.message} data-role={m.role}>
-                  {m.role === 'assistant' && <span className={styles.who}>{PRODUCT.name}</span>}
-                  {m.text ||
-                    (busy && i === messages.length - 1 ? (
-                      <>
-                        <span className={styles.typing} aria-label="답을 쓰는 중" />
-                        {working && <span className={styles.working}>{working}</span>}
-                      </>
-                    ) : null)}
-                </div>
-                {m.role === 'assistant' && m.choices && m.choices.length > 0 && (
-                  <div className={styles.choices}>
-                    {m.choices.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        className={styles.choice}
-                        data-picked={m.picked === c}
-                        disabled={busy || i !== lastAssistant || !!m.picked}
-                        onClick={() => void send(c, true)}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                )}
+    <aside className={styles.chat} aria-label={ai ? `${PRODUCT.name}와 대화` : '대상 찾기'}>
+      <div className={styles.messages} ref={listRef} aria-live="polite">
+        {!ai && <p className={styles.notice}>{practiceReason} 대상은 이름으로 찾을 수 있어요.</p>}
+        {messages.map((m, i) =>
+          m.role === 'notice' ? (
+            <p key={i} className={styles.notice}>
+              {m.text}
+            </p>
+          ) : (
+            <div key={i} className={styles.turn} data-age={ages[i]}>
+              <div className={styles.message} data-role={m.role}>
+                {m.role === 'assistant' && <span className={styles.who}>{PRODUCT.name}</span>}
+                {m.text ||
+                  (busy && i === messages.length - 1 ? (
+                    <>
+                      <span className={styles.typing} aria-label="답을 쓰는 중" />
+                      {working && <span className={styles.working}>{working}</span>}
+                    </>
+                  ) : null)}
               </div>
-            ),
-          )}
-        </div>
-        {/* 오류 줄: 자리는 항상 확보 */}
-        <p className={styles.error} data-shown={!!error} role="alert">
-          {error}
-        </p>
-        <form className={styles.composer} onSubmit={submit}>
+              {m.role === 'assistant' && m.choices && m.choices.length > 0 && (
+                <div className={styles.choices}>
+                  {m.choices.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={styles.choice}
+                      data-picked={m.picked === c}
+                      disabled={busy || i !== lastAssistant || !!m.picked}
+                      onClick={() => void send(c, true)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ),
+        )}
+      </div>
+      {/* 오류 줄: 자리는 항상 확보 */}
+      <p className={styles.error} data-shown={!!error} role="alert">
+        {error}
+      </p>
+      <form className={styles.composer} onSubmit={submit}>
+        {found && (
+          <div className={styles.found}>
+            <div className={styles.foundHint}>
+              {found.length ? `N.I.N.A. 대상 목록에서 찾음${ai ? ` · Enter는 ${PRODUCT.name}에게 묻기` : ' · Enter는 첫 번째 고르기'}` : '찾은 대상이 없어요 (오늘 밤 이 관측지에서 못 찍는 대상은 빠져요)'}
+            </div>
+            {found.map((t) => (
+              <button key={t.id} type="button" className={styles.foundItem} onClick={() => choose(t)}>
+                <b>{t.name}</b>
+                <span>{t.koreanName ?? t.commonName ?? ''}</span>
+                <small>{t.type}</small>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={styles.composerBox}>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={`${PRODUCT.name}에게 말하기`}
-            aria-label={`${PRODUCT.name}에게 말하기`}
+            onKeyDown={(e) => e.key === 'Escape' && (setDraft(''), setFound(null))}
+            placeholder={ai ? `대상 이름을 찾거나 ${PRODUCT.name}에게 물어보세요` : '대상 이름으로 찾기 (예: M31, 안드로메다)'}
+            aria-label={ai ? `대상 찾기 또는 ${PRODUCT.name}에게 말하기` : '대상 이름으로 찾기'}
             maxLength={300}
           />
-          <button type="submit" className={styles.send} disabled={busy || !draft.trim()} aria-label="보내기">
-            <ArrowRight strokeWidth={2} />
-          </button>
-        </form>
-      </aside>
-
-      <div className={styles.right}>
-        <section className={styles.night}>
-          <div className={styles.nightHead}>
-            <b>오늘 밤</b>
-            <span>어두운 시간 {chart.dark.label}</span>
-            <span>달 {chart.moon.illumination}%</span>
-            <span>{initial.cloudsAvailable ? '구름 예보 받음' : '구름 예보 없음'}</span>
-            <span className={styles.legend} data-shown={!!chart.shooting}>
-              <span className={styles.swatch} />
-              촬영 시간
-            </span>
-          </div>
-          <NightChart chart={chart} />
-        </section>
-
-        <div className={styles.lower}>
-          <div className={styles.cells}>
-            {(Object.keys(CELL_NAMES) as Field[]).map((f) => (
-              <PlanCell key={f} field={f} plan={plan} disabled={busy} onEdit={() => void send(`${CELL_NAMES[f]} 고치기`)} />
-            ))}
-          </div>
-          {/* 계획 카드 줄: 자리만 확보해 두었다가 네 칸이 모두 정해지면 나타난다 */}
-          <div className={styles.card} data-shown={plan.complete}>
-            <div className={styles.summary}>
-              {summary(plan)}
-              <small>{summarySub(plan)}</small>
-            </div>
-            <Button variant="primary" onClick={() => void start()} disabled={!plan.complete || busy || starting} tabIndex={plan.complete ? 0 : -1}>
-              이 대상으로 이동
-            </Button>
-          </div>
+          {ai && (
+            <button type="submit" className={styles.send} disabled={busy || !draft.trim()} aria-label="보내기">
+              <ArrowRight strokeWidth={2} />
+            </button>
+          )}
         </div>
-      </div>
-    </main>
+      </form>
+    </aside>
   )
 }
 
-function PlanCell({ field, plan, disabled, onEdit }: { field: Field; plan: Plan; disabled: boolean; onEdit: () => void }) {
-  const cell = plan[field]
-  const stateText = cell.state === 'set' ? '정해짐' : cell.state === 'asking' ? '묻는 중' : ''
-  let body: ReactNode = <p className={styles.empty}>대화를 진행하면 채워집니다</p>
+// ── 오른쪽 위: 오늘 밤 한 줄 + 프레임 미리보기 + 대상 · 언제 ─────────
 
-  if (field === 'target' && plan.target.value) {
-    const t = plan.target.value
-    body = (
-      <div className={styles.cellBody}>
-        <div>
-          <div className={styles.big}>
-            {t.name} {t.koreanName ?? t.commonName ?? ''}
-          </div>
-          <div className={styles.sub}>
-            {t.constellation} {t.type}
-          </div>
-          <Rows
-            rows={[
-              ['30° 넘는 시간', t.usableStart ? `${t.usableStart}–${t.usableEnd}` : '오늘은 낮게 떠요'],
-              ['가장 높을 때', `${t.highestAt} · ${t.highestAltitude}°`],
-              ['달과 거리', `${t.moonSeparation}°`],
-            ]}
-          />
-        </div>
-        <FovPreview plan={plan} />
-      </div>
-    )
-  } else if (field === 'framing' && plan.framing.value) {
-    const f = plan.framing.value
-    body = (
-      <div className={styles.cellBody}>
-        <div>
-          <div className={styles.big}>{f.placement}</div>
-          <Rows
-            rows={[
-              ['카메라 방향', f.rotation === null ? '지금 방향 그대로' : `${f.rotation}°`],
-              ['대상 크기', f.fillPercent !== null ? `화면 가로의 약 ${f.fillPercent}%` : '-'],
-            ]}
-          />
-        </div>
-        <FovPreview plan={plan} />
-      </div>
-    )
-  } else if (field === 'settings' && plan.settings.value) {
-    const s = plan.settings.value
-    body = (
-      <Rows
-        rows={[
-          [
-            '노출',
-            <>
-              {s.exposure}초{s.exposureRecommended && <span className={styles.rec}>추천</span>}
-            </>,
-          ],
-          [
-            '감도',
-            <>
-              ISO {s.iso}
-              {s.isoRecommended && <span className={styles.rec}>추천</span>}
-            </>,
-          ],
-          ['필터', s.filter],
-          ['끝나는 조건', s.endCondition],
-          ['예상 장수', `약 ${s.frames}장 (${s.start}–${s.end})`],
-        ]}
-      />
-    )
-  } else if (field === 'after' && plan.after.value) {
-    const a = plan.after.value
-    body = (
-      <Rows
-        rows={[
-          ['적도의', a.mount],
-          ['다크·플랫', a.calibration],
-          ['장비', a.equipment],
-        ]}
-      />
-    )
-  }
-
-  const editable = cell.state === 'set' && !disabled
+function FramePreview({
+  plan,
+  current,
+  minAltitude,
+  onRemove,
+  onResetStart,
+}: {
+  plan: Plan
+  current: PlanPick | null
+  /** 기본 시작·끝 고도 (서버 PlanRules) */
+  minAltitude: number
+  onRemove: (id: string) => void
+  onResetStart: (id: string) => void
+}) {
+  const w = plan.window
   return (
-    <section
-      className={styles.cell}
-      data-state={cell.state}
-      aria-label={`${CELL_NAMES[field]} ${stateText}`}
-      onClick={editable ? onEdit : undefined}
-      onKeyDown={editable ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onEdit()) : undefined}
-      tabIndex={editable ? 0 : undefined}
-      role={editable ? 'button' : undefined}
-      title={editable ? `${CELL_NAMES[field]} 고치기` : undefined}
-    >
-      <h3>
-        {CELL_NAMES[field]}
-        <span className={styles.stateText}>{stateText}</span>
-      </h3>
-      {body}
+    <section className={styles.fovRow}>
+      <FovBox plan={plan} target={current} />
+      <div className={styles.fovInfo}>
+        <p className={styles.night}>{plan.night}</p>
+        <div className={styles.tgt}>
+          {current && (
+            <>
+              <div className={styles.big}>{displayName(current)}</div>
+              <div className={styles.sub}>
+                {current.constellation} {current.type}
+                <br />
+                {current.fillPercent !== null ? `화면 가로의 약 ${current.fillPercent}% · ` : ''}달과 {current.moonSeparation}°
+              </div>
+              <div className={styles.dropRow}>
+                <Button size="sm" onClick={() => onRemove(current.id)}>
+                  목록에서 제거
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+        <div className={styles.when}>
+          {current && (w ? <WhenLines w={w} minAltitude={minAltitude} onReset={() => onResetStart(current.id)} /> : <p className={styles.warnLine}>오늘 밤에는 찍을 수 있는 시간이 없어요.</p>)}
+        </div>
+      </div>
     </section>
   )
 }
 
-function Rows({ rows }: { rows: [string, ReactNode][] }) {
+/** 찍을 수 있는 시간 먼저, 기다려야 하면 그 까닭을 아래 줄에 (없으면 줄 없음). 시작을 옮겼으면 되돌리기 화살표 */
+function WhenLines({ w, minAltitude, onReset }: { w: PlanWindow; minAltitude: number; onReset: () => void }) {
+  const waitText =
+    w.moved ? `${w.start}(고도 ${w.startAltitude}°)부터 찍기로 했어요.${w.wait === 'none' ? '' : ' 그때까지 기다려야 해요.'}`
+    : w.wait === 'dark' ? `${w.start}에 어두워져요. 그때까지 기다려야 해요.`
+    : w.wait === 'altitude' ? `${w.start}에 ${minAltitude}° 위로 올라와요. 그때까지 기다려야 해요.`
+    : null
   return (
-    <dl className={styles.rows}>
-      {rows.map(([k, v]) => (
-        <div key={k} className={styles.row}>
-          <dt>{k}</dt>
-          <dd>{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <p>
+        <b>{w.start}</b>부터 <b>{w.limit}</b>까지 찍을 수 있어요.{w.transit ? ' 중간에 자오선 반전이 있어요.' : ''}
+      </p>
+      {waitText && (
+        <p className={styles.warnLine}>
+          {waitText}
+          {w.moved && (
+            <span className={styles.inlineReset}>
+              <ResetMark shown onReset={onReset} label={`시작을 기본으로 (${minAltitude}° 위가 되는 때)`} />
+            </span>
+          )}
+        </p>
+      )}
+    </>
   )
 }
 
-/** 화각 안에 대상이 들어가는 모습: 점선 사각형 = 화면, 타원 = 대상 크기 */
-function FovPreview({ plan }: { plan: Plan }) {
-  const W = 118
-  const Hh = Math.round((W * plan.fov.height) / plan.fov.width) || 80
-  const size = plan.target.value?.sizeArcmin
-  const r = size ? Math.max(2, ((size / 60 / plan.fov.width) * W) / 2) : 6
-  const off =
-    plan.framing.value && /비켜|왼|오른/.test(plan.framing.value.placement)
-      ? (plan.framing.value.placement.includes('오른') ? 1 : -1) * W * 0.18
-      : 0
+/** 프레임 미리보기: 대상 좌표의 실제 하늘 사진(DSS2, 화각보다 조금 넓게) + 점선 = 찍히는 범위. 못 받으면 형상 그림 */
+function FovBox({ plan, target }: { plan: Plan; target: PlanPick | null }) {
+  const [failed, setFailed] = useState<string | null>(null)
+  if (!target) return <div className={`${styles.fovBox} ${styles.fovEmpty}`}>프레임 미리보기</div>
+  const { width, height } = plan.fov
+  const aspect = width > 0 && height > 0 ? width / height : 1.5
+  const url =
+    'https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fcolor' +
+    `&width=600&height=${Math.round(600 / aspect)}&fov=${(width * 1.07).toFixed(2)}&projection=TAN&coordsys=icrs` +
+    `&ra=${target.raDeg}&dec=${target.decDeg}&format=jpg`
+  const fill = target.fillPercent ?? 10
+  const r = Math.max(8, ((280 * fill) / 100) / 2)
   return (
-    <svg className={styles.fov} viewBox={`0 0 ${W} ${Hh}`} aria-hidden="true">
-      <rect x={1} y={1} width={W - 2} height={Hh - 2} rx={4} className={styles.fovFrame} />
-      <ellipse cx={W / 2 + off} cy={Hh / 2} rx={r} ry={r * 0.72} className={styles.fovTarget} />
-    </svg>
+    <div className={styles.fovBox} style={{ aspectRatio: String(aspect) }}>
+      <svg className={styles.shape} viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <Emblem type={target.type} cx={150} cy={100} r={r} />
+      </svg>
+      {failed !== url && <img src={url} alt="" onError={() => setFailed(url)} />}
+      <div className={styles.frameLine} />
+      <span className={styles.src}>
+        DSS2 · 화각 {width}° × {height}°
+      </span>
+    </div>
   )
 }
 
-function summary(plan: Plan) {
-  const t = plan.target.value
-  const s = plan.settings.value
-  if (!t || !s) return ' '
-  return `${t.name} ${t.koreanName ?? ''} · ${s.exposure}초 × 약 ${s.frames}장 · ISO ${s.iso} · ${s.filter}`
+// ── 오른쪽 아래: 촬영 설정 줄 + 이동 ─────────
+
+function SettingsRow({
+  plan,
+  current,
+  waits,
+  moveAt,
+  starting,
+  onChange,
+  onGo,
+}: {
+  plan: Plan
+  current: PlanPick | null
+  /** 지금 누르면 바로 움직이지 않고 기다리기로 가는가 */
+  waits: boolean
+  moveAt: string | null
+  starting: boolean
+  onChange: (c: { filter?: string; iso?: number; exposure?: number; totalMinutes?: number }) => void
+  onGo: () => void
+}) {
+  const s = plan.settings
+  const o = plan.options
+  const w = plan.window
+  const off = !s || !current
+  const gain = o.gain
+  const short = !!w && w.clipped && w.maxFrames < w.frames
+
+  const goLabel = !current || !w ? '-' : waits ? `${current.name} 기다리기 (${w.start})` : `${withRo(current.name)} 이동`
+  const goTip = !current || !w ? '' : waits
+    ? `${moveAt}에 적도의가 움직이고 ${w.start}부터 찍어요. 그때까지 기다리는 화면으로 넘어가요`
+    : `누르면 적도의가 바로 ${current.name} 쪽으로 움직여요`
+
+  return (
+    <section className={styles.settings} aria-label="촬영 설정">
+      <div className={styles.fields}>
+        <Field label="필터" off={off}>
+          <SelectField
+            name="필터"
+            value={s?.filter ?? null}
+            options={o.filters.map((f) => ({ value: f.key, label: f.label }))}
+            onSelect={(v) => onChange({ filter: v })}
+            disabled={off}
+          />
+        </Field>
+        <Field label="게인" off={off}>
+          {gain.kind === 'list' ? (
+            <SelectField
+              name="게인"
+              prefix={gain.unit}
+              value={s?.iso ?? null}
+              options={gain.values.map((v) => ({ value: v, label: String(v) }))}
+              onSelect={(v) => onChange({ iso: v })}
+              disabled={off}
+              reset={<ResetMark shown={!!s && s.iso !== s.defaults.iso} onReset={() => s && onChange({ iso: s.defaults.iso })} />}
+            />
+          ) : (
+            <NumberField
+              name="게인"
+              value={s?.iso ?? null}
+              min={gain.min ?? 0}
+              max={gain.max ?? 1000}
+              step={10}
+              unit=""
+              onCommit={(v) => onChange({ iso: v })}
+              disabled={off}
+              reset={<ResetMark shown={!!s && s.iso !== s.defaults.iso} onReset={() => s && onChange({ iso: s.defaults.iso })} />}
+            />
+          )}
+        </Field>
+        <Field label="노출 (한 장)" off={off}>
+          <NumberField
+            name="노출"
+            value={s?.exposure ?? null}
+            min={o.exposure.min}
+            max={o.exposure.max}
+            step={o.exposure.step}
+            unit="초"
+            onCommit={(v) => onChange({ exposure: v })}
+            disabled={off}
+            reset={<ResetMark shown={!!s && s.exposure !== s.defaults.exposure} onReset={() => s && onChange({ exposure: s.defaults.exposure })} />}
+          />
+        </Field>
+        <Field label="총 노출" off={off}>
+          <NumberField
+            name="총 노출"
+            value={s?.totalMinutes ?? null}
+            min={o.totalMinutes.min}
+            max={o.totalMinutes.max}
+            step={o.totalMinutes.step}
+            unit="분"
+            onCommit={(v) => onChange({ totalMinutes: v })}
+            disabled={off}
+            reset={<ResetMark shown={!!s && s.totalMinutes !== s.defaults.totalMinutes} onReset={() => s && onChange({ totalMinutes: s.defaults.totalMinutes })} />}
+          />
+        </Field>
+        <Field label="촬영 횟수" tone="result" off={off}>
+          <span className={styles.count}>{w && !off ? `${short ? w.maxFrames : w.frames}장` : '-'}</span>
+          {short && w && (
+            <Tooltip text={whyShort(w)} placement="top" align="end" className={styles.warnTip}>
+              <span className={styles.warnIcon} tabIndex={0} aria-label="장수가 줄어든 이유">
+                !
+              </span>
+            </Tooltip>
+          )}
+        </Field>
+        <Tooltip text={goTip} placement="top" align="end" className={styles.goTip}>
+          <Button variant="primary" className={styles.go} onClick={onGo} disabled={!current || !w || !plan.complete || starting}>
+            {goLabel}
+          </Button>
+        </Tooltip>
+      </div>
+    </section>
+  )
 }
 
-function summarySub(plan: Plan) {
-  const s = plan.settings.value
-  const a = plan.after.value
-  if (!s || !a) return ' '
-  return `${s.start} 시작 가능 · ${s.end} 종료 후 ${a.mount}`
+/** 촬영 횟수가 목표보다 적은 까닭: "가장 빨리 hh:mm에 찍기 시작해도 {끝 사유}. {시간} ÷ 한 장 n초(쉬는 시간 포함) = n장" */
+function whyShort(w: PlanWindow) {
+  const h = Math.floor(w.minutes / 60)
+  const m = w.minutes % 60
+  const stop = w.stop === 'dawn' ? `${w.limit}에 새벽이 와요` : `${w.limit}에 ${w.endAltitude}° 아래로 내려가요`
+  const lead = w.moved ? `${w.start}에 찍기 시작하면` : `가장 빨리 ${w.start}에 찍기 시작해도`
+  return `${lead} ${stop}. ${h ? `${h}시간 ` : ''}${m ? `${m}분` : ''} ÷ 한 장 ${Math.round(w.secondsPerFrame)}초(쉬는 시간 포함) = ${w.maxFrames}장${w.transit ? ' (자오선 반전 5분 빼고)' : ''}`
 }

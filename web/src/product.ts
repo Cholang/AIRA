@@ -24,6 +24,17 @@ export function hasFinalConsonant(word: string) {
 const josa = (word: string, withFinal: string, withoutFinal: string) =>
   word + (hasFinalConsonant(word) ? withFinal : withoutFinal)
 
+/** 받침이 ㄹ인지 ("로"는 받침이 없거나 ㄹ일 때). 영문 L·R(엘·알), 숫자 1·7·8(일·칠·팔) */
+function endsWithRieul(word: string) {
+  const c = word.trimEnd().slice(-1)
+  const code = c.charCodeAt(0)
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 8
+  return /[lr178]/i.test(c)
+}
+
+/** "M31로" / "NGC 7000으로" — 낱말 + 로·으로 */
+export const withRo = (word: string) => word + (hasFinalConsonant(word) && !endsWithRieul(word) ? '으로' : '로')
+
 const { name, fullName } = __PRODUCT__
 
 export const PRODUCT = {
