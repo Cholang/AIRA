@@ -221,7 +221,8 @@ export default function SkyBackdrop() {
   return (
     <div ref={root} className={styles.sky} aria-hidden="true">
       {/* 카메라가 움직이는 연출(2026-10-11): 성운·별·반짝이는 별은 창보다 크게(오른쪽·아래로 PAN배) 그려 두고 --sky-pan-x/y만큼 함께 민다 (skyPan.ts).
-          혜성은 밀지 않는다 — 시간 표시 역할 */}
+          혜성은 밀지 않는다 — 시간 표시 역할. 출발 전 점검에서는 화면 왼쪽 아래 밖의 한 점을 중심으로 돈다(.turn, setSkyTurn) */}
+      <div className={styles.turn}>
       <div className={styles.pan}>
       {/* 성운 두 층: 바깥(가로 흐름) → 안(세로 흐름) → 돌기 → 그림(커짐). 모두 transform이라 그래픽 하드웨어가 합성 */}
       {[0, 1].map((i) => (
@@ -238,6 +239,7 @@ export default function SkyBackdrop() {
         {Array.from({ length: GLINTS }, (_, i) => (
           <span key={i} />
         ))}
+      </div>
       </div>
       </div>
       <span ref={cometRef} className={styles.comet} />

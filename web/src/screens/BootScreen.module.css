@@ -1,35 +1,25 @@
-/* 부팅: 로고 하나를 화면 가운데에 (시작 화면이라 가운데 정렬 — 프로필 화면과 같은 예외). 장식 없이 짧게 */
+/* 부팅: 로고는 장면(RigScene)의 하늘 오른쪽 가운데 — 오류는 그 바로 아래 같은 너비 칸 가운데에.
+   부팅에는 상태 줄이 없어 화면 영역이 틀 높이 전체(1200), 장면은 상태 줄 높이 아래에서 시작한다 */
 .boot {
   flex: 1;
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: center;
-  padding: 0 var(--gutter);
-  gap: 6px;
+  padding: calc(680 / 1200 * 100cqh) calc(400 / 1920 * 100cqw) 0 calc(800 / 1920 * 100cqw);
   text-align: center;
 }
 
-/* 로고 SVG(1220×420)는 가로 그림 — 너비만 정하고 높이는 비율대로 */
-.logo {
-  width: min(1320px, 100%); /* 2026-10-10 로고 v5, 150% (880px → 1320px). 좁은 창에서는 여백 안 폭까지만 — 넘치면 가로 스크롤이 생겼음 */
-}
-
-.logo svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-
-.version {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-  opacity: 0.8;
+/* 화면 읽기용 (보이지 않음) */
+.live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 .error {
-  margin: 24px 0 0;
+  margin: 0;
   color: var(--fail);
   font-weight: 600;
 }

@@ -6,6 +6,8 @@
   justify-items: center;
   gap: 28px;
   padding: 24px 16px 64px;
+  /* 처음에 5배로 가까이 있던 태양이 화면 영역을 넘쳐 잠깐 스크롤 막대가 생겼다 — 넘친 부분은 잘라 둔다 */
+  overflow: clip;
   /* 0단계 쉐브론이 사라진 자리에 천천히 나타난다 */
   animation: stageIn 420ms ease-out both;
 }

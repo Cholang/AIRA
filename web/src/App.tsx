@@ -22,7 +22,7 @@ import PrepareScreen from './screens/PrepareScreen'
 import ShootScreen from './screens/ShootScreen'
 import SummaryScreen from './screens/SummaryScreen'
 import { prepareState, type PrepGroup } from './prepare'
-import PreflightScreen from './screens/PreflightScreen'
+import RigScene, { LOGO_DRAWN_MS, type RigSceneHandle, type SceneMode } from './components/RigScene'
 import ProfileScreen from './screens/ProfileScreen'
 import SetupCheckScreen from './screens/SetupCheckScreen'
 import SiteScreen from './screens/SiteScreen'
@@ -43,6 +43,12 @@ type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipmen
 /** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md "진행 표시") */
 /** 장비 연결 뒤 화면들: 왼쪽 위에 구석 태양을 둔다 (2026-10-11 사용자 요청, CornerSun) */
 const CORNER_SUN: Phase[] = ['site', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
+
+/**
+ * 땅과 장비 선화 장면(RigScene)을 까는 화면과 그때의 모습 (2026-10-15 사용자): 부팅 로고 → 프로필 → 출발 전 점검이 같은 장면 위에서 이어진다.
+ * 넘어가는 중인 다음 화면(heading)으로 정해, 앞 화면이 사라지기 시작할 때 장면도 바뀐다. 목록에 없는 화면으로 가면 사라진다
+ */
+const SCENE_OF: Partial<Record<Phase, SceneMode>> = { boot: 'boot', profiles: 'profiles', newProfile: 'dim', preflight: 'check' }
 
 /** 프로필 화면: 레일은 없지만 N.I.N.A.·PHD2·Empire를 미리 켰으니 창 ×도 종료 절차(켠 프로그램 닫기)를 거친다 (CX-34-02) */
 const prelaunchedPhase = (p: Phase) => p === 'profiles' || p === 'newProfile'
@@ -98,6 +104,8 @@ const LABEL_OF: Partial<Record<Phase, string>> = {
 const FADE_MS = 280
 // 부팅 로고는 더 천천히 투명해진다 (2026-10-10 사용자 — 큰 로고가 0.28초에 사라지면 뚝 끊겨 보임). App.module.css .screen[data-boot]와 같게
 const BOOT_FADE_MS = 800
+/** 부팅의 "Press Any Key"가 나타난 뒤 입력을 받기 시작할 때까지 */
+const BOOT_INPUT_DELAY_MS = 1000
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -161,12 +169,35 @@ export default function App() {
     void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
   }, [phase])
 
-  // 부팅 로고를 잠깐 보여 준 뒤, 프로필이 없으면 바로 만들기 화면으로
+  // 부팅: 저절로 넘어가지 않는다 — 게임 시작 화면처럼 로고가 다 그려지고 프로필 목록을 받으면 "Press Any Key",
+  // 아무 키나 누르거나 화면을 누르면 프로필로(없으면 바로 만들기 화면). 다 보이기 전에 눌리지 않게 글자가 나타나고 1초 뒤부터 받는다 (2026-10-15 사용자)
+  const bootAt = useRef(performance.now())
+  const [bootPrompt, setBootPrompt] = useState(false)
   useEffect(() => {
     if (phase !== 'boot' || profiles === null) return
-    const t = setTimeout(() => fadeTo(profiles.length === 0 ? 'newProfile' : 'profiles'), 1200)
+    const t = setTimeout(() => setBootPrompt(true), Math.max(0, LOGO_DRAWN_MS - (performance.now() - bootAt.current)))
     return () => clearTimeout(t)
-  }, [phase, profiles, fadeTo])
+  }, [phase, profiles])
+  useEffect(() => {
+    if (phase !== 'boot' || !bootPrompt) return
+    let armed = false
+    const arm = setTimeout(() => {
+      armed = true
+    }, BOOT_INPUT_DELAY_MS)
+    const go = () => armed && fadeTo((profiles ?? []).length === 0 ? 'newProfile' : 'profiles')
+    // 수정 키만 누르거나 단축키(Ctrl·Alt·Win과 함께 — 테마 바꾸기·창 닫기 등)는 넘기지 않는다
+    const key = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || ['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return
+      go()
+    }
+    window.addEventListener('keydown', key)
+    window.addEventListener('pointerdown', go)
+    return () => {
+      clearTimeout(arm)
+      window.removeEventListener('keydown', key)
+      window.removeEventListener('pointerdown', go)
+    }
+  }, [phase, bootPrompt, profiles, fadeTo])
 
   // 점검 다음: 설치 상태를 바로 확인한다.
   // 모두 설치돼 있으면 0단계 화면은 건너뛰고(누를 필요 없는 "다음"을 없앤다), 빠진 게 있으면 0단계로.
@@ -182,6 +213,13 @@ export default function App() {
     }
     fadeTo(allInstalled ? 'engine' : 'check')
   }, [fadeTo])
+
+  // 출발 전 점검을 마침 = "포커서 0점" 확인 → 초점 작업이 0점을 잡는다 (이어서 하기는 점검을 건너뛰어 잡지 않음). 다음은 설치 확인
+  const preflightDone = useCallback(() => {
+    void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
+    void toSetup()
+  }, [toSetup])
+  const scene = useRef<RigSceneHandle>(null)
 
   // 지난 진행 기록 (아이라가 중간에 꺼졌다 다시 켬 — 2026-10-08): 프로필을 고른 직후에 묻는다(2026-10-15).
   // 이어서 하면 출발 전 점검을 건너뛰고, 장비 연결 뒤에 이어서 한다(장비를 멈추고 끝낸 작업을 확인 — 장비가 있어야 함)
@@ -280,7 +318,10 @@ export default function App() {
         setPending(null)
         if (resume && p.kind === 'resume') {
           resuming.current = p
-          return void toSetup()
+          // 점검을 건너뛰고 장면의 노트북 화면 쪽으로 바로 확대 — 프로필 목록은 먼저 감춘다
+          setShown(false)
+          setSettled(false)
+          return scene.current ? scene.current.dive(() => void toSetup()) : void toSetup()
         }
         dismissSession()
         return fadeTo('preflight')
@@ -402,14 +443,7 @@ export default function App() {
     phase === 'check' ? { what: '설치 확인', success: toEngine }
     : phase === 'engine' ? { what: '엔진 켜기', success: toEquipment }
     : phase === 'equipment' ? { what: '장비 연결', success: () => toNext([], { changeSite: false }) }
-    : phase === 'preflight'
-      ? {
-          what: '출발 전 점검',
-          success: () => {
-            void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
-            void toSetup()
-          },
-        }
+    : phase === 'preflight' ? { what: '출발 전 점검', success: preflightDone }
     : phase === 'plan'
       ? {
           what: '계획 (대상이 없으면 대표 대상 하나)',
@@ -433,6 +467,13 @@ export default function App() {
       data-frame=""
       style={{ '--frame-scale': frame.scale } as CSSProperties}
     >
+      {/* 땅과 장비 선화: 화면 전환 페이드 밖, 상태 줄 아래 틀 너비 전체(진행 표시 밑으로도 땅이 이어짐). 화면 영역보다 아래 층 */}
+      {(SCENE_OF[phase] || SCENE_OF[heading]) && (
+        // 그리다 실패하면 장면만 빠진다 (화면·상태 줄·진행 표시는 그대로 — 점검은 [임시] 건너뛰기로 넘길 수 있음)
+        <ErrorBoundary name="장면" fallback={() => null}>
+          <RigScene ref={scene} mode={SCENE_OF[heading] ?? 'out'} theme={theme} prompt={bootPrompt} onDone={preflightDone} />
+        </ErrorBoundary>
+      )}
       {phase !== 'boot' && (
         <div className={styles.bar}>
           <ErrorBoundary name="상태 줄" fallback={() => null}>
@@ -464,7 +505,8 @@ export default function App() {
       )}
       {/* 전환 중(settled=false)에는 화면 전체를 누를 수 없고 초점도 받지 않는다 (inert) */}
       {/* 화면 영역(왼쪽) + 진행 표시(오른쪽 세로 열). 화면 영역이 크기 기준 틀이라 화면 안의 cqw·cqh는 이 영역 기준 */}
-      <div className={styles.body} data-sky={sky}>
+      {/* 출발 전 점검: 화면 영역은 비어 있고 그 아래 장면을 누른다 — 진행 표시만 받는다(data-pass) */}
+      <div className={styles.body} data-sky={sky} data-pass={phase === 'preflight'}>
       {/* 구석 태양: 화면 내용 아래 층. 장비 연결 화면이 사라지기 시작할 때부터 그 자리에 있다가 더 밀려난다 */}
       {CORNER_SUN.includes(heading) && (CORNER_SUN.includes(phase) || phase === 'equipment') && (
         <div className={styles.sunLayer} data-wide={phase === 'site'}>
@@ -478,7 +520,7 @@ export default function App() {
       <div className={styles.screen} data-shown={shown} data-boot={phase === 'boot'} inert={!settled}>
       {/* 화면 하나가 그리다 실패해도 그 자리만 대신 그린다 — 상태 줄·레일·종료는 그대로 (자체 점검 H3). 다른 화면으로 넘어가면 다시 그려 본다 */}
       <ErrorBoundary name={phase} resetKey={phase} fallback={(e, reset) => <ScreenError error={e} onRetry={reset} />}>
-        {phase === 'boot' && <BootScreen error={loadError ? `${PRODUCT.name} 내부 서버에 연결하지 못했습니다. ${PRODUCT.reul} 다시 실행해 주세요.` : null} />}
+        {phase === 'boot' && <BootScreen ready={bootPrompt} error={loadError ? `${PRODUCT.name} 내부 서버에 연결하지 못했습니다. ${PRODUCT.reul} 다시 실행해 주세요.` : null} />}
         {phase === 'profiles' && (
           <ProfileScreen
             profiles={profiles ?? []}
@@ -523,15 +565,6 @@ export default function App() {
             onProfileChange={updateProfile}
             onApplied={setSite}
             onDone={() => fadeTo(siteReturn.current)}
-          />
-        )}
-        {phase === 'preflight' && (
-          <PreflightScreen
-            onContinue={() => {
-              // 점검을 마침 = "포커서 0점" 확인 → 초점 작업이 0점을 잡는다 (이어서 하기는 점검을 건너뛰어 잡지 않음). 다음은 설치 확인
-              void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
-              void toSetup()
-            }}
           />
         )}
         {phase === 'rig' && <PrepareScreen key="rig" group="rig" onDone={() => void rigDone()} />}

@@ -133,3 +133,12 @@
   position: relative;
   z-index: 1;
 }
+
+/* 출발 전 점검: 화면 영역은 비어 있고 그 아래 장면(RigScene)을 누른다 — 진행 표시만 받는다 */
+.body[data-pass='true'] {
+  pointer-events: none;
+}
+
+.body[data-pass='true'] .rail {
+  pointer-events: auto;
+}

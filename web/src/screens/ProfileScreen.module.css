@@ -1,4 +1,6 @@
-/* 프로필 화면은 가운데 배치 (사용자 요청, DESIGN.md의 왼쪽 정렬 예외): 제목·목록·새 프로필을 한 덩어리로 화면 위아래·좌우 가운데에 */
+/* 프로필 화면은 가운데 배치 (사용자 요청, DESIGN.md의 왼쪽 정렬 예외): 제목·목록·새 프로필을 한 덩어리로 가운데에.
+   그 덩어리는 장면(RigScene)의 하늘 오른쪽 가운데 칸 — 부팅 로고가 있던 자리, 망원경·노트북을 피해 (2026-10-15).
+   칸: 틀 x 800~1520(가운데 1160), 위에서 270. 화면 영역 = 장면 층(상태 줄 아래 1920×1156)이라 그 비율로 */
 .stage {
   position: relative;
   /* 아래에 숨어 있는 새 버전 서랍이 화면 밖으로 넘쳐 스크롤이 생기지 않게 */
@@ -6,8 +8,16 @@
   flex: 1;
   display: grid;
   justify-items: center;
-  align-content: center;
-  padding: 48px 16px;
+  align-content: start;
+  padding: calc(270 / 1156 * 100cqh) calc(400 / 1920 * 100cqw) 48px calc(800 / 1920 * 100cqw);
+}
+
+/* 좁은 창(폰 등 — 틀을 확대·축소하지 않음): 장면이 작아져 칸을 맞출 수 없으니 화면 가운데에 */
+@container (max-width: 900px) {
+  .stage {
+    align-content: center;
+    padding: 48px 16px;
+  }
 }
 
 .content {

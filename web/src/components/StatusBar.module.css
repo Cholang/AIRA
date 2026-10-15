@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  min-height: 44px;
+  min-height: var(--bar-h);
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
   font-size: var(--size-bar);

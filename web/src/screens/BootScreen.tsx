@@ -1,19 +1,16 @@
-import logo from '../assets/aira-logo.svg?raw'
-import { scopedSvg } from '../inlineSvg'
-import { PRODUCT, VERSION } from '../product'
+import { PRODUCT } from '../product'
 import styles from './BootScreen.module.css'
 
 /**
- * 부팅 화면: 로고(2026-10-10 사용자 로고 mockups/aira-brand/aira-logo-v2.svg — 한글 이름·영어 풀이가 그림 안에 있음) + 버전 (한 줄 설명은 2026-10-10 사용자 요청으로 뺌).
- * 로고 SVG는 data-theme(dark·light·night)으로 색이 바뀌어서, 지금 앱 테마를 넣어 그 자리에 그린다 (img로 넣으면 테마가 안 먹음)
+ * 부팅 화면: 로고(AIRA 별자리 글자 · 아이라 · 영어 풀이)·"Press Any Key"·버전은 땅과 장비 선화 장면의 하늘에 있다(RigScene, 2026-10-15 사용자 — 부팅 · 프로필 · 점검이 같은 장면).
+ * 여기는 서버 연결 실패만 그 아래에, 그리고 화면 읽기용 안내(장면은 읽지 않게 숨김)
  */
-export default function BootScreen({ error }: { error?: string | null }) {
-  const theme = document.documentElement.dataset.theme ?? 'dark'
-  const svg = scopedSvg(logo, 'aira-logo', theme) // 그림 안의 스타일·id는 그림 안에 가둔다
+export default function BootScreen({ ready, error }: { ready: boolean; error?: string | null }) {
   return (
     <main className={styles.boot} aria-label={`${PRODUCT.reul} 시작하는 중`}>
-      <div className={styles.logo} dangerouslySetInnerHTML={{ __html: svg }} />
-      <p className={styles.version}>{VERSION}</p>
+      <p className={styles.live} aria-live="polite">
+        {ready ? '아무 키나 누르면 시작합니다' : ''}
+      </p>
       {error && (
         <p className={styles.error} role="alert">
           {error}

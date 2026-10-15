@@ -2,6 +2,8 @@
 .stage {
   --wiring-w: min(980px, 58cqw);
   position: relative;
+  /* 오른쪽 밖에 숨어 있는 전원 배선 패널(.side) 때문에 가로 스크롤 막대가 생겼다 — 프로필 선택 화면처럼 잘라 둔다 */
+  overflow: clip;
   flex: 1;
   display: grid;
   transition: padding-right 420ms cubic-bezier(0.3, 0, 0.2, 1);

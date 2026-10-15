@@ -21,6 +21,16 @@
   opacity: 1;
 }
 
+/* 출발 전 점검의 하늘 돌기(skyPan.ts setSkyTurn): 화면 왼쪽 아래 밖의 한 점(창 좌표)을 중심으로 — 별자리 그림(RigScene .skyArt)과 같은 시간·곡선.
+   판(.pan)이 창보다 오른쪽·아래로 커서 6° 돌아도 창 안에 빈 곳이 생기지 않는다 */
+.turn {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--sky-turn, 0deg));
+  transform-origin: var(--sky-turn-x, 0px) var(--sky-turn-y, 0px);
+  transition: transform 2.8s cubic-bezier(0.45, 0.05, 0.25, 1);
+}
+
 /* 카메라 연출(skyPan.ts): 창보다 오른쪽·아래로 1.6배 큰 판을 통째로 민다 — 태양(1.1초)보다 천천히, 천천히 출발해 천천히 멈춤 */
 .pan {
   position: absolute;
