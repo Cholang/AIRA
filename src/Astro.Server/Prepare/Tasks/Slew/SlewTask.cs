@@ -64,6 +64,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         _approved = ctx.MoveApprovalUsed != ctx.Plan.ConfirmedAt && DateTimeOffset.Now - ctx.Plan.ConfirmedAt < ApprovalWindow;
         ctx.MoveApprovalUsed = ctx.Plan.ConfirmedAt;
         run.Live("sky-map");
+        DateTimeOffset? movedAt = null;
         while (true)
         {
             run.SubStep(0);
@@ -78,6 +79,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
                 _approved = true;
                 if (TooLow(ctx)) continue; // 누르는 사이 낮아졌으면 다시 기다리기
             }
+            movedAt ??= ctx.Now();
             var moved = await MoveAsync(run, ct);
             if (_acceptHere) return Accepted(ctx);
             if (moved is null) continue; // 멈춤 → 다시 이동을 누르면 처음부터(고도 확인 포함)
@@ -92,13 +94,13 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
             run.Readout("distance", $"{moved.ArrivalErrorDeg:F1}°", "대상까지 남은 거리 · 목표 2° 안", Tone.Ok,
                 new Dictionary<string, double> { ["arrivalDeg"] = moved.ArrivalErrorDeg, ["altitudeDeg"] = alt });
             run.Status(null);
-            return new Completed(new SlewResult(moved.ArrivalErrorDeg, alt, ctx.Now()), $"고도 {alt:F0}° · 도착 오차 {moved.ArrivalErrorDeg:F1}°",
+            return new Completed(new SlewResult(moved.ArrivalErrorDeg, alt, ctx.Now(), MovedAt: movedAt), $"고도 {alt:F0}° · 도착 오차 {moved.ArrivalErrorDeg:F1}°",
                 $"{ctx.TargetName}에 도착했습니다", "목표 근처에 도착했습니다. 다음은 사진을 찍어 대상을 화면 가운데로 맞추고, 그 사진으로 구도를 확인합니다.");
         }
     }
 
-    /// <summary>옮길 때: 촬영 시작 − 준비 시간</summary>
-    private static DateTimeOffset MoveAt(PrepContext ctx) => ctx.Plan.Start - Assistant.PlanRules.PrepLead;
+    /// <summary>옮길 때: 촬영 시작 − 준비 시간 (계획에서 쓴 값)</summary>
+    private static DateTimeOffset MoveAt(PrepContext ctx) => ctx.Plan.Start - ctx.Plan.PrepLead;
     private bool TooLow(PrepContext ctx) => !ctx.IgnoreAltitude && devices.TargetAltitude(ctx) < LowestAltitude;
     private bool TooEarly(PrepContext ctx) => !ctx.IgnoreAltitude && !_moveNow && ctx.Now() < MoveAt(ctx);
     private static int MinutesUntil(PrepContext ctx, DateTimeOffset at) => Math.Max(1, (int)Math.Ceiling((at - ctx.Now()).TotalMinutes));

@@ -5,6 +5,8 @@ import { scaleOf } from '../frame'
 import GlowFrame from './GlowFrame'
 import WindowView, { slotOf } from './WindowView'
 import { fitInside, quadFit, type Box } from './liveViewMath'
+import type { PhotoBox } from './FrameRotate'
+import { simPhoto } from './simPhoto'
 
 /**
  * 하늘 화면 (DESIGN.md "하늘 화면" — 배경 전체). 서버의 live.kind에 따라 그린다:
@@ -29,12 +31,15 @@ export default function LiveView({
   extras,
   simulated = true,
   onPhoto,
+  onPhotoBox,
 }: {
   current: CurrentView | null
   extras?: LiveExtras
   simulated?: boolean
   /** 사진을 누르면 (촬영 화면의 전체 화면 보기). 없으면 누를 수 없다 */
   onPhoto?: () => void
+  /** 센터링 사진이 놓인 자리 (구도 회전 틀을 그 위에 얹는다). 사진이 없으면 null */
+  onPhotoBox?: (box: PhotoBox | null) => void
 }) {
   const live = current?.live ?? null
   const kind = live?.kind ?? 'none'
@@ -44,6 +49,9 @@ export default function LiveView({
   const dim = useMemo(() => starfield(260, 5, { dim: 0.35 }), [])
   const sparse = useMemo(() => starfield(70, 11, { scale: 1.8 }), [])
   const dense = useMemo(() => starfield(900, 99, { scale: 1.1 }), [])
+  // 모의: 센터링을 마치면(카메라 방향을 알면) 실장비처럼 사진 틀에 그림 사진 — 구도 회전 틀을 그 위에 얹는다
+  const simAngle = simulated && kind === 'solved-photo' ? readout?.values.cameraAngle : undefined
+  const simSrc = useMemo(() => (simAngle === undefined ? null : simPhoto(simAngle)), [simAngle])
 
   let body: React.ReactNode
   switch (kind) {
@@ -79,11 +87,24 @@ export default function LiveView({
           // SharpCap 영상: 데스크톱 창이 SharpCap 영상 칸을 그대로 비춘다(WindowView). 못 하면 예전처럼 창 캡처 사진
           <WindowView target="sharpcap" fallback={<RealImage url={live.url} refresh stamp={live.observedAt} />} />
         ) : (
-          <RealImage url={live.url} refresh={kind === 'guide-image' || kind === 'focus-curve'} stamp={live.observedAt} onOpen={onPhoto} />
+          <RealImage
+            url={live.url}
+            refresh={kind === 'guide-image' || kind === 'focus-curve'}
+            stamp={live.observedAt}
+            onOpen={onPhoto}
+            onFit={kind === 'solved-photo' ? onPhotoBox : undefined}
+          />
         )}
         {kind === 'guide-image' && <GuidingGraph data={live.data} />}
         {kind === 'test-photo' && <Histogram data={live.data} />}
         {kind === 'focus-curve' && <FocusPanel data={live.data} />}
+      </div>
+    )
+
+  if (simSrc)
+    return (
+      <div className={styles.view} aria-hidden="true">
+        <FramedImage src={simSrc} onFit={onPhotoBox} />
       </div>
     )
 
@@ -206,7 +227,19 @@ function Histogram({ data }: { data: unknown }) {
  * 창이 가려져 있으면 묻지 않고, 다시 보이면 그때 한 번 받는다 (CX-24-04 — 시험 사진처럼 한 번만 받는 사진도).
  * 표지는 주소별로 기억한다 — 상태 시각(stamp)이 바뀌어도 새로 받지 않게 (CX-24-07). 다음 이미지를 다 받은 뒤에 바꾸고(깜빡이지 않게), 받기 전·실패면 하늘색 바탕만
  */
-function RealImage({ url, refresh, stamp, onOpen }: { url: string; refresh: boolean; stamp: string; onOpen?: () => void }) {
+function RealImage({
+  url,
+  refresh,
+  stamp,
+  onOpen,
+  onFit,
+}: {
+  url: string
+  refresh: boolean
+  stamp: string
+  onOpen?: () => void
+  onFit?: (box: PhotoBox | null) => void
+}) {
   const [shown, setShown] = useState<string | null>(null)
   const tags = useRef(new Map<string, string>()) // 받은 주소 → ETag
   const objectUrl = useRef<string | null>(null)
@@ -267,7 +300,7 @@ function RealImage({ url, refresh, stamp, onOpen }: { url: string; refresh: bool
     },
     [],
   )
-  return shown ? <FramedImage src={shown} onOpen={onOpen} /> : null
+  return shown ? <FramedImage src={shown} onOpen={onOpen} onFit={onFit} /> : null
 }
 
 /**
@@ -275,7 +308,7 @@ function RealImage({ url, refresh, stamp, onOpen }: { url: string; refresh: bool
  * 같은 화면의 글자·버튼(data-occludes) 위아래를 피한 띠(WindowView slotOf) 안에 비율을 지켜 가운데, 둘레에 빛 테두리.
  * onOpen이 있으면 누를 수 있다 (촬영 화면: 전체 화면으로)
  */
-function FramedImage({ src, onOpen }: { src: string; onOpen?: () => void }) {
+function FramedImage({ src, onOpen, onFit }: { src: string; onOpen?: () => void; onFit?: (box: PhotoBox | null) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [box, setBox] = useState<Box | null>(null)
@@ -295,6 +328,15 @@ function FramedImage({ src, onOpen }: { src: string; onOpen?: () => void }) {
     return () => clearInterval(t)
   }, [])
   const fit = box && natural ? fitInside(natural, box) : null
+  // 사진 자리를 알린다 (구도 회전 틀) — 바뀔 때만, 사라지면 null
+  const sent = useRef('')
+  useEffect(() => {
+    const key = JSON.stringify(fit)
+    if (!onFit || key === sent.current) return
+    sent.current = key
+    onFit(fit)
+  }, [fit, onFit])
+  useEffect(() => () => onFit?.(null), [onFit])
   return (
     <div ref={ref} className={styles.slot}>
       <img

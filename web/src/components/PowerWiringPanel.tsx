@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { PRODUCT } from '../product'
 import { DEFAULT_WIRING, type PowerSource, type PowerWiring } from '../profiles'
 import styles from './PowerWiringPanel.module.css'
 
@@ -134,11 +135,11 @@ export default function PowerWiringPanel({
   const busy = sel ?? drag?.id ?? null
 
   return (
-    <section className={styles.panel} aria-label="전원 배선">
+    <section className={styles.panel} aria-label="전원 설정">
       <div className={styles.head}>
         <div>
           <h2>장비에 전원이 어떻게 들어가나요?</h2>
-          <p>설정해 두면 아이라가 이 배선을 믿고 안내합니다. 실제와 다른 것을 발견하면 아이라가 고쳐 둡니다.</p>
+          <p>설정해 두면 {PRODUCT.ga} 이 설정을 믿고 안내합니다. 실제와 다른 것을 발견하면 {PRODUCT.ga} 고쳐 둡니다.</p>
         </div>
         <button type="button" className={styles.close} onClick={onClose}>
           닫기
@@ -208,7 +209,7 @@ export default function PowerWiringPanel({
 
       <div className={styles.foot}>
         <button type="button" className={styles.reset} onClick={() => onChange({ ...DEFAULT_WIRING })}>
-          처음 배선으로
+          처음 설정으로
         </button>
       </div>
     </section>

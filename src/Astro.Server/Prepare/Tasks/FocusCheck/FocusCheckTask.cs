@@ -60,21 +60,21 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
         {
             run.Status("초점 유지", Tone.Ok);
             return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 씀",
-                "그대로 써도 돼요", "기온도 별 크기도 초점 맞출 때와 비슷해요. 다시 맞추지 않고 가이딩으로 넘어갑니다. 시험 사진에서 한 번 더 확인해요.")
+                "그대로 써도 돼요", "기온도 별 크기도 초점 맞출 때와 비슷해요. 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 한 번 더 확인해요.")
             { AutoNext = true };
         }
 
         var why = ev.TemperatureBad && ev.HfrBad
             ? $"초점을 맞춘 뒤 기온이 {Math.Abs(ev.TemperatureChangeC!.Value):F1}°C {(ev.TemperatureChangeC < 0 ? "내려갔고" : "올라갔고")} 센터링 사진의 별도 {ev.GrowthPercent}% 커졌어요."
             : ev.TemperatureBad
-                ? $"초점을 맞춘 뒤 기온이 {Math.Abs(ev.TemperatureChangeC!.Value):F1}°C {(ev.TemperatureChangeC < 0 ? "내려갔어요. 경통이 줄어" : "올라갔어요. 경통이 늘어")} 초점이 밀렸을 수 있어요."
+                ? $"초점을 맞춘 뒤 기온이 {Math.Abs(ev.TemperatureChangeC!.Value):F1}°C {(ev.TemperatureChangeC < 0 ? "내려갔어요. 망원경이 줄어" : "올라갔어요. 망원경이 늘어")} 초점이 밀렸을 수 있어요."
                 : $"기온은 거의 그대로인데 센터링 사진의 별이 {ev.GrowthPercent}% 커졌어요. 포커서가 밀렸거나 장비를 건드렸을 수 있어요.";
         run.Guide("초점을 다시 맞출까요?", why + " 자동초점은 2분쯤 걸려요.");
         run.Status(ev.TemperatureBad ? "기온 변화가 커요" : "별 크기가 커졌어요", Tone.Warn);
         var c = await run.AskAsync([new("refocus", "다시 맞추기", true), new("keep", "그대로 진행")], ct);
         if (c == "keep")
             return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 진행",
-                "그대로 진행합니다", "초점을 다시 맞추지 않고 가이딩으로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
+                "그대로 진행합니다", "초점을 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
         return await RefocusAsync(run, ev, ct);
     }
 
@@ -134,7 +134,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
             run.Status("초점을 다시 맞췄어요", Tone.Ok);
             return new Completed(new FocusCheckResult(true, ev.TemperatureChangeC, ev.CenterHfr, af.BestPosition, af.Hfr, temp, ctx.Now()),
                 $"다시 맞춤 · HFR {af.Hfr:F1}", "초점을 다시 맞췄어요",
-                temp is { } tt ? $"이번 기온({tt:F1}°C)과 함께 기억했어요. 가이딩으로 넘어갑니다." : "새 위치를 기억했어요. 가이딩으로 넘어갑니다.")
+                temp is { } tt ? $"이번 기온({tt:F1}°C)과 함께 기억했어요. 가이드로 넘어갑니다." : "새 위치를 기억했어요. 가이드로 넘어갑니다.")
             { AutoNext = true };
         }
     }
@@ -149,7 +149,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
 
     private static Completed Kept(PrepContext ctx, Evidence ev) =>
         new(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 진행",
-            "그대로 진행합니다", "장비 준비 때 맞춘 초점으로 가이딩으로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
+            "그대로 진행합니다", "장비 준비 때 맞춘 초점으로 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {

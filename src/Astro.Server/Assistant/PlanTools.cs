@@ -5,9 +5,13 @@ using Astro.Server.Sky;
 
 namespace Astro.Server.Assistant;
 
-/// <summary>오늘 밤 계산에 필요한 것 한 묶음 (한 대화 동안 그대로)</summary>
+/// <summary>오늘 밤 계산에 필요한 것 한 묶음 (한 대화 동안 그대로 — 준비 시간만 화면을 열 때마다 다시 읽음)</summary>
 public sealed record NightContext(
-    Site Site, Rig Rig, NightWindow Window, MoonNight Moon, IReadOnlyList<CloudHour> Clouds, TimeZoneInfo Zone);
+    Site Site, Rig Rig, NightWindow Window, MoonNight Moon, IReadOnlyList<CloudHour> Clouds, TimeZoneInfo Zone)
+{
+    /// <summary>준비 시간: 프로필의 기록(Prepare.PrepTimes), 없으면 기본값</summary>
+    public TimeSpan PrepLead { get; init; } = PlanRules.DefaultPrepLead;
+}
 
 /// <summary>
 /// 계획을 고치는 곳 하나 (2026-10-14 개편): 화면(API)과 AI 도구가 같은 함수로 같은 계획을 고친다.
@@ -102,7 +106,7 @@ public sealed class PlanTools(DsoCatalog catalog, Engine.EquipmentChoices equipm
 
     /// <summary>대상 하나의 촬영 시간대 (사용자가 옮긴 시작 반영). 오늘 밤 찍을 수 없으면 null</summary>
     public static ShootWindow? WindowOf(PlanTarget t, ShootingPlan plan, NightContext n, DateTimeOffset now) =>
-        ShootWindow.Compute(AltitudeOf(t.RaDegrees, t.DecDegrees, n.Site), n.Window, now, plan.StartOverrides.TryGetValue(t.Id, out var at) ? at : null);
+        ShootWindow.Compute(AltitudeOf(t.RaDegrees, t.DecDegrees, n.Site), n.Window, now, plan.StartOverrides.TryGetValue(t.Id, out var at) ? at : null, n.PrepLead);
 
     /// <summary>오늘 밤 이 관측지에서 15° 위로 올라오는 때가 어두운 시간 안에 있나 (장소·날짜상 절대 못 찍는 대상 거르기)</summary>
     public static bool VisibleTonight(Equatorial position, NightContext n)
@@ -324,7 +328,7 @@ public sealed class PlanTools(DsoCatalog catalog, Engine.EquipmentChoices equipm
             clouds_during_dark = n.Clouds.Where(c => c.Time >= n.Window.DarkStart.AddHours(-1) && c.Time <= n.Window.DarkEnd)
                 .Select(c => new { time = Hm(c.Time), cover_percent = c.Cover }).ToList(),
             clouds_available = n.Clouds.Count > 0,
-            prep_minutes = (int)PlanRules.PrepLead.TotalMinutes,
+            prep_minutes = (int)n.PrepLead.TotalMinutes,
             rig = new
             {
                 telescope = n.Rig.Telescope,
@@ -342,7 +346,7 @@ public sealed class PlanTools(DsoCatalog catalog, Engine.EquipmentChoices equipm
     private object Describe(Dso d, NightContext n)
     {
         var t = Night.Target(d.Position, n.Site, n.Window);
-        var w = ShootWindow.Compute(AltitudeOf(d.Position.Ra, d.Position.Dec, n.Site), n.Window, DateTimeOffset.Now, null);
+        var w = ShootWindow.Compute(AltitudeOf(d.Position.Ra, d.Position.Dec, n.Site), n.Window, DateTimeOffset.Now, null, n.PrepLead);
         return new
         {
             id = d.Id,

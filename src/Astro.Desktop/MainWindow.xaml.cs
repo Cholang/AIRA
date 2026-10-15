@@ -246,7 +246,7 @@ public partial class MainWindow : Window
         if (_closeAck || _closeConfirmed || _stopping || _stopped) return;
         var answer = MessageBox.Show(this,
             "화면이 응답하지 않습니다. 그래도 닫을까요?\n\n화면의 종료 절차(작업 멈춤 · 프로그램 닫기)를 거치지 않습니다. " +
-            "가이딩 멈춤과 적도의 추적 끄기는 한 번 시도하지만, 꺼졌는지 N.I.N.A.에서 확인해 주세요.",
+            "가이드 멈춤과 적도의 추적 끄기는 한 번 시도하지만, 꺼졌는지 N.I.N.A.에서 확인해 주세요.",
             Product.Name, MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (answer != MessageBoxResult.Yes) return;
         _closeConfirmed = true;

@@ -111,7 +111,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             run.Status(null);
             var result = new TestShotResult(ctx.ExposureSeconds, stats.Hfr, stats.Eccentricity, stats.SaturatedPercent, stats.FilePath, ctx.Now());
             return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", "좋아요, 촬영을 시작해도 돼요",
-                $"초점·별 모양·배경·가이딩 모두 괜찮습니다. 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다. 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요.",
+                $"초점·별 모양·배경·가이드 모두 괜찮습니다. 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다. 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요.",
                 [new("redo:test", "다시 찍기"), new("redo:center", "다시 센터링")]);
         }
     }
@@ -127,7 +127,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
     {
         var s = await devices.ReadEndStateAsync(ct);
         if (s.CameraExposing) return EndStateCheck.Fail("카메라가 아직 노출 중입니다");
-        if (ctx.HasGuider && !s.Guiding) return EndStateCheck.Fail("가이딩이 멈춰 있습니다");
+        if (ctx.HasGuider && !s.Guiding) return EndStateCheck.Fail("가이드가 멈춰 있습니다");
         if (ctx.Results.Get<TestShotResult>() is { Skipped: true }) return EndStateCheck.Pass;
         if (!s.FileSaved) return EndStateCheck.Fail("시험 사진 파일이 저장되지 않았습니다");
         return EndStateCheck.Pass;
@@ -140,7 +140,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
 public static class TestShotRules
 {
     public const double HfrGrowthLimit = 1.25;   // 초점 때보다 25% 넘게 커지면 초점이 밀렸다고 본다
-    public const double EccentricityLimit = 0.6; // 이보다 길쭉하면 가이딩·추적 문제
+    public const double EccentricityLimit = 0.6; // 이보다 길쭉하면 가이드·추적 문제
     public const double BackgroundLimit = 0.35;  // 배경이 이보다 밝으면 노출을 줄이자고 한다
     public const double SaturatedLimit = 1.0;    // [임시] 포화 화소가 이 %를 넘으면 노출을 줄이자고 한다 (밝은 별 꼭대기는 늘 조금 넘침 — 실제 사진으로 다듬기)
 
@@ -154,7 +154,7 @@ public static class TestShotRules
         if (s.Eccentricity is { } ecc) parts.Add(ecc <= EccentricityLimit ? "별 둥긂" : "별 길쭉함"); // 재지 못했으면 말하지 않는다
         parts.Add(s.Background <= BackgroundLimit ? "배경 적당" : "배경 밝음");
         parts.Add($"포화 {s.SaturatedPercent:F1}%");
-        parts.Add($"가이딩 {s.GuidingRms:F1}″");
+        parts.Add($"가이드 {s.GuidingRms:F1}″");
         parts.Add("\"시험\" 폴더에 보관함");
         var caption = string.Join(" · ", parts);
 
@@ -163,7 +163,7 @@ public static class TestShotRules
         if (focusHfr is { } fh && s.Hfr > fh * HfrGrowthLimit)
             return new Verdict(caption, Tone.Warn, null, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"));
         if (s.Eccentricity > EccentricityLimit)
-            return new Verdict(caption, Tone.Warn, null, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이딩이나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이딩 다시 재기"));
+            return new Verdict(caption, Tone.Warn, null, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 재기"));
         return new Verdict(caption, Tone.Ok, null, null);
     }
 }

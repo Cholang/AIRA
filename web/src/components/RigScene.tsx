@@ -33,12 +33,25 @@ const SKY_PIVOT: [number, number] = [-300, 1500]
 const SKY_GROW = 1.3
 const SKY_CENTER: [number, number] = [1374, 212]
 const SKY_DROP = 75
-const place = (x: number, y: number): [number, number] => [SKY_CENTER[0] + (x - SKY_CENTER[0]) * SKY_GROW, SKY_CENTER[1] + SKY_DROP + (y - SKY_CENTER[1]) * SKY_GROW]
 const POLARIS_DRAWN: [number, number] = [1361, 103]
+/** 적도의 몸통(극축) 기울기 — 그림의 rotate(-POLE_TILT)와 같은 값 */
+const POLE_TILT = 37
+/** 극축 점선의 시작: 적도의 몸통 앞 끝 가운데 (장비 좌표 몸통 (80, 78)을 rotate(-37) · 1.16배 · (80, 338)로 옮긴 곳) */
+const RAY_FROM: [number, number] = [642.4, 598.1]
+const spread = (x: number, y: number): [number, number] => [SKY_CENTER[0] + (x - SKY_CENTER[0]) * SKY_GROW, SKY_CENTER[1] + SKY_DROP + (y - SKY_CENTER[1]) * SKY_GROW]
+/** 하늘 그림 전체를 옆으로: 북극성이 극축(몸통 기울기) 위에 오게 (2026-10-16 사용자 — 점선이 몸통보다 덜 기울었다) */
+const SKY_SLIDE = (() => {
+  const [px, py] = spread(...POLARIS_DRAWN)
+  return RAY_FROM[0] + (RAY_FROM[1] - py) / Math.tan((POLE_TILT * Math.PI) / 180) - px
+})()
+const place = (x: number, y: number): [number, number] => {
+  const [sx, sy] = spread(x, y)
+  return [sx + SKY_SLIDE, sy]
+}
 /** 북극성 (맞춘 뒤 자리) — 극축 점선의 끝 */
 const POLARIS = place(...POLARIS_DRAWN)
-/** 극축 점선: 적도의 몸통 앞 끝 → 북극성 */
-const RAY = `M642 598 L${POLARIS[0]} ${POLARIS[1]}`
+/** 극축 점선: 적도의 몸통 앞 끝 → 북극성 (몸통과 같은 기울기) */
+const RAY = `M${RAY_FROM[0]} ${RAY_FROM[1]} L${POLARIS[0].toFixed(1)} ${POLARIS[1].toFixed(1)}`
 /** 별자리 (맞춘 뒤 좌표). lines = 별 번호를 잇는 선들 */
 type Constellation = { name: string; stars: Star[]; lines: number[][] }
 const CONSTELLATIONS: Constellation[] = (
@@ -63,8 +76,20 @@ const VH = 1156
 const WORDMARK = { x: 907, y: 200, w: 506 }
 const LIGHT_MS = 1500 // 프로필을 고르면 별이 켜지고, 이만큼 뒤에 제목과 첫 질문
 const ZOOM_MS = 820 // 노트북 화면 쪽으로 확대된 뒤 다음 단계로
-/** 부팅 로고가 다 그려지는 때 (장면이 나타난 뒤 — CSS .wordmark의 wordIn 0.15초 뒤 1초). 그 뒤 AIRA 별이 무작위로 빛나고, App은 "Press Any Key"를 띄운다 */
-export const LOGO_DRAWN_MS = 1300
+/**
+ * 부팅 로고가 차례로 나타나는 때 (장면이 나타난 뒤, ms — 2026-10-16 사용자): AIRA 별자리 → 아이라 → 영어 풀이 → "Press Any Key".
+ * 하나마다 BOOT_FADE_IN에 걸쳐 나타난다(CSS .wordmark가 --boot-* 값으로). AIRA가 다 나타나면 별이 무작위로 빛나기 시작한다
+ */
+const BOOT_AT = { aira: 150, name: 950, tagline: 1650 }
+const BOOT_FADE_IN = 900
+/** "Press Any Key"가 나타나는 때 — App이 이때(프로필 목록을 받았으면)부터 입력을 받는다. 앞의 차례가 그대로 기다림이 된다 */
+export const BOOT_PROMPT_MS = 2400
+const BOOT_TIMING = {
+  '--boot-aira': `${BOOT_AT.aira}ms`,
+  '--boot-name': `${BOOT_AT.name}ms`,
+  '--boot-tagline': `${BOOT_AT.tagline}ms`,
+  '--boot-fade': `${BOOT_FADE_IN}ms`,
+} as CSSProperties
 const FLARE_MS = 1100 // 별 하나(와 이어진 선)가 빛나 있는 시간
 /** 땅: 오른쪽으로 완만하게 내려감, 진행 표시 밑으로도. 틀 밖(16:9 등 창의 여백)까지 같은 기울기로 이어 창 끝에서 끝난다 */
 const GROUND = 'M-2000 857 L-40 930 Q900 965 1990 1086 L4000 1309 L4000 3000 L-2000 3000 Z'
@@ -138,12 +163,16 @@ const GRASS = (() => {
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
 /**
- * 부팅 하늘의 유성 (2026-10-15 사용자): 로고가 다 그려진 뒤 키를 누를 때까지 2~5초마다 1~3개가 같은 방향으로 나란히, 빠르게 선을 그으며 떨어진다.
+ * 부팅 하늘의 유성 (2026-10-15 사용자, 2026-10-16 고침): 로고가 다 그려진 뒤 키를 누를 때까지 2~5초마다 하나씩(동시에 둘은 없음), 빠르게 선을 그으며 떨어진다.
+ * 대부분은 짧게, 가끔(METEOR_LONG) 화면 왼쪽까지 길게 — 빠르기는 같다.
  * 모두 METEOR_ANGLE 방향(그림 좌표의 도 — 오른쪽 위에서 왼쪽 아래로). 하늘 위쪽에서 시작해 땅에 닿기 전에 사라진다(땅이 앞에 그려져 가린다)
  */
 const METEOR_ANGLE = 155
 /** 유성 꼬리 길이(그림 px) — 그릴 때 0.6~1배로 */
 const METEOR_LEN = 220
+/** 길게 지나가는 유성의 비율 · 빠르기(그림 px/ms) */
+const METEOR_LONG = 0.35
+const METEOR_SPEED = 0.7
 type Meteor = { id: number; x: number; y: number; delay: number; dur: number; dist: number; len: number }
 
 /**
@@ -160,8 +189,9 @@ export interface RigSceneHandle {
 /**
  * 땅과 장비 선화 한 장면 (2026-10-15 사용자): 부팅 로고 → 프로필 → 출발 전 점검이 같은 땅·장비 위에서 이어진다.
  * App이 화면 전환 페이드 밖, 틀 너비 전체에 깐다 — 화면만 바뀌고 장면은 그대로.
- * 부팅: 장비는 카메라 뒤(보이지 않음), 별자리·북극성 없이 하늘에 AIRA가 반짝이고 그 아래 "아이라"·영어 풀이(로고의 오른쪽) · "Press Any Key"(prompt).
- * 키를 누르면 땅(구체)이 돌며 장비가 화면 아래에서 들어와 제자리에 서고(SPIN), 로고 자리에 프로필 목록.
+ * 부팅: 장비는 카메라 뒤(보이지 않음), 별자리·북극성 없이 하늘에 AIRA → "아이라" → 영어 풀이(로고의 오른쪽) → "Press Any Key"(prompt)가 차례로, 처음부터 유성.
+ * 키를 누르면 "Press Any Key"는 한 번 펄스하며 사라지고 아이라·풀이는 바로 투명해지며, AIRA는 한 번 반짝인 뒤 선 → 별 순서로 사라진다.
+ * 같은 때 땅(구체)이 돌며 장비가 화면 아래에서 들어와 제자리에 서고(SPIN), 로고 자리에 프로필 목록.
  * 프로필을 고르면 별자리와 북극성이 켜지고 점검: 아이라가 스스로 알 수 없는 것만 묻는다(OPERATION_PROCEDURE.md 4장).
  * 지금 항목만 강조색으로 숨 쉬고, 그 부분의 그림을 누르면 확인 — 그림이 바뀐다(드로튜브가 들어감 · 전원 불 · 극축 점선이 북극성에 · 캡이 빠짐).
  * 다 확인하면 노트북 화면이 빛나고 역삼각형이 내려와 가리킨다. 노트북(또는 Enter)을 누르면 화면 쪽으로 확대되며 onDone.
@@ -300,7 +330,7 @@ export default function RigScene({
   // 별 = 그림의 .tw(차례가 번호), 선 = path[data-a·data-b](잇는 두 별 번호)
   const wordArt = useRef<HTMLDivElement>(null)
   const [drawn, setDrawn] = useState(false)
-  useEffect(() => later(() => setDrawn(true), LOGO_DRAWN_MS), [later])
+  useEffect(() => later(() => setDrawn(true), BOOT_AT.aira + BOOT_FADE_IN), [later])
   useEffect(() => {
     const root = wordArt.current
     if (mode !== 'boot' || !drawn || !root || reduced()) return
@@ -337,10 +367,10 @@ export default function RigScene({
     }
   }, [mode, drawn, wordmark])
 
-  // 부팅: 로고가 다 그려지면 키를 누를 때까지 유성 (METEOR_ANGLE 설명)
+  // 부팅: 장면이 나타날 때부터 키를 누를 때까지 유성 (METEOR_ANGLE 설명, 2026-10-16 사용자 — 로고를 기다리지 않음)
   const [meteors, setMeteors] = useState<Meteor[]>([])
   useEffect(() => {
-    if (mode !== 'boot' || !drawn || reduced()) return
+    if (mode !== 'boot' || reduced()) return
     const pending = new Set<number>()
     const after = (fn: () => void, ms: number) => {
       const t = window.setTimeout(() => {
@@ -349,27 +379,22 @@ export default function RigScene({
       }, ms)
       pending.add(t)
     }
-    const a = (METEOR_ANGLE * Math.PI) / 180
-    const [ux, uy] = [Math.cos(a), Math.sin(a)] // 나아가는 방향
-    const [vx, vy] = [-uy, ux] // 나란한 유성 사이
     let id = 0
     const burst = () => {
-      const n = 1 + Math.floor(Math.random() * 3)
-      const x0 = 800 + Math.random() * 1050
-      const y0 = 30 + Math.random() * 260
-      const made: Meteor[] = Array.from({ length: n }, (_, i) => {
-        const side = i * (55 + Math.random() * 90)
-        const lag = i * (40 + Math.random() * 80)
-        return {
+      const long = Math.random() < METEOR_LONG
+      const dist = long ? 760 + Math.random() * 420 : 360 + Math.random() * 180
+      const made: Meteor[] = [
+        {
           id: ++id,
-          x: x0 + vx * side - ux * lag,
-          y: y0 + vy * side - uy * lag,
-          delay: i * (70 + Math.random() * 160),
-          dur: 520 + Math.random() * 260,
-          dist: 360 + Math.random() * 180,
-          len: 0.6 + Math.random() * 0.4,
-        }
-      })
+          // 길게 가는 것은 오른쪽에서 시작해 화면 왼쪽까지
+          x: long ? 1300 + Math.random() * 500 : 800 + Math.random() * 1050,
+          y: 30 + Math.random() * 260,
+          delay: 0,
+          dur: dist / METEOR_SPEED,
+          dist,
+          len: long ? 0.85 + Math.random() * 0.3 : 0.6 + Math.random() * 0.4,
+        },
+      ]
       setMeteors((list) => [...list, ...made])
       const end = Math.max(...made.map((m) => m.delay + m.dur)) + 100
       after(() => setMeteors((list) => list.filter((m) => !made.includes(m))), end)
@@ -380,7 +405,7 @@ export default function RigScene({
       pending.forEach(clearTimeout)
       setMeteors([])
     }
-  }, [mode, drawn])
+  }, [mode])
 
   const step = scene === 'check' && !done ? ITEMS[at].part : ''
   // 지금 항목: 누르는 면 · 키보드(Enter·Space)
@@ -522,7 +547,7 @@ export default function RigScene({
                   <circle className={c('ln', 'thin')} cx="414" cy="326" r="9" />
                   <circle className={c('ln', 'thin')} cx="414" cy="326" r="2.5" />
                   <rect className={c('ln', 'thin')} x="400" y="341" width="28" height="11" rx="2.5" />
-                  <g transform="translate(374 210) rotate(-37)">
+                  <g transform={`translate(374 210) rotate(${-POLE_TILT})`}>
                     <rect className={styles.hit} x="-50" y="34" width="140" height="80" rx="10" />
                     <rect className={c('ln', 'box')} x="-40" y="48" width="120" height="60" rx="12" />
                     <path className={c('ln', 'thin')} d="M-28 58 L68 58 M-26 64 L-31 74 M-19 64 L-24 74 M-12 64 L-17 74" />
@@ -533,7 +558,7 @@ export default function RigScene({
                 </g>
 
                 {/* 망원경: 면은 바탕색으로 칠해 뒤(잔디·하늘)가 비치지 않게 (2026-10-15 사용자) — 고리는 경통을 칠한 뒤에 그린다 */}
-                <g transform="translate(374 210) rotate(-37)">
+                <g transform={`translate(374 210) rotate(${-POLE_TILT})`}>
                   <rect className={c('ln', 'box')} x="-82" y="26" width="164" height="10" rx="3" />
                   <rect className={c('ln', 'box')} x="-118" y="-26" width="236" height="52" rx="6" />
                   <path className={styles.ln} d="M-56 -30 L-56 30 M-44 -30 L-44 30 M50 -30 L50 30 M62 -30 L62 30" />
@@ -546,7 +571,7 @@ export default function RigScene({
 
                 {/* 포커서 0점: 확인하면 드로튜브가 들어간다 */}
                 <g {...part('focus')}>
-                  <g transform="translate(374 210) rotate(-37)">
+                  <g transform={`translate(374 210) rotate(${-POLE_TILT})`}>
                     <rect className={styles.hit} x="-262" y="-54" width="150" height="96" rx="12" />
                     <rect className={c('ln', 'box')} x="-146" y="-18" width="28" height="36" rx="4" />
                     <rect className={c('ln', 'box')} x="-142" y="18" width="22" height="16" rx="3" />
@@ -564,7 +589,7 @@ export default function RigScene({
 
                 {/* 망원경 캡: 경통 끝을 덮는 깊은 캡(납작한 판이 아님) — 확인하면 가이드경 캡이 먼저 가볍게, 주경 캡이 조금 뒤에 천천히 빠지며 사라진다 */}
                 <g {...part('caps')}>
-                  <g transform="translate(374 210) rotate(-37)">
+                  <g transform={`translate(374 210) rotate(${-POLE_TILT})`}>
                     <rect className={styles.hit} x="170" y="-46" width="60" height="92" rx="12" />
                     <rect className={styles.hit} x="56" y="-70" width="40" height="44" rx="6" />
                     <g className={styles.cap}>
@@ -640,13 +665,13 @@ export default function RigScene({
                 {it.question}
               </p>
             ))}
-            {/* 부팅: 하늘에 반짝이는 AIRA 별자리 글자 · 아이라 · 영어 풀이 + 버전 */}
+            {/* 부팅: 하늘에 반짝이는 AIRA 별자리 글자 · 아이라 · 영어 풀이 + 버전 — 차례로 나타나고(BOOT_AT), 키를 누르면 차례로 사라진다(CSS) */}
             <div
               className={styles.wordmark}
-              style={{ left: `${(WORDMARK.x / VW) * 100}%`, top: `${(WORDMARK.y / VH) * 100}%`, width: `${(WORDMARK.w / VW) * 100}%` }}
+              style={{ left: `${(WORDMARK.x / VW) * 100}%`, top: `${(WORDMARK.y / VH) * 100}%`, width: `${(WORDMARK.w / VW) * 100}%`, ...BOOT_TIMING }}
             >
               <div ref={wordArt} dangerouslySetInnerHTML={{ __html: wordmark }} />
-              {/* 게임 시작 화면처럼: 로고가 다 그려지고 프로필 목록을 받으면 천천히 깜빡인다. 자리는 처음부터 (입력은 App이 받는다) */}
+              {/* 게임 시작 화면처럼: 영어 풀이 뒤(BOOT_PROMPT_MS) 프로필 목록을 받았으면 나타나 천천히 깜빡인다. 자리는 처음부터 (입력은 App이 받는다) */}
               <p className={styles.prompt} data-shown={prompt}>
                 Press Any Key
               </p>

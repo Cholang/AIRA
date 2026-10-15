@@ -76,7 +76,7 @@ public static class GuideWatch
         if (snrNow >= s.SnrBaseline * FaintRatio) return GuideLoss.None;
         if (r.DewMarginC is < DewMarginC) return GuideLoss.Dew;
         if (r.Hfd.Count >= Recent && s.HfdBaseline > 0 && r.Hfd.TakeLast(Recent).Average() > s.HfdBaseline * HfdGrowth) return GuideLoss.GuideFocus;
-        if (s.MainStarsRatio is < 0.6) return GuideLoss.Cloud; // 옅은 구름: 가이딩은 되지만 별이 줄어듦
+        if (s.MainStarsRatio is < 0.6) return GuideLoss.Cloud; // 옅은 구름: 가이드는 되지만 별이 줄어듦
         return GuideLoss.Faint;
     }
 

@@ -38,7 +38,7 @@ export default function SummaryScreen() {
       : null
   const grades = s ? Object.entries(s.tally).map(([g, n]) => `${g} ${n}`).join(' · ') : ''
   // 원인별로 멈춘 시간 (구름 24분 · 빛 2분 …)
-  const LABEL: Record<string, string> = { cloud: '구름', light: '빛', jump: '바람·케이블', guider: '장비 끊김', mount: '적도의', hotpixel: '가이드 별 다시 고르기', unstable: '가이딩 불안정', frames: '별 없는 사진' }
+  const LABEL: Record<string, string> = { cloud: '구름', light: '빛', jump: '바람·케이블', guider: '장비 끊김', mount: '적도의', hotpixel: '가이드 별 다시 고르기', unstable: '가이드 불안정', frames: '별 없는 사진' }
   const pausedAll: Record<string, number> = {}
   for (const t of rows) for (const [k, m] of Object.entries(t.pausedMinutes ?? {})) pausedAll[k] = (pausedAll[k] ?? 0) + m
   const paused = Object.entries(pausedAll).filter(([, m]) => m >= 1).map(([k, m]) => `${LABEL[k] ?? k} ${Math.round(m)}분`).join(' · ')

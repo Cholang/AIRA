@@ -73,7 +73,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         var line = arcmin is { } a ? $"{grade} · {a:F1}′" : $"{Math.Abs(offset.XPx):F0}·{Math.Abs(offset.YPx):F0}px";
         // 캘리브레이션 버튼(남쪽 하늘로 이동 / 가이딩 없이 진행)을 누르기 전에 구름 예보를 다시 본다
         return new Completed(result, line, grade ?? "정렬 완료",
-            CloudNotice.With("가이드 카메라가 PHD2에 다시 연결되었습니다. 다음은 가이딩 보정값을 만드는 캘리브레이션입니다.", await CloudNotice.ReadAsync(run.Context, ct)));
+            CloudNotice.With("가이드 카메라가 PHD2에 다시 연결되었습니다. 다음은 가이드 보정값을 만드는 캘리브레이션입니다.", await CloudNotice.ReadAsync(run.Context, ct)));
     }
 
     /// <summary>
@@ -120,7 +120,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             await run.AskAsync([new("retry", "다시 시도", true)], ct);
         }
         return new Completed(new PolarResult(null, 0, 0, "건너뜀", run.Context.Now(), Skipped: true), "건너뜀", "극축 정렬을 건너뛰었어요",
-            "극축이 틀어져 있으면 가이딩 보정이 잦아지고 긴 촬영에서 시야가 조금 돌 수 있어요. 다음은 캘리브레이션입니다.") { AutoNext = true };
+            "극축이 틀어져 있으면 가이드 보정이 잦아지고 긴 촬영에서 시야가 조금 돌 수 있어요. 다음은 캘리브레이션입니다.") { AutoNext = true };
     }
 
     /// <summary>넘겨받기. 건너뛰기를 고르면 false</summary>

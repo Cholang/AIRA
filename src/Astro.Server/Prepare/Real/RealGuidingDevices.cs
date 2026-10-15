@@ -26,7 +26,7 @@ public sealed class RealGuidingDevices(NinaRig rig, Phd2Client phd2) : IGuidingD
             if (!settling && await StateAsync(ct) == "Guiding") { settling = true; phase("settle"); }
         }
         var reply = await start;
-        if (!reply.Ok) return new GuideStart(false, false, Problem: reply.Error ?? "가이딩을 시작하지 못했습니다");
+        if (!reply.Ok) return new GuideStart(false, false, Problem: reply.Error ?? "가이드를 시작하지 못했습니다");
         var state = await StateAsync(ct);
         if (state != "Guiding")
         {

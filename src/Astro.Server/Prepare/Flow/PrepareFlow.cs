@@ -31,13 +31,15 @@ public sealed class PrepareFlow
     public PrepareRunner Target { get; }
     public PrepareRunner Wrap { get; }
 
-    public PrepareFlow(IEnumerable<IPrepTask> tasks, ILogger<PrepareRunner> log, bool simulated, TimeSpan? autoNextDelay = null)
+    /// <param name="prepTimes">준비 시간 기록 (대상 묶음의 이동~시험 사진이 실제로 끝나면). 모의 장비면 null</param>
+    public PrepareFlow(IEnumerable<IPrepTask> tasks, ILogger<PrepareRunner> log, bool simulated, TimeSpan? autoNextDelay = null, PrepTimeRecorder? prepTimes = null)
     {
         var all = tasks.ToList();
         var delay = autoNextDelay ?? TimeSpan.FromSeconds(1.8);
         Rig = new PrepareRunner(all.Where(t => RigTaskIds.Contains(t.Id)), log, RunnerSetup.Rig) { Simulated = simulated, AutoNextDelay = delay };
         Target = new PrepareRunner(all.Where(t => !RigTaskIds.Contains(t.Id) && !WrapTaskIds.Contains(t.Id)), log, RunnerSetup.Target) { Simulated = simulated, AutoNextDelay = delay };
         Wrap = new PrepareRunner(all.Where(t => WrapTaskIds.Contains(t.Id)), log, RunnerSetup.Wrap) { Simulated = simulated, AutoNextDelay = delay };
+        if (prepTimes is not null) Target.TaskFinished = (task, result, ctx) => prepTimes.Finished(task, result, ctx, Target.Tasks);
 
         // 장비 준비 작업이 돌기 전: 대상 묶음이 장비를 쓰고 있으면 멈춰 두고 영향받는 작업을 다시 확인 필요로
         Rig.BeforeRun = id => Target.SuspendAsync(CrossDependents.GetValueOrDefault(id, []), "장비 준비를 다시 하는 중이에요", handoff: "rig");
@@ -91,6 +93,40 @@ public sealed class PrepareFlow
     /// <summary>촬영 중 N.I.N.A.가 꺼졌다 다시 켜졌을 때: 적도의 위치·가이딩을 알 수 없으므로 대상 작업 전체를 다시 확인 (같은 계획으로 시작하면 이동부터)</summary>
     public Task<bool> RecheckTargetAsync() =>
         Target.SuspendAsync(Target.Tasks.Select(t => t.Id).ToList(), "N.I.N.A.가 다시 켜져 대상 맞추기부터 다시 해요");
+
+    // ── 구도 회전 (⑤ 센터링 뒤, 2026-10-16 사용자 결정 — Tasks.Center.Framing) ─────────
+
+    /// <summary>[모의] 카메라를 돌렸다고 칠 때 (모의 센터링 장비가 다음 사진의 방향을 바꾼다). 실장비에서는 null</summary>
+    public Action<double>? SimulateTurn { get; set; }
+
+    /// <summary>센터링을 마친 사진에서 틀을 돌린 각도(화면 시계 방향 +)를 원하는 구도로 정한다. 허용 오차 안이면 지운다. 안 되면 이유</summary>
+    public string? SetFraming(double turnDeg)
+    {
+        if (CenterPhoto() is not { } at) return "센터링을 마친 사진에서만 구도를 돌릴 수 있습니다.";
+        var turn = Tasks.Center.Framing.Wrap(turnDeg);
+        if (Math.Abs(turn) <= Tasks.Center.Framing.ToleranceDeg) at.Ctx.Results.Remove(typeof(Tasks.Center.FramingGoal));
+        else at.Ctx.Results.Set(new Tasks.Center.FramingGoal(at.Ctx.Plan.TargetId, at.Angle, turn));
+        return null;
+    }
+
+    /// <summary>카메라를 돌린 뒤: 센터링을 다시 해 새 사진으로 남은 각도를 잰다 (CenterTask가 정해 둔 구도와 비교). 안 되면 이유</summary>
+    public string? CheckFraming()
+    {
+        if (CenterPhoto() is not { } at) return "센터링을 마친 사진에서만 확인할 수 있습니다.";
+        if (at.Ctx.Results.Get<Tasks.Center.FramingGoal>() is not { } goal || goal.TargetId != at.Ctx.Plan.TargetId) return "돌릴 구도가 정해지지 않았습니다.";
+        SimulateTurn?.Invoke(goal.TurnDeg);
+        _ = Target.RedoAsync("center", fromRunning: false);
+        return null;
+    }
+
+    /// <summary>대상 묶음이 센터링을 마치고 확정을 기다리는 중이면 그 상황과 사진의 카메라 방향</summary>
+    private (PrepContext Ctx, double Angle)? CenterPhoto()
+    {
+        var v = Target.View();
+        if (Target.Context is not { HasPlan: true } ctx || v.Current?.TaskId != "center"
+            || v.Tasks.FirstOrDefault(t => t.Id == "center")?.Status != PrepTaskStatus.Done) return null;
+        return ctx.Results.Get<CenterResult>() is { Skipped: false, CameraAngleDeg: { } angle } ? (ctx, angle) : null;
+    }
 
     public PrepareRunner? Runner(string group) => group switch
     {

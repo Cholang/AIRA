@@ -21,37 +21,58 @@
   color: var(--text);
 }
 
+/* 표시 칸: 자리·크기는 고정이고 움직이지 않는다. 테두리(원)는 안의 ::before가 그리고 돈다.
+   돌거나 커지는 것이 칸 밖으로 넘친 것으로 잡히지 않게 자른다 — 원째로 돌리면 각도마다 넘침 높이가 바뀌어,
+   마지막 줄일 때 팝업 글 칸(스크롤 영역)에 스크롤바가 생겼다 사라지기를 되풀이했다 (2026-10-16 사용자). 원은 늘 칸 안이라 잘려 보이는 곳은 없다 */
 .mark {
+  position: relative;
+  box-sizing: border-box;
   width: 22px;
   height: 22px;
   display: grid;
   place-items: center;
+  border-radius: 50%;
+  overflow: clip;
+}
+
+.mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   border: 1.5px dashed var(--line);
   border-radius: 50%;
 }
 
 .mark svg {
+  position: relative;
   width: 14px;
   height: 14px;
 }
 
 /* 닫는 중: 테두리 빛이 돈다 (연결 중 원과 같은 색) */
-.apps li[data-state='closing'] .mark {
+.apps li[data-state='closing'] .mark::before {
   border: 2px solid var(--conn-glow);
   border-top-color: var(--conn);
   animation: spin 900ms linear infinite;
 }
 
+/* 닫음: 채운 원 + 체크가 작게 시작해 제 크기로 (제 크기를 넘지 않는다 — 넘으면 위처럼 넘침이 생긴다) */
 .apps li[data-state='done'] .mark {
-  border: 1.5px solid var(--conn);
   background: var(--conn);
   color: var(--on-accent);
-  animation: pop 320ms ease-out;
+  animation: pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.apps li[data-state='done'] .mark::before {
+  border: 1.5px solid var(--conn);
 }
 
 .apps li[data-state='failed'] .mark {
-  border: 1.5px solid var(--fail);
   color: var(--fail);
+}
+
+.apps li[data-state='failed'] .mark::before {
+  border: 1.5px solid var(--fail);
 }
 
 .note {
@@ -69,13 +90,12 @@
 }
 
 @keyframes pop {
-  0% { transform: scale(0.6); }
-  60% { transform: scale(1.15); }
-  100% { transform: scale(1); }
+  from { transform: scale(0.6); }
+  to { transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .apps li[data-state='closing'] .mark,
+  .apps li[data-state='closing'] .mark::before,
   .apps li[data-state='done'] .mark {
     animation: none;
   }

@@ -53,7 +53,8 @@ public class NightSessionTests : IDisposable
         _boot = _now.AddMinutes(-3); // 그 사이 다시 켜짐
         var p = Store().Pending("p1");
         Assert.Equal("notice", p!.Kind);
-        Assert.Contains("컴퓨터가 꺼져", p.Summary);
+        // 까닭(꺼짐·시간 지남)은 화면이 한 문장으로 붙인다 (2026-10-16 사용자 문구) — 여기서는 한 일 · 날짜 시각만
+        Assert.Matches(@" · \d+월 \d+일 \d\d:\d\d$", p.Summary);
     }
 
     [Fact]

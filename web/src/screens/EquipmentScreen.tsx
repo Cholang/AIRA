@@ -9,6 +9,7 @@ import ScopeList from '../components/ScopeList'
 import { useCheckStream, type CheckItem } from '../checks'
 import { scaleOf } from '../frame'
 import { useKeepInside } from '../keepInside'
+import { PRODUCT } from '../product'
 import { PARALLAX, setSkyPan, SUN_MOVE_MS } from '../skyPan'
 import { coordText, type CurrentSite } from '../sites'
 import engineStyles from './EngineStartScreen.module.css'
@@ -772,7 +773,7 @@ function CameraPower() {
       {state.outlets.length === 0 && <p className={styles.listNote}>전원 허브가 연결되면 허브 출력도 고를 수 있습니다</p>}
       <ConfirmDialog
         open={asking !== null}
-        message={`Wanderer Empire에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. 아이라는 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
+        message={`Wanderer Empire에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. ${PRODUCT.neun} 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
         confirmLabel="맞췄어요"
         size="md"
         onConfirm={() => {

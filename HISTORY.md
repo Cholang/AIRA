@@ -8,7 +8,32 @@
 
 ---
 
-## 2026-10-15 · [Claude] 웹 개발 도구 보안 알림 해결 (source-map-js)
+## 2026-10-16 · [Claude] 준비 시간 기록 · 센터링 사진에서 구도 회전 · 부팅 로고 차례로 · 확인 창 문구와 용어 · 종료 창 스크롤 깜빡임 · 잔디·유성·극축 점선
+
+**요청** (집 PC):
+- 잔디 조금 굵게·로고보다 짙은 보라, 극축 점선을 적도의에 맞추고 빠르게, 유성은 한 번에 하나·가끔 화면 왼쪽까지 길게.
+- 준비 시간: 프로필마다 최근 5번(이동 시작 → 시험 사진 끝)의 중앙값, 기록이 없으면 20분(Claude 추천 채택).
+- 확인 창 문구를 사용자가 직접 고침(줄 나눔 포함). 아이라를 "앱"이라 부르지 않기. 용어: 경통 → 망원경, 가이딩 → 가이드, 전원 배선 → 전원 설정(모두). 문구 규칙도 화면 규칙이므로 DESIGN에.
+- 구도 회전: 센터링 사진 꼭짓점에 굽은 양방향 화살표 → 누른 채 틀을 돌림(사진 밖은 회색) → 놓으면 사진 가운데에 어디로 얼마나. 시계 방향 N° + 다시 찍어 확인, 2° 안이면 맞춤(사용자 동의).
+- 부팅: AIRA → 아이라 → 풀이 → Press Any Key 차례로, 입력은 Press Any Key부터(1초 막기 없앰), 유성은 처음부터. 키를 누르면 Press Any Key 펄스, 아이라·풀이 바로 투명, AIRA는 한 번 반짝인 뒤 선 → 별 순서로. 장비가 들어오는 것은 그대로.
+- 점검 화면에서 아이라를 종료할 때 종료 팝업에 스크롤바가 생겼다 사라지기를 되풀이(버그).
+
+**변경**:
+- 장면 `RigScene`: `--art-grass`, 극축 점선을 몸통 기울기에(`POLE_TILT`·`RAY_FROM`, 하늘 그림을 `SKY_SLIDE`만큼), 점선 2.2초, 유성 `METEOR_LONG`·`METEOR_SPEED`. 부팅 차례 `BOOT_AT`·`BOOT_PROMPT_MS`(App이 이때부터 입력 — `LOGO_DRAWN_MS`·`BOOT_INPUT_DELAY_MS` 없앰), 사라짐은 CSS `promptOut`·`lineOut`·`starOut`.
+- 준비 시간: `Prepare/PrepTimes.cs`(`PrepTimes` — prep-times.json, `PrepTimeRecorder`), `PrepareRunner.TaskFinished`(실제로 끝난 작업만 — 건너뛰기·이어서 하기는 오지 않음), `SlewResult.MovedAt`, `PlanRules.DefaultPrepLead`·`PrepSamples`, `NightContext.PrepLead`, `ShootWindow.Lead`, `PreparationPlan.PrepMinutes`(이동 단계는 계획에 쓴 값으로). 모의 장비는 기록하지 않음.
+- 구도 회전: `Prepare/Tasks/Center/Framing.cs`(`FramingGoal`, `Framing.Remaining`, `AnglePerTurn` [실기 확인]), `CenterTask.FramingCheck`(측정값에 cameraAngle·frameDeg·frameTolerance, 안내 문장에는 숫자 없음), `PrepareFlow.SetFraming`·`CheckFraming`, API `/prepare/target/framing`·`/framing/check`, 모의 `SimulatedCenterDevices.UserTurns`. 웹 `components/FrameRotate`, `framing.ts`(`CAMERA_TURN_SIGN` [실기 확인]), `LiveView`가 사진 자리를 알림(`onPhotoBox`), 모의 사진 `simPhoto.ts`, 토큰 `--frame-void`.
+- 확인 창: `ConfirmDialog` 문장 속 줄바꿈, 이어서 하기·지난 촬영 중단·적도의 홈·종료·프로필 삭제 문구(`NightSession.Pending`은 요약만, 앞뒤 문장은 화면이). 화면 문구에 이름을 직접 쓴 2곳 → `PRODUCT`.
+- 용어 일괄(화면 글자 + DESIGN·OPERATION_PROCEDURE·FIELD_TEST_CHECKLIST, 조사 맞춤): 가이딩 → 가이드 약 90곳, 경통 → 망원경, 전원 배선 → 전원 설정. DESIGN 5장에 규칙(용어 · 이름 · 확인 창은 "~합니다").
+- 종료 창(`QuitControl.module.css`): 원째 돌리면 각도마다 넘침 높이가 바뀌어 마지막 줄일 때 팝업 글 칸(스크롤 영역)이 168↔170px로 바뀌었다 → 테두리는 `.mark::before`가 돌고 칸은 `overflow: clip`, 체크 튀어나옴은 제 크기까지만.
+- 문서: DESIGN(부팅 · 구도 회전 · 확인 창 · 용어), OPERATION_PROCEDURE(준비 시간 · 구도 회전), DECISION_HISTORY, FIELD_TEST_CHECKLIST(구도 회전 방향·링 눈금 추가, 폰 화면·[임시] 지우기 뺌). [계획] 폰 화면 폐기(사용자).
+
+**확인**: 서버 시험 271 통과·1 건너뜀(새 `PrepTimesTests` 10 · `FramingTests` 6, 계약 시험의 `SlewResult` 모양, `NightSessionTests` 알림 형식 갱신), 웹 41 통과, lint 오류 0, 웹·데스크톱 빌드. 시험 서버(5211 — N.I.N.A. 자동 실행 끔, 빈 데이터 폴더, 장비 흉내): 부팅 차례와 입력 시점(Press Any Key 전 키는 무시), 키를 누른 뒤 애니메이션 값. 종료 팝업은 가짜 응답으로 마지막 줄이 "닫는 중"에 머물게 재현 — 고치기 전 원 각도마다 글 칸 168/168 ↔ 170/168, 고친 뒤 0~345° 내내 168/168. 구도 회전은 임시 페이지에서 끌기·안내·다시 찍기·되돌리기·적색 테마. 앱 전체 흐름 안의 실제 센터링 화면, 실장비의 회전 방향은 확인 못 함. 전체 시험 중 기존의 `다크_장수는_5장씩…`이 한 번 실패(따로·다시 돌리면 통과, 이번 변경과 무관).
+
+**남은 것**: 현장 확인 — 구도 회전 방향 부호 두 곳과 링 눈금 짝, 준비 시간 기록이 쌓이는지. 남은 일을 꼽을 때 [임시] 버튼 지우기와 폰 화면은 넣지 않는다(사용자 — 지울 때는 사용자가 말함, 폰은 충분히 써 본 뒤 사용자가 검토). DeepSeek 연결은 사용자 검토 중(키 미정). 10-17 회사 노트북에서 큰 클래스 쪼개기(xhigh 권장) — 다크플랫 옮기기를 `ImageFolders.Move`로 합치는 것도 함께(리뷰가 끝나 미룰 이유 없음).
+
+---
+
+## 2026-10-15 · 8a22b55 [Claude] 웹 개발 도구 보안 알림 해결 (source-map-js)
 
 **요청**: `npm install`이 띄우는 높음 등급 알림 1개 해결(집 PC).
 

@@ -109,6 +109,8 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
     public Func<string, Task<bool>>? BeforeRun { get; set; }
     /// <summary>이 묶음에 없는 작업을 다시 하자는 요청 (예: 가이딩 → 캘리브레이션). PrepareFlow가 다른 묶음에 넘긴다</summary>
     public Func<string, Task>? ForeignRedo { get; set; }
+    /// <summary>작업이 실제로 끝났을 때 (끝 상태 확인까지 통과 — PrepareFlow가 준비 시간을 기록). 건너뛰기·이어서 하기로 넘긴 작업은 부르지 않는다</summary>
+    public Action<IPrepTask, object, PrepContext>? TaskFinished { get; set; }
     /// <summary>묻지 않고 넘어가는 작업(AutoNext)의 결과를 보여 주는 시간</summary>
     public TimeSpan AutoNextDelay { get; init; } = TimeSpan.FromSeconds(1.8);
 
@@ -421,6 +423,8 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
                 return;
             }
             cur.Finished = true;
+            try { TaskFinished?.Invoke(cur.Task, done.Result, _ctx!); }
+            catch (Exception e) { log.LogWarning(e, "작업 끝 기록을 남기지 못함: {Task}", cur.Task.Id); }
             cur.Guide = new GuideView(done.GuideTitle, done.GuideText);
             cur.Status = null;
             _rows[cur.Task.Id] = (PrepTaskStatus.Done, done.ResultLine);
@@ -781,7 +785,7 @@ public sealed class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<PrepareR
                 break;
             case "guiding":
                 yield return ok ? new GuidingResult(0.8, 0.5, 0.6, "충분해요", now) : new GuidingResult(0, 0, 0, "건너뜀", now, Skipped: true);
-                if (!ok) yield return new GuiderSkipped("[임시] 가이딩을 실패로 넘김", now);
+                if (!ok) yield return new GuiderSkipped("[임시] 가이드를 실패로 넘김", now);
                 break;
             case "test":
                 yield return new TestShotResult(ctx.ExposureSeconds, ok ? 2.3 : null, null, ok ? 0.2 : null, null, now, Skipped: !ok);

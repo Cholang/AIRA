@@ -73,7 +73,7 @@ public class RulesAndContractTests
     [Theory]
     [InlineData(typeof(PolarResult), "ErrorArcmin:Nullable`1 ErrorXPx:Double ErrorYPx:Double Grade:String At:DateTimeOffset Skipped:Boolean")]
     [InlineData(typeof(CalibrationResult), "Reused:Boolean OrthogonalityErrorDeg:Nullable`1 Position:String Evening:DateOnly At:DateTimeOffset Skipped:Boolean")]
-    [InlineData(typeof(SlewResult), "ArrivalErrorDeg:Double AltitudeDeg:Double At:DateTimeOffset AcceptedHere:Boolean")]
+    [InlineData(typeof(SlewResult), "ArrivalErrorDeg:Double AltitudeDeg:Double At:DateTimeOffset AcceptedHere:Boolean MovedAt:Nullable`1")]
     [InlineData(typeof(FocusResult), "Manual:Boolean Position:Nullable`1 Hfr:Nullable`1 TemperatureC:Nullable`1 At:DateTimeOffset")]
     [InlineData(typeof(CenterResult), "ErrorArcmin:Double CameraAngleDeg:Nullable`1 Attempts:Int32 At:DateTimeOffset Hfr:Nullable`1 Stars:Nullable`1 Skipped:Boolean")]
     [InlineData(typeof(FocusCheckResult), "Refocused:Boolean TemperatureChangeC:Nullable`1 CenterHfr:Nullable`1 Position:Nullable`1 Hfr:Nullable`1 TemperatureC:Nullable`1 At:DateTimeOffset")]

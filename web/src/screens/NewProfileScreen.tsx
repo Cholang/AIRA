@@ -156,7 +156,7 @@ export default function NewProfileScreen({
         <button type="button" className={styles.wiring} aria-expanded={wiringOpen} onClick={() => setWiringOpen((v) => !v)}>
           <Activity aria-hidden="true" />
           <span>
-            <b>전원 배선</b>
+            <b>전원 설정</b>
             <small>{custom || changed ? wiringSummary(wiring) : `기본 · ${wiringSummary(DEFAULT_WIRING)}`}</small>
           </span>
         </button>
@@ -186,7 +186,7 @@ export default function NewProfileScreen({
       </form>
       <ConfirmDialog
         open={deleting !== null}
-        message={`'${editing?.nickname ?? ''}' 프로필을 삭제합니다. 관측지 목록과 전원 배선도 함께 지워지고 되돌릴 수 없습니다.`}
+        message={`'${editing?.nickname ?? ''}' 프로필을 삭제합니다.\n관측지 목록과 전원 설정도 함께 지워지고 되돌릴 수 없습니다.`}
         confirmLabel="삭제"
         busy={deleting === 'busy'}
         onConfirm={() => void remove()}

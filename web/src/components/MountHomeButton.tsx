@@ -69,8 +69,8 @@ export default function MountHomeButton() {
         message={
           error ??
           (check
-            ? (state.problem ?? '적도의가 멈췄는지 확인하지 못했습니다.') + ' 적도의가 멈춰 있는 것을 직접 확인했나요?'
-            : '적도의를 홈 위치로 보내고 추적을 끕니다. 경통 주변에 걸리는 것이 없는지 확인해 주세요.')
+            ? (state.problem ?? '적도의가 멈췄는지 확인하지 못했습니다.') + ' 적도의가 멈춰 있는지 확인해 주세요.'
+            : '적도의를 홈 위치로 보내고 추적을 끕니다.\n망원경 주변에 걸리는 것이 없는지 확인해 주세요.')
         }
         confirmLabel={error ? '확인' : check ? '멈춘 것을 확인했어요' : '홈으로 보내기'}
         single={error !== null}

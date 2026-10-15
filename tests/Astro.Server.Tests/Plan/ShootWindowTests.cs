@@ -32,6 +32,15 @@ public class ShootWindowTests
     }
 
     [Fact]
+    public void 준비_시간을_주면_그만큼_앞서_이동한다()
+    {
+        // 프로필의 준비 시간 기록이 35분이면 (2026-10-16): 23:00 시작이면 22:25에 이동
+        var w = ShootWindow.Compute(Rising(At(21, 0), 10, 10), Night, At(19, 30), null, TimeSpan.FromMinutes(35))!;
+        Assert.Equal(At(23, 0), w.Start);
+        Assert.Equal(At(22, 25), w.MoveAt);
+    }
+
+    [Fact]
     public void 해가_지기_전이면_어두워지는_때부터_찍는다()
     {
         var w = ShootWindow.Compute(_ => 50, Night, At(16, 0), null)!;

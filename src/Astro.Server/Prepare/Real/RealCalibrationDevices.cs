@@ -35,7 +35,7 @@ public sealed class RealCalibrationDevices(NinaRig rig, Phd2Client phd2) : ICali
                 try
                 {
                     await phd2.CallAsync("find_star", ct: ct, timeout: TimeSpan.FromSeconds(30));
-                    return new StarPick(true, double.NaN, ms / 1000.0); // SNR은 가이딩 중에만 나온다
+                    return new StarPick(true, double.NaN, ms / 1000.0); // SNR은 가이드 중에만 나온다
                 }
                 catch (Phd2Exception) { /* 별 없음 → 노출 늘려 다시 */ }
             }
@@ -81,7 +81,7 @@ public sealed class RealCalibrationDevices(NinaRig rig, Phd2Client phd2) : ICali
                         await StopPhd2Async(ct);
                         return new CalibrationData(false, 0, 0, 0, warnings, e.TryGetProperty("Reason", out var r) ? r.GetString() : "캘리브레이션에 실패했습니다");
                     case "CalibrationComplete":
-                        await StopPhd2Async(ct); // 끝 상태 약속: 가이딩·루프 아님
+                        await StopPhd2Async(ct); // 끝 상태 약속: 가이드·루프 아님
                         var cal = await phd2.CallAsync("get_calibration_data", new object[] { "Mount" }, ct);
                         double xa = Num(cal, "xAngle"), ya = Num(cal, "yAngle");
                         var ortho = Math.Abs(90 - Math.Abs(((xa - ya) % 180 + 180) % 180));

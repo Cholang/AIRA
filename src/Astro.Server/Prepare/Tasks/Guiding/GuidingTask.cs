@@ -30,8 +30,8 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
     private const double Exposure = 1.5, LongExposure = 3;
 
     public string Id => "guiding";
-    public string Title => "가이딩";
-    public string StartLabel => "가이딩 시작";
+    public string Title => "가이드";
+    public string StartLabel => "가이드 시작";
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("star", "별 선택"), new("settle", "안정화"), new("measure", "오차 측정")];
 
     public bool AppliesTo(PrepContext ctx) => ctx.HasGuider;
@@ -53,7 +53,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
                 run.Status($"가이드 별을 고르는 중입니다 · 가이드 노출 {exposure:0.#}초 (AA가 정함)");
                 start = await devices.StartAsync(exposure, phase =>
                 {
-                    if (phase == "settle") { run.SubStep(1); run.Guide("안정화", "가이딩이 안정되기를 기다립니다."); run.Status("가이딩이 안정되기를 기다리는 중입니다"); }
+                    if (phase == "settle") { run.SubStep(1); run.Guide("안정화", "가이드가 안정되기를 기다립니다."); run.Status("가이드가 안정되기를 기다리는 중입니다"); }
                 }, ct);
                 if (start.StarFound || exposure >= LongExposure) break;
                 exposure = LongExposure;
@@ -61,7 +61,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
             }
             if (start.CalibrationMismatch)
             {
-                run.Guide("캘리브레이션이 맞지 않습니다", "보정값이 지금 장비 상태와 맞지 않아 가이딩이 흔들립니다. 캘리브레이션부터 다시 하는 게 좋아요.");
+                run.Guide("캘리브레이션이 맞지 않습니다", "보정값이 지금 장비 상태와 맞지 않아 가이드가 흔들립니다. 캘리브레이션부터 다시 하는 게 좋아요.");
                 run.Status(start.Problem ?? "보정값 불일치", Tone.Fail);
                 var c = await run.AskAsync([new("recal", "캘리브레이션 다시 하기", true), new("retry", "다시 시도"), NoGuide], ct);
                 if (c == "recal") return new RedoRequest("calibration");
@@ -77,21 +77,21 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
             }
 
             run.SubStep(2);
-            run.Guide("오차 측정", "가이딩 오차를 잽니다.");
-            run.Status("가이딩 오차를 재는 중입니다");
+            run.Guide("오차 측정", "가이드 오차를 잽니다.");
+            run.Status("가이드 오차를 재는 중입니다");
             var series = new List<double[]>();
             var stats = await devices.MeasureAsync((ra, dec) =>
             {
                 series.Add([ra, dec]);
                 var total = Math.Sqrt(ra * ra + dec * dec);
-                run.Readout("guiding", $"{total:F1}″", $"가이딩 오차 (전체) · 기준 {limit:F2}″ = 주 카메라 한 픽셀", Tone.Busy,
+                run.Readout("guiding", $"{total:F1}″", $"가이드 오차 (전체) · 기준 {limit:F2}″ = 주 카메라 한 픽셀", Tone.Busy,
                     new Dictionary<string, double> { ["ra"] = ra, ["dec"] = dec, ["limit"] = limit }, live: true);
                 run.Live("guide-image", "/api/prepare/live/guide", new { series = series.ToArray(), limit });
             }, ct);
 
             var (grade, tone, text) = GuidingRules.Judge(stats, limit);
             run.Readout("guiding", $"{stats.TotalArcsec:F1}″",
-                $"가이딩 오차 (전체) · 적경 {stats.RaArcsec:F1}″ · 적위 {stats.DecArcsec:F1}″ · {(stats.StarLost == 0 ? "별 잃음 없음" : $"별 {stats.StarLost}번 잃음")} · 기준 {limit:F2}″",
+                $"가이드 오차 (전체) · 적경 {stats.RaArcsec:F1}″ · 적위 {stats.DecArcsec:F1}″ · {(stats.StarLost == 0 ? "별 잃음 없음" : $"별 {stats.StarLost}번 잃음")} · 기준 {limit:F2}″",
                 tone, new Dictionary<string, double> { ["total"] = stats.TotalArcsec, ["ra"] = stats.RaArcsec, ["dec"] = stats.DecArcsec, ["limit"] = limit, ["starLost"] = stats.StarLost });
             run.Status(null);
             return new Completed(new GuidingResult(stats.TotalArcsec, stats.RaArcsec, stats.DecArcsec, grade, ctx.Now()), $"{stats.TotalArcsec:F1}″ · {grade}",
@@ -101,7 +101,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
 
     /// <summary>가이딩 없이 찍을 때 권하는 한 장 노출 상한 (2026-10-08 사용자 결정 — 자동으로 바꾸지 않고 권함)</summary>
     public const int UnguidedExposure = 60;
-    private static readonly PrepAction NoGuide = new("noguide", "가이딩 없이 진행");
+    private static readonly PrepAction NoGuide = new("noguide", "가이드 없이 진행");
 
     /// <summary>
     /// 가이딩 없이 진행 (2026-10-08 사용자 결정): PHD2를 멈추고 그날 밤 가이딩을 쓰지 않는다(GuiderSkipped — 촬영은 PHD2를 부르지 않음, 디더링 없음).
@@ -111,25 +111,25 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
     {
         var ctx = run.Context;
         await devices.StopAsync(ct);
-        ctx.Results.Set(new GuiderSkipped("가이딩을 시작하지 못함", ctx.Now()));
+        ctx.Results.Set(new GuiderSkipped("가이드를 시작하지 못함", ctx.Now()));
         if (ctx.ExposureSeconds > UnguidedExposure)
         {
-            run.Guide("노출을 줄일까요?", $"가이딩 없이 {ctx.ExposureSeconds}초를 찍으면 별이 흐를 수 있어요. 가이딩 없이는 {UnguidedExposure}초 이하를 권해요. 시험 사진에서 별 모양을 확인할 수 있어요.");
+            run.Guide("노출을 줄일까요?", $"가이드 없이 {ctx.ExposureSeconds}초를 찍으면 별이 흐를 수 있어요. 가이드 없이는 {UnguidedExposure}초 이하를 권해요. 시험 사진에서 별 모양을 확인할 수 있어요.");
             run.Status(null);
             var c = await run.AskAsync([new("shorter", $"{UnguidedExposure}초로 줄이기", true), new("keep", $"계획대로 {ctx.ExposureSeconds}초")], ct);
             if (c == "shorter") ctx.ExposureSeconds = UnguidedExposure;
         }
-        return new Completed(new GuidingResult(0, 0, 0, "건너뜀", ctx.Now(), Skipped: true), $"건너뜀 · 가이딩 없이 {ctx.ExposureSeconds}초",
-            "가이딩 없이 진행합니다", "오늘 밤은 가이딩 없이 찍어요. 디더링도 하지 않아요. 다음은 시험 사진입니다.") { AutoNext = true };
+        return new Completed(new GuidingResult(0, 0, 0, "건너뜀", ctx.Now(), Skipped: true), $"건너뜀 · 가이드 없이 {ctx.ExposureSeconds}초",
+            "가이드 없이 진행합니다", "오늘 밤은 가이드 없이 찍어요. 디더링도 하지 않아요. 다음은 시험 사진입니다.") { AutoNext = true };
     }
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {
         var s = await devices.ReadEndStateAsync(ct);
         // 가이딩 없이 진행: 가이딩은 없어야 한다 — 멈추지 못했으면 끝으로 치지 않는다 (CX-20-08과 같은 경계)
-        if (ctx.Results.Get<GuidingResult>() is { Skipped: true }) return s.Guiding ? EndStateCheck.Fail("PHD2가 아직 가이딩 중입니다") : EndStateCheck.Pass;
-        if (!s.Guiding) return EndStateCheck.Fail("PHD2가 가이딩하고 있지 않습니다");
-        if (!s.Settled) return EndStateCheck.Fail("가이딩이 아직 안정되지 않았습니다");
+        if (ctx.Results.Get<GuidingResult>() is { Skipped: true }) return s.Guiding ? EndStateCheck.Fail("PHD2가 아직 가이드 중입니다") : EndStateCheck.Pass;
+        if (!s.Guiding) return EndStateCheck.Fail("PHD2가 가이드하고 있지 않습니다");
+        if (!s.Settled) return EndStateCheck.Fail("가이드가 아직 안정되지 않았습니다");
         if (s.StarLostRecently > 0) return EndStateCheck.Fail("방금 가이드 별을 잃었습니다");
         return EndStateCheck.Pass;
     }

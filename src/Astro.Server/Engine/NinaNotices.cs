@@ -159,8 +159,8 @@ public static class NinaLogRules
             return ("guide", "PHD2와 연결이 끊겼습니다",
                 ["PHD2가 꺼졌거나 멈췄습니다"], "PHD2가 켜져 있는지 확인해 주세요. 꺼졌으면 다시 켠 뒤 가이더를 다시 연결합니다.");
         if (Has("timed-out waiting for guider to settle"))
-            return ("guide", "가이딩이 안정되지 않았습니다",
-                ["바람이나 구름으로 별이 흔들립니다", "디더링 뒤 안정 기준이 너무 엄격합니다"], "하늘과 바람을 확인해 주세요. 계속되면 가이딩 그래프를 봐 주세요.");
+            return ("guide", "가이드가 안정되지 않았습니다",
+                ["바람이나 구름으로 별이 흔들립니다", "디더링 뒤 안정 기준이 너무 엄격합니다"], "하늘과 바람을 확인해 주세요. 계속되면 가이드 그래프를 봐 주세요.");
         if (Has("PHD2 error:Image capture stopped"))
             return ("guide", "PHD2 가이드 카메라 촬영이 멈췄습니다",
                 ["가이드 카메라 USB가 불안정합니다", "PHD2에서 촬영을 멈췄습니다"], "가이드 카메라 연결을 확인해 주세요.");
@@ -214,7 +214,7 @@ public static class NinaLogRules
                 ["USB를 다시 꽂아 PHD2가 기억한 카메라를 찾지 못합니다", "가이드 카메라 USB가 빠졌습니다", "PHD2 장비 연결 창이 열려 있습니다"],
                 "PHD2 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 다시 고른 뒤 연결해 주세요.");
         if (Has("Start guiding has failed") || Has("Start guiding has timed out"))
-            return ("guide", "가이딩을 시작하지 못했습니다",
+            return ("guide", "가이드를 시작하지 못했습니다",
                 ["가이드 별이 없거나 구름이 지나갑니다", "캘리브레이션이 맞지 않습니다"],
                 "하늘과 가이드 망원경을 확인해 주세요.");
 

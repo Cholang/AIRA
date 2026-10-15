@@ -76,7 +76,14 @@ public static class PrepareSetup
         s.AddSingleton<FocuserParkStore>();
         s.AddSingleton<FocuserPark>();
         s.AddSingleton<IPrepMemory, InMemoryPrepMemory>();
-        s.AddSingleton(sp => new PrepareFlow(sp.GetServices<IPrepTask>(), sp.GetRequiredService<ILogger<PrepareRunner>>(), simulate));
+        // 준비 시간은 실제 장비로 한 밤만 기록 (모의 장비는 몇 초라 계획을 망친다)
+        s.AddSingleton(sp => new PrepareFlow(sp.GetServices<IPrepTask>(), sp.GetRequiredService<ILogger<PrepareRunner>>(), simulate,
+            prepTimes: !simulate && sp.GetService<PrepTimes>() is { } times
+                ? new PrepTimeRecorder(times, () => sp.GetService<Profiles.ProfileStore>()?.Current()?.Id) : null)
+        {
+            // [모의] 구도 회전: "돌렸어요"를 누르면 모의 센터링 장비가 카메라를 돌린 것처럼
+            SimulateTurn = sp.GetService<ICenterDevices>() is SimulatedCenterDevices sim ? sim.UserTurns : null,
+        });
         s.AddSingleton<PrepareStarter>();
         return s;
     }

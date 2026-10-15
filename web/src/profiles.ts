@@ -164,7 +164,7 @@ export const DEFAULT_WIRING: PowerWiring = {
 
 export async function getPower(id: string): Promise<{ sources: PowerWiring; custom: boolean }> {
   const res = await fetch(`/api/profiles/${id}/power`)
-  if (!res.ok) throw new Error('전원 배선을 읽지 못했습니다.')
+  if (!res.ok) throw new Error('전원 설정을 읽지 못했습니다.')
   return res.json()
 }
 
@@ -174,5 +174,5 @@ export async function savePower(id: string, sources: PowerWiring): Promise<void>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sources }),
   })
-  if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? '전원 배선을 저장하지 못했습니다.')
+  if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? '전원 설정을 저장하지 못했습니다.')
 }

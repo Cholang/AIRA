@@ -40,7 +40,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
     public string Title => "캘리브레이션";
     // 누르면 적도의가 크게 움직이므로 어디로 가는지 버튼에 쓴다. 남쪽이 막힌 곳이면 옆의 "가이딩 없이 진행" (2026-10-09 사용자 제안 — 따로 묻지 않고 버튼에서)
     public string StartLabel => "캘리브레이션 시작 · 남쪽 하늘로 이동";
-    public IReadOnlyList<PrepAction> StartAlternatives { get; } = [new("next:noguide", "가이딩 없이 진행")];
+    public IReadOnlyList<PrepAction> StartAlternatives { get; } = [new("next:noguide", "가이드 없이 진행")];
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("move", "위치로 이동"), new("star", "별 선택"), new("measure", "움직임 측정")];
 
     public bool AppliesTo(PrepContext ctx) => ctx.HasGuider;
@@ -53,10 +53,10 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         if (ctx.StartChoice == "noguide")
         {
             ctx.StartChoice = null;
-            return await NoGuideAsync(ctx, evening, "가이딩 없이 진행을 고름", ct);
+            return await NoGuideAsync(ctx, evening, "가이드 없이 진행을 고름", ct);
         }
         ctx.StartChoice = null;
-        ctx.Results.Remove(typeof(GuiderSkipped)); // 캘리브레이션을 다시 하면 가이딩도 다시 쓴다
+        ctx.Results.Remove(typeof(GuiderSkipped)); // 캘리브레이션을 다시 하면 가이드도 다시 쓴다
         // 같은 밤 + 마지막 극축 정렬 뒤에 만든 보정값만 재사용 (극축 정렬을 다시 했으면 새로, CX-PREP-CODE-06)
         if (ctx.Memory.LastCalibration is { } last && last.Evening == evening && last.At > (ctx.Memory.LastPolarAlignedAt ?? DateTimeOffset.MinValue)
             && await devices.HasCalibrationAsync(ct))
@@ -75,10 +75,10 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         // 극축 정렬을 건너뛰었으면 움직이기 전에 한 번 묻는다 — 실내·북쪽만 트인 곳처럼 이미 안 될 걸 아는 경우 (2026-10-08 실기)
         if (ctx.Results.Get<PolarResult>() is { Skipped: true })
         {
-            run.Guide("캘리브레이션을 할까요?", CloudNotice.With("적도의를 자오선 근처 하늘로 옮겨 가이드 별로 보정값을 만들어요. 그쪽 하늘이 보이지 않으면 가이딩 없이 진행할 수 있어요.", cloud));
+            run.Guide("캘리브레이션을 할까요?", CloudNotice.With("적도의를 자오선 근처 하늘로 옮겨 가이드 별로 보정값을 만들어요. 그쪽 하늘이 보이지 않으면 가이드 없이 진행할 수 있어요.", cloud));
             run.Status(null);
-            if (await run.AskAsync([new("start", "캘리브레이션 시작", true), new("noguide", "가이딩 없이 진행")], ct) == "noguide")
-                return await NoGuideAsync(ctx, evening, "가이딩 없이 진행을 고름", ct);
+            if (await run.AskAsync([new("start", "캘리브레이션 시작", true), new("noguide", "가이드 없이 진행")], ct) == "noguide")
+                return await NoGuideAsync(ctx, evening, "가이드 없이 진행을 고름", ct);
         }
 
         while (true)
@@ -94,18 +94,18 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
                     new Dictionary<string, double> { ["orthoDeg"] = data.OrthogonalityErrorDeg, ["raRate"] = data.RaRate, ["decRate"] = data.DecRate });
                 if (tone == Tone.Ok)
                     return new Completed(result, $"{grade} · 직교 오차 {data.OrthogonalityErrorDeg:F1}°", grade,
-                        "가이딩 보정값을 만들었습니다. 대상을 바꿔도 이 보정값을 그대로 씁니다. 다음은 이 근처 별로 초점을 맞춥니다.", [new("redo:calibration", "다시 하기")]);
+                        "가이드 보정값을 만들었습니다. 대상을 바꿔도 이 보정값을 그대로 씁니다. 다음은 이 근처 별로 초점을 맞춥니다.", [new("redo:calibration", "다시 하기")]);
                 run.Guide("다시 하는 게 좋아요", "보정값이 정확하지 않을 수 있습니다.");
                 run.Status(reason, Tone.Warn);
                 var c = await run.AskAsync([new("redo", "다시 하기", true), new("accept", "그래도 진행")], ct);
                 if (c == "accept")
-                    return new Completed(result, $"{grade} · 그대로 진행", "그대로 진행합니다", "경고가 있는 보정값으로 진행합니다. 가이딩이 흔들리면 다시 하세요.", [new("redo:calibration", "다시 하기")]);
+                    return new Completed(result, $"{grade} · 그대로 진행", "그대로 진행합니다", "경고가 있는 보정값으로 진행합니다. 가이드가 흔들리면 다시 하세요.", [new("redo:calibration", "다시 하기")]);
                 goto Retry;
             }
             run.Guide("캘리브레이션을 하지 못했습니다", "두 위치 모두에서 별을 찾지 못했습니다.");
             run.Status("구름이 지나가는지, 가이드 망원경 덮개와 초점을 확인해 주세요", Tone.Fail);
             // 오늘 밤 보정값이 있으면 위에서 이미 물었다 — 지난밤 보정값은 조립하며 카메라 방향이 바뀌었을 수 있어 쓰지 않는다 (2026-10-08 결정)
-            if (await run.AskAsync([new("retry", "다시 시도", true), new("noguide", "가이딩 없이 진행")], ct) == "noguide")
+            if (await run.AskAsync([new("retry", "다시 시도", true), new("noguide", "가이드 없이 진행")], ct) == "noguide")
                 return await NoGuideAsync(ctx, evening, "캘리브레이션을 하지 못함", ct);
         Retry:;
         }
@@ -117,8 +117,8 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         // 멈추지 못했어도 여기서는 넘어가되, "가이딩 없이"는 끝 상태 검사에서 PHD2·적도의가 멈춘 것을 확인한 뒤에 확정한다 (CX-20-08)
         await devices.StopAsync(ct);
         _skipWhy = why;
-        return new Completed(new CalibrationResult(false, null, "", evening, ctx.Now(), Skipped: true), "건너뜀 · 가이딩 없이",
-            "가이딩 없이 진행합니다", "오늘 밤은 가이딩 없이 찍습니다. 노출은 대상 단계에서 짧게 고를 수 있어요. 다음은 초점입니다.") { AutoNext = true };
+        return new Completed(new CalibrationResult(false, null, "", evening, ctx.Now(), Skipped: true), "건너뜀 · 가이드 없이",
+            "가이드 없이 진행합니다", "오늘 밤은 가이드 없이 찍습니다. 노출은 대상 단계에서 짧게 고를 수 있어요. 다음은 초점입니다.") { AutoNext = true };
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         if (ctx.Results.Get<CalibrationResult>() is { Skipped: true }) return EndStateCheck.Pass;
         var s = await devices.ReadEndStateAsync(ct);
         if (!s.HasCalibration) return EndStateCheck.Fail("PHD2에 보정값이 없습니다");
-        if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다");
+        if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이드·루프 중입니다");
         if (s.MountMoving) return EndStateCheck.Fail("적도의가 아직 움직이고 있습니다");
         return EndStateCheck.Pass;
     }
@@ -205,7 +205,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         {
             if (s.MountMoving) return EndStateCheck.Fail("적도의가 아직 움직이고 있습니다");
             if (s.Phd2Unknown) return EndStateCheck.Fail("PHD2 상태를 읽지 못했습니다. PHD2가 멈췄는지 확인해 주세요");
-            if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다");
+            if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이드·루프 중입니다");
             if (_skipWhy is { } why)
             {
                 ctx.Results.Set(new GuiderSkipped(why, ctx.Now()));
@@ -214,7 +214,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
             return EndStateCheck.Pass;
         }
         if (!s.HasCalibration) return EndStateCheck.Fail("PHD2에 보정값이 없습니다");
-        if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이딩·루프 중입니다");
+        if (s.Phd2Guiding || s.Phd2Looping) return EndStateCheck.Fail("PHD2가 아직 가이드·루프 중입니다");
         if (s.MountMoving) return EndStateCheck.Fail("적도의가 아직 움직이고 있습니다");
         if (!s.Tracking) return EndStateCheck.Fail("적도의 추적이 꺼져 있습니다");
         return EndStateCheck.Pass;

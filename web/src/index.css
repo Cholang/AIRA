@@ -68,8 +68,11 @@
   --art-screen: color-mix(in srgb, rgb(169 166 247) 10%, var(--bg));
   --art-screen-on: color-mix(in srgb, rgb(169 166 247) 38%, var(--bg));
   --art-ground: #18191b;
+  --art-grass: #5450ab; /* 로고 보라(#9290f5)보다 짙게 */
   --sky-muted: rgb(255 255 255 / 0.55);
   --sky-line: rgb(255 255 255 / 0.16);
+  /* 구도 회전 틀 안인데 사진이 없는 곳 (이렇게 찍힌다는 표시) */
+  --frame-void: rgb(128 128 134 / 0.55);
   /* 계획 그래프 (2026-10-14): 대상 종류 그림 · 달 · 박명 · 먼 산 */
   --dso-galaxy: #a9a6f7;
   --dso-galaxy-core: #d8d6ff;
@@ -137,8 +140,10 @@
   --art-screen: color-mix(in srgb, rgb(184 0 0) 8%, var(--bg));
   --art-screen-on: color-mix(in srgb, rgb(184 0 0) 32%, var(--bg));
   --art-ground: #050000;
+  --art-grass: #520000;
   --sky-muted: #9a0000;
   --sky-line: rgb(184 0 0 / 0.3);
+  --frame-void: rgb(70 0 0 / 0.7);
   --dso-galaxy: #b80000;
   --dso-galaxy-core: #d00000;
   --dso-cluster: #b80000;

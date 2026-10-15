@@ -13,10 +13,14 @@ public static class PlanRules
     public const double LowestAltitude = 15;
 
     /// <summary>
-    /// 적도의 이동부터 촬영 시작까지 걸리는 준비 시간(이동·센터링·초점 확인·가이딩·시험 사진). 촬영 시작 = 이동 + 이만큼.
-    /// [임시] 기본값 — 나중에는 지난 밤 기록의 평균 (2026-10-14)
+    /// 적도의 이동부터 촬영 시작까지 걸리는 준비 시간(이동·센터링·초점 확인·가이딩·시험 사진). 촬영 시작 = 이동 + 준비 시간.
+    /// 준비 시간은 프로필마다 최근 PrepSamples번 기록의 중앙값(Prepare.PrepTimes, 2026-10-16 사용자 결정), 기록이 없으면 이 기본값
     /// </summary>
-    public static readonly TimeSpan PrepLead = TimeSpan.FromMinutes(20);
+    public const double DefaultPrepMinutes = 20;
+    public static readonly TimeSpan DefaultPrepLead = TimeSpan.FromMinutes(DefaultPrepMinutes);
+
+    /// <summary>준비 시간을 낼 때 보는 최근 기록 수</summary>
+    public const int PrepSamples = 5;
 
     /// <summary>시작점은 끝나기 이만큼 전까지만 옮길 수 있다</summary>
     public static readonly TimeSpan EndMargin = TimeSpan.FromMinutes(10);
@@ -74,7 +78,7 @@ public static class PlanRules
         var notes = new List<string>();
         if (filter == "dual_narrowband") { exposure = Math.Min(exposure * 2, 600); iso = 1600; notes.Add("좁은 대역 필터는 빛이 적어 길게"); }
         else if (filter == "light_pollution") exposure = (int)(exposure * 1.3 / 30) * 30;
-        if (!guiding && exposure > 120) { exposure = 120; notes.Add("가이딩이 없어 짧게"); }
+        if (!guiding && exposure > 120) { exposure = 120; notes.Add("가이드가 없어 짧게"); }
         if (filter != "dual_narrowband" && brightMoonUp)
         {
             exposure = Math.Max(60, (int)(exposure * 0.67 / 30) * 30);

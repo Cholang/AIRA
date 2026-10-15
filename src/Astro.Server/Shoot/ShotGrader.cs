@@ -23,14 +23,14 @@ public static class ShotGrader
     /// <summary>등급별 분류 기준 (화면 툴팁)</summary>
     public static readonly IReadOnlyDictionary<string, string> Criteria = new Dictionary<string, string>
     {
-        ["A+"] = "A+ · 가장 좋음: 별 크기가 초점 맞출 때와 거의 같고(5% 안), 별이 둥글고, 가이딩 오차가 작아요.",
+        ["A+"] = "A+ · 가장 좋음: 별 크기가 초점 맞출 때와 거의 같고(5% 안), 별이 둥글고, 가이드 오차가 작아요.",
         ["A"] = "A · 좋음: 별 크기가 초점 때보다 15% 안으로 커졌고 별이 둥글어요.",
         ["B"] = "B · 괜찮음: 별 크기가 초점 때보다 30% 안으로 커졌거나 별이 조금 길쭉해요. 스태킹에 그대로 써요.",
         ["C"] = "C · 아쉬움: 별 크기가 초점 때보다 30% 넘게 커졌거나 배경이 밝아요. 쓸 수는 있지만 결과를 조금 떨어뜨릴 수 있어요.",
         ["F"] = "F · 실패: 별이 흘렀거나(바람·케이블 걸림), 구름으로 별이 크게 줄었거나, 잡광이 들어왔어요. 이 사진은 제외 폴더로 따로 옮겨요.",
     };
 
-    public const double TrailGuideFactor = 2.5;  // 가이딩 오차가 한 픽셀의 2.5배 넘으면 별이 흐름
+    public const double TrailGuideFactor = 2.5;  // 가이드 오차가 한 픽셀의 2.5배 넘으면 별이 흐름
     public const double TrailEccentricity = 0.75;
     public const double CloudStarRatio = 0.4;    // 별 수가 기준의 40% 아래면 구름
     public const double LightMeanFactor = 2.5;   // 배경이 기준의 2.5배 넘게 밝으면 잡광
@@ -38,7 +38,7 @@ public static class ShotGrader
 
     public static Grade Judge(FrameStats s, GradeBaseline b)
     {
-        if (s.GuideRmsArcsec is { } g && g > b.PixelScaleArcsec * TrailGuideFactor) return new("F", "별이 흘렀어요 (가이딩 오차가 커요)");
+        if (s.GuideRmsArcsec is { } g && g > b.PixelScaleArcsec * TrailGuideFactor) return new("F", "별이 흘렀어요 (가이드 오차가 커요)");
         if (s.Eccentricity is { } e && e > TrailEccentricity) return new("F", "별이 한쪽으로 흘렀어요");
         if (b.Stars is { } bs && bs > 0 && s.Stars < bs * CloudStarRatio) return new("F", "별이 크게 줄었어요 (구름)");
         if (b.Mean is { } bm && bm > 0 && s.Mean is { } m && m > bm * LightMeanFactor) return new("F", "배경이 크게 밝아졌어요 (잡광)");

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import Button from '../components/Button'
+import FrameRotate, { type PhotoBox } from '../components/FrameRotate'
 import LiveView from '../components/LiveView'
 import PrepCenter from '../components/PrepCenter'
 import PrepGuide from '../components/PrepGuide'
 import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra, type RailItem } from '../components/StepRail'
 import { postSkip, useTempSkip } from '../components/TempSkip'
+import { checkFraming, setFraming } from '../framing'
 import { prepareAbort, prepareAct, watchPrepare, type PrepGroup, type PrepTaskStatus, type PrepView } from '../prepare'
 import styles from './PrepareScreen.module.css'
 
@@ -62,6 +64,8 @@ export default function PrepareScreen({
   const [peek, setPeek] = useState(false)
   const [grid, setGrid] = useState(false)
   const [faultsOpen, setFaultsOpen] = useState(false)
+  // 센터링 사진이 놓인 자리 (구도 회전 틀을 얹는다)
+  const [photoBox, setPhotoBox] = useState<PhotoBox | null>(null)
 
   useEffect(() => watchPrepare(group, setView, setProblem), [group])
 
@@ -87,6 +91,14 @@ export default function PrepareScreen({
   }, [photo, liveKind])
 
   const statusProblem = cur?.center.status?.tone === 'Fail'
+
+  // 구도 회전 (⑤ 센터링을 마치고 확정을 기다릴 때, 카메라 방향을 알 때만 — 서버가 틀 각도·허용 오차를 함께 준다)
+  const centerDone = cur?.taskId === 'center' && view?.tasks.find((t) => t.id === 'center')?.status === 'Done'
+  const frameValues = centerDone ? cur?.center.readout?.values : undefined
+  const framing =
+    frameValues?.cameraAngle !== undefined && frameValues.frameDeg !== undefined && frameValues.frameTolerance !== undefined
+      ? { angle: frameValues.frameDeg, tolerance: frameValues.frameTolerance }
+      : null
 
   // 진행 표시(오른쪽)에 묶음의 작업과 중단 버튼을 넘긴다. 작업만 — 세부 과정은 넣지 않는다 (2026-10-06 사용자 결정)
   const items: RailItem[] | undefined =
@@ -138,8 +150,18 @@ export default function PrepareScreen({
 
   return (
     <main className={styles.stage} data-peek={peek} data-sky={skyBg}>
-      <LiveView current={cur} extras={{ grid }} simulated={view?.simulated ?? true} />
+      <LiveView current={cur} extras={{ grid }} simulated={view?.simulated ?? true} onPhotoBox={setPhotoBox} />
       <div className={styles.scrim} />
+      {framing && photoBox && cur && (
+        <FrameRotate
+          key={`${cur.runId}:${framing.angle}`}
+          box={photoBox}
+          angle={framing.angle}
+          tolerance={framing.tolerance}
+          onSet={setFraming}
+          onCheck={checkFraming}
+        />
+      )}
 
       {cur && (
         <>

@@ -87,6 +87,6 @@ public sealed class PowerWiringStore(ProfileStore profiles, ILogger<PowerWiringS
         var next = now.With(kind, source);
         if (PowerWiring.Validate(next.Sources) is not null) return;
         profiles.SetPower(p.Id, next);
-        log.LogInformation("전원 배선 고침 ({Profile}): {Kind} ← {Source} — {Evidence}", p.Nickname, kind, source ?? "자체 전원", evidence);
+        log.LogInformation("전원 설정 고침 ({Profile}): {Kind} ← {Source} — {Evidence}", p.Nickname, kind, source ?? "자체 전원", evidence);
     }
 }

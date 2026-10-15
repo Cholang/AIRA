@@ -1,0 +1,127 @@
+/* 구도 회전 (FrameRotate.tsx): 사진 틀 위에 겹치는 층. 손잡이와 가운데 안내만 누를 수 있다 (사진 위를 막지 않게) */
+.layer {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.layer > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 틀 밖의 사진: 찍히지 않는 곳 */
+.dim { fill: var(--scrim-mid); }
+/* 틀 안인데 사진이 없는 곳: 이렇게 찍힌다는 표시 */
+.void { fill: var(--frame-void); }
+
+.outline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* 손잡이: 꼭짓점 가까이에 커서가 오면 네 꼭짓점에 함께 나타난다 */
+.handle {
+  pointer-events: auto;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.layer[data-show='true'] .handle { opacity: 1; }
+.layer[data-drag='true'] .handle { cursor: grabbing; }
+/* 기본 초점 테두리(흰 사각형)는 쓰지 않고 손잡이 색으로 — 촬영용 적색 테마에서 흰색이 보이지 않게 */
+.handle:focus,
+.handle:focus-visible { outline: none; }
+
+.hit { fill: transparent; }
+
+.halo,
+.mark {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 밝은 사진 위에서도 보이게 바깥에 어두운 테 */
+.halo {
+  stroke: var(--scrim-strong);
+  stroke-width: 6;
+}
+
+.mark {
+  stroke: var(--star);
+  stroke-width: 2;
+}
+
+.handle:hover .mark,
+.handle:focus-visible .mark,
+.layer[data-drag='true'] .mark { stroke: var(--accent); }
+
+/* 돌리는 동안: 사진 가운데에 방향과 각도만 */
+.live {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--scrim-strong);
+  color: var(--star);
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 놓은 뒤: 사진 가운데에 어떻게 돌릴지 + 다시 찍기 · 되돌리기 */
+.card {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 14px 20px 16px;
+  border-radius: 10px;
+  background: var(--scrim-strong);
+  color: var(--star);
+  text-align: center;
+  pointer-events: auto;
+  max-width: 90%;
+}
+
+.turn {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.turn b {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sky-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--fail);
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handle { transition: none; }
+}

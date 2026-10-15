@@ -113,10 +113,14 @@ public sealed record PreparationPlan(
     /// 촬영을 끝내는 대상 고도 (계획에서 시작점을 30°보다 낮게 잡았으면 그 고도, 2026-10-14). 이동 단계는 Start − 준비 시간에 옮기고,
     /// 촬영 단계는 대상이 이 고도 아래로 내려가면 끝낸다. 옛 기록에는 없으므로 기본 30°
     /// </summary>
-    double MinAltitude = PlanRules.MinAltitude)
+    double MinAltitude = PlanRules.MinAltitude,
+    /// <summary>계획에서 쓴 준비 시간(분) — 이동 단계는 Start − 이만큼에 옮긴다. 옛 기록에는 없으므로 기본값</summary>
+    double PrepMinutes = PlanRules.DefaultPrepMinutes)
 {
+    public TimeSpan PrepLead => TimeSpan.FromMinutes(PrepMinutes);
+
     /// <summary>계획에서 만든다. 실행할 수 없는 계획이면 이유(사용자에게 보여 줄 문장)를 돌려준다. 시간대는 확정 직전에 다시 계산해 둔 값</summary>
-    public static (PreparationPlan? Plan, string? Problem) From(ShootingPlan p, DateTimeOffset now)
+    public static (PreparationPlan? Plan, string? Problem) From(ShootingPlan p, DateTimeOffset now, TimeSpan? prepLead = null)
     {
         if (p is not { Target: { } t, Framing: { } f, Settings: { } s, After: { } a })
             return (null, "대상을 먼저 골라 주세요.");
@@ -128,6 +132,6 @@ public sealed record PreparationPlan(
         return (new PreparationPlan(t.Id, t.Name, t.KoreanName, t.RaDegrees, t.DecDegrees,
             f.Placement, f.RotationDegrees,
             s.ExposureSeconds, s.Iso, s.Filter, s.EndRule, s.Start, s.End, s.EstimatedFrames,
-            a.Park, a.Calibration, a.Disconnect, now, s.EndAltitude), null);
+            a.Park, a.Calibration, a.Disconnect, now, s.EndAltitude, (prepLead ?? PlanRules.DefaultPrepLead).TotalMinutes), null);
     }
 }

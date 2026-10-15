@@ -32,7 +32,7 @@ export function ShootGauges({ v }: { v: ShootView }) {
   const pct = v.planned ? Math.min(100, (v.good / v.planned) * 100) : 0
   const exp =
     v.mode === 'Dither'
-      ? '디더링 · 가이딩 안정 기다리는 중'
+      ? '디더링 · 가이드 안정 기다리는 중'
       : v.mode === 'Shoot' || v.mode === 'Finishing'
         ? `노출 중 · ${v.elapsed} / ${v.exposureSeconds}초 · ISO ${v.iso}`
         : v.mode === 'Paused'
@@ -45,7 +45,7 @@ export function ShootGauges({ v }: { v: ShootView }) {
       <div className={styles.gauge}>
         <Spark values={v.guide} lo={0} hi={Math.max(1.6, v.pixelScale)} count={48} />
         <b>{g !== undefined ? `${g.toFixed(1)}″` : '—'}</b>
-        <span>가이딩 오차{g !== undefined ? ` · ${guideWord(g, v.pixelScale)}` : ''}</span>
+        <span>가이드 오차{g !== undefined ? ` · ${guideWord(g, v.pixelScale)}` : ''}</span>
       </div>
       <div className={styles.prog}>
         <strong>
@@ -99,7 +99,7 @@ export function ShootGrades({ v }: { v: ShootView }) {
 
 /** 자오선 반전: 반전 → 다시 센터링 → 가이딩 재시작 */
 export function FlipSteps({ step }: { step: number }) {
-  const steps = ['반전', '다시 센터링', '가이딩 재시작']
+  const steps = ['반전', '다시 센터링', '가이드 재시작']
   return (
     <div className={styles.flip}>
       <div className={styles.seq}>

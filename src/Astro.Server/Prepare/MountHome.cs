@@ -62,7 +62,7 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
         if (await nina.GetInfoAsync("guider", ct) is { ValueKind: System.Text.Json.JsonValueKind.Object } g
             && g.TryGetProperty("State", out var st) && st.GetString() is { } state
             && (state.Contains("Guiding", StringComparison.OrdinalIgnoreCase) || state.Contains("Calibrating", StringComparison.OrdinalIgnoreCase)))
-            return "가이딩 중에는 홈으로 보낼 수 없습니다. 가이딩이 멈춘 뒤 눌러 주세요";
+            return "가이드 중에는 홈으로 보낼 수 없습니다. 가이드가 멈춘 뒤 눌러 주세요";
         return null;
     }
 
@@ -148,9 +148,9 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
                 : await wrap.TrackingOffAsync(cts.Token);
         }
         catch (Exception e) { log.LogWarning(e, "확인 없이 끄기: 추적 끄기 실패"); off = false; }
-        try { await guide; } catch (Exception e) { log.LogWarning(e, "확인 없이 끄기: 가이딩 멈춤 실패"); }
+        try { await guide; } catch (Exception e) { log.LogWarning(e, "확인 없이 끄기: 가이드 멈춤 실패"); }
         log.LogInformation("확인 없이 끄기: 추적 {Result}", off switch { true => "끔", false => "끄지 못함", null => "적도의 미연결" });
-        return off == false ? "적도의 추적을 끄지 못했습니다. 켜 둔 채 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요." : null;
+        return off == false ? "적도의 추적을 끄지 못했습니다. 이대로 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요." : null;
     }
 
     /// <summary>사용자가 적도의가 멈춘 것을 직접 확인함 — 확인 필요 상태를 푼다</summary>

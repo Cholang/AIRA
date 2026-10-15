@@ -95,7 +95,7 @@ export async function recheckShootStop(): Promise<string | null> {
     const r = await fetch('/api/shoot/recheck-stop', { method: 'POST' })
     if (r.ok) return null
     const body = (await r.json().catch(() => null)) as { error?: string } | null
-    return body?.error ?? '가이딩이 멈췄는지 확인하지 못했습니다.'
+    return body?.error ?? '가이드가 멈췄는지 확인하지 못했습니다.'
   } catch {
     return '내부 서버에 연결하지 못했습니다.'
   }

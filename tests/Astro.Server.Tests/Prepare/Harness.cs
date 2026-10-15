@@ -1,5 +1,6 @@
 using Astro.Core.Sky;
 using Astro.Server.Assistant;
+using Astro.Server.Prepare;
 using Astro.Server.Prepare.Flow;
 using Astro.Server.Prepare.Sim;
 using Astro.Server.Prepare.Tasks.Calibration;
@@ -43,7 +44,7 @@ public static class Harness
     }
 
     /// <summary>실제 작업 8개 + 모의 장비로 두 묶음 (장비 준비 · 대상). 묻지 않고 넘어가는 작업은 기다리지 않는다</summary>
-    public static (PrepareFlow Flow, Sim Sim) Flow()
+    public static (PrepareFlow Flow, Sim Sim) Flow(PrepTimeRecorder? prepTimes = null)
     {
         var sim = new Sim(new SimOptions { Speed = 0 }, new SimFaults());
         var focuser = new SimulatedFocusDevices(sim.Options, sim.Faults); // 초점·초점 확인이 같은 포커서
@@ -61,7 +62,7 @@ public static class Harness
             new FlatTask(wrap), new DarkTask(wrap), new PackTask(wrap),
         ];
         sim.Wrap = wrap;
-        return (new PrepareFlow(tasks, NullLogger<PrepareRunner>.Instance, simulated: true, autoNextDelay: TimeSpan.Zero), sim);
+        return (new PrepareFlow(tasks, NullLogger<PrepareRunner>.Instance, simulated: true, autoNextDelay: TimeSpan.Zero, prepTimes), sim);
     }
 
     public static (PrepareRunner Runner, Sim Sim) RealTasks()

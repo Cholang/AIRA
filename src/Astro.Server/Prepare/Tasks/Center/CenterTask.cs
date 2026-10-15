@@ -17,7 +17,8 @@ public sealed record CenterAttempt(bool Solved, double ErrorArcmin, double? Came
 public sealed record CenterEndState(double ErrorArcmin, bool MountMoving, bool Tracking, bool CameraExposing);
 
 /// <summary>
-/// ⑤ 센터링 (OPERATION_PROCEDURE.md ⑤): 사진·솔빙·보정 반복, 목표 1′ 안, 최대 10번. 카메라 방향은 돌리지 않고 기록만.
+/// ⑤ 센터링 (OPERATION_PROCEDURE.md ⑤): 사진·솔빙·보정 반복, 목표 1′ 안, 최대 10번. 카메라 방향은 돌리지 않고 기록만
+/// (구도를 바꾸려면 사용자가 사진 위의 틀을 돌리고 카메라를 직접 돌린 뒤 다시 센터링 — Framing).
 /// 솔빙 실패 → 노출 늘려 다시 → 하늘 전체 검색 → "초점이나 구름" 안내 + 초점 다시 맞추기(초점 확인에 넘김).
 /// 맞추면 그 사진으로 구도를 보여 주고 "이 대상으로 확정 / 다른 대상"(탐색).
 /// </summary>
@@ -92,13 +93,20 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                 {
                     if (a.CameraAngleDeg is { } angle) ctx.Memory.SetCameraAngle(ctx.Plan.TargetId, angle);
                     var angleText = a.CameraAngleDeg is { } ang ? $" · 카메라 방향 {ang:F0}°" : "";
-                    run.Readout("center-error", $"{a.ErrorArcmin:F1}′", $"대상과 화면 가운데의 거리 · 목표 1′ 안{angleText}", Tone.Ok,
-                        new Dictionary<string, double> { ["errorArcmin"] = a.ErrorArcmin, ["attempt"] = i });
+                    var (title, text, frame) = FramingCheck(ctx, a.CameraAngleDeg);
+                    var values = new Dictionary<string, double> { ["errorArcmin"] = a.ErrorArcmin, ["attempt"] = i };
+                    // 구도 회전 (화면이 사진 위에 틀을 그리고 돌리게 한다): 카메라 방향을 알 때만 — 돌린 뒤 맞았는지 재야 하므로
+                    if (a.CameraAngleDeg is { } now)
+                    {
+                        values["cameraAngle"] = now;
+                        values["frameDeg"] = frame;
+                        values["frameTolerance"] = Framing.ToleranceDeg;
+                    }
+                    run.Readout("center-error", $"{a.ErrorArcmin:F1}′", $"대상과 화면 가운데의 거리 · 목표 1′ 안{angleText}", Tone.Ok, values);
                     run.Status(null);
                     // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (OPERATION_PROCEDURE.md "장비 준비 · 대상")
                     return new Completed(new CenterResult(a.ErrorArcmin, a.CameraAngleDeg, i, ctx.Now(), a.Hfr, a.Stars), $"오차 {a.ErrorArcmin:F1}′{angleText}",
-                        "이 대상으로 확정할까요?", "가운데에 맞춘 사진이에요. 구도가 마음에 들면 확정하세요. 다른 대상을 고르면 계획으로 돌아가고, 장비 준비는 그대로 씁니다.",
-                        [new("flow:replan", "다른 대상")]);
+                        title, text, [new("flow:replan", "다른 대상")]);
                 }
                 run.Status("적도의를 조금 옮기는 중입니다");
             }
@@ -108,6 +116,35 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                 return Skip(ctx, $"대상이 가운데에서 {last?.ErrorArcmin:F1}′쯤 벗어나 있어요. 시험 사진에서 구도를 확인해 주세요.");
         NextRound:;
         }
+    }
+
+    /// <summary>
+    /// 구도 회전 (2026-10-16 사용자 결정): 정해 둔 구도(FramingGoal)가 있으면 이 사진의 카메라 방향으로 남은 각도를 재고 안내 문장을 고른다.
+    /// frame = 이 사진 위에 그릴 틀의 각도 (남은 회전, 없거나 맞췄으면 0). 남았으면 이 사진 기준으로 다시 적어 둔다.
+    /// 안내 문장에는 숫자를 두지 않는다 (DESIGN.md "하늘 화면") — 돌릴 방향·각도는 화면이 사진 가운데에
+    /// </summary>
+    private static (string Title, string Text, double Frame) FramingCheck(PrepContext ctx, double? angle)
+    {
+        const string confirm = "구도가 마음에 들면 확정하세요. 다른 대상을 고르면 계획으로 돌아가고, 장비 준비는 그대로 씁니다.";
+        if (ctx.Results.Get<FramingGoal>() is not { } goal || goal.TargetId != ctx.Plan.TargetId)
+            return ("이 대상으로 확정할까요?",
+                "가운데에 맞춘 사진이에요. " + (angle is null ? "" : "사진 모서리를 끌어 틀을 돌리면 그 구도로 카메라를 돌리는 방법을 알려 드려요. ") + confirm, 0);
+        if (angle is not { } now)
+        {
+            ctx.Results.Remove(typeof(FramingGoal));
+            return ("카메라 방향을 읽지 못했어요", "이번 사진에서 카메라 방향을 계산하지 못해 구도를 확인할 수 없어요. 사진을 보고 " + confirm, 0);
+        }
+        var left = Framing.Remaining(goal, now);
+        if (Math.Abs(left) <= Framing.ToleranceDeg)
+        {
+            ctx.Results.Remove(typeof(FramingGoal));
+            return ("구도를 맞췄어요", "원하던 구도대로 카메라가 돌아갔어요. " + confirm, 0);
+        }
+        var worse = Math.Abs(left) > Math.Abs(goal.TurnDeg) + Framing.ToleranceDeg;
+        ctx.Results.Set(goal with { BaseAngleDeg = now, TurnDeg = left });
+        return ("조금 더 돌려 주세요",
+            (worse ? "돌린 뒤 원하던 구도에서 더 멀어졌어요. 사진 가운데 안내대로 반대쪽으로 돌려 주세요. " : "사진 가운데 안내대로 조금 더 돌린 뒤 다시 찍어 확인하세요. ")
+            + "지금 구도로 찍으려면 확정하세요.", left);
     }
 
     /// <summary>센터링 건너뛰기 (2026-10-08 사용자 결정)</summary>

@@ -62,7 +62,7 @@ const TARGET_ITEMS = [
   ['slew', '이동'],
   ['center', '센터링'],
   ['focuscheck', '초점 확인'],
-  ['guiding', '가이딩'],
+  ['guiding', '가이드'],
   ['test', '시험 사진'],
 ] as const
 

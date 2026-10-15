@@ -70,7 +70,8 @@ public sealed record DisplayMessage(string Role, string Text, IReadOnlyList<stri
 /// 촬영 계획 대화 (한 사용자, 한 밤). AI에게 도구를 쥐여 주고, 도구 호출 → 실행 → 결과 돌려주기를 반복한다.
 /// 이 반복·계획 상태·화면 이벤트는 AI 회사와 무관하다.
 /// </summary>
-public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, TonightService tonight, ILogger<PlanAssistant> log)
+public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, TonightService tonight, ILogger<PlanAssistant> log,
+    Prepare.PrepTimes? prepTimes = null, Profiles.ProfileStore? profiles = null)
 {
     private const int MaxRounds = 8;
 
@@ -110,7 +111,7 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         lock (_planGate)
         {
             if (_night is { } n) PlanTools.Recount(_plan, n, DateTimeOffset.Now);
-            (plan, problem) = PreparationPlan.From(_plan, DateTimeOffset.Now);
+            (plan, problem) = PreparationPlan.From(_plan, DateTimeOffset.Now, _night?.PrepLead);
         }
         if (plan is null) return problem;
         Confirmed = plan;
@@ -118,6 +119,9 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         return null;
     }
     public NightContext? Night => _night;
+
+    /// <summary>지금 프로필의 준비 시간 (기록이 없으면 기본값)</summary>
+    private TimeSpan PrepLead() => prepTimes?.Lead(profiles?.Current()?.Id) ?? PlanRules.DefaultPrepLead;
 
     /// <summary>
     /// [임시] 건너뛰기 (2026-10-14 — 장비 없이 모든 단계를 넘겨 볼 때): 지금 대상이 없으면 오늘 밤 찍을 수 있는 대표 대상 하나를 골라 확정한다. 안 되면 이유.
@@ -159,8 +163,11 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
     {
         var evening = TonightService.EveningOf(DateTimeOffset.Now);
         var read = await tonight.ReadProfileAsync(ct);
+        var lead = PrepLead();
         if (_night is not null && _evening == evening)
         {
+            // 준비 시간은 그 사이 기록(앞 대상)이나 프로필이 바뀌었을 수 있어 열 때마다 다시 읽는다
+            if (_night.PrepLead != lead) lock (_planGate) _night = _night with { PrepLead = lead };
             // N.I.N.A.를 잠깐 못 읽었거나 위치가 비어 있으면 하던 대화는 그대로 (다음 번에 다시 확인)
             if (read is not { } now || now.Site is { Latitude: 0, Longitude: 0 }) return null;
             if (now.Site == _night.Site)
@@ -180,7 +187,7 @@ public sealed class PlanAssistant(ChatModelFactory models, PlanTools tools, Toni
         var window = Core.Sky.Night.Window(profile.Site, evening, zone);
         var moon = Core.Sky.Night.Moon(profile.Site, window);
         var clouds = await tonight.CloudsAsync(profile.Site, ct);
-        _night = new NightContext(profile.Site, profile.Rig, window, moon, clouds, zone);
+        _night = new NightContext(profile.Site, profile.Rig, window, moon, clouds, zone) { PrepLead = lead };
         _evening = evening;
         _history.Clear();
         _display.Clear();
@@ -555,7 +562,7 @@ public static class PlanView
                 exposure = new { min = PlanRules.MinExposureSeconds, max = PlanRules.MaxExposureSeconds, step = PlanRules.ExposureStepSeconds },
                 totalMinutes = new { min = PlanRules.MinTotalMinutes, max = PlanRules.MaxTotalMinutes, step = PlanRules.TotalStepMinutes },
                 maxPicks = PlanRules.MaxPicks,
-                prepMinutes = (int)PlanRules.PrepLead.TotalMinutes,
+                prepMinutes = (int)n.PrepLead.TotalMinutes,
             },
             window,
         };

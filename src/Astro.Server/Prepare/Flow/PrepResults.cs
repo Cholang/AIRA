@@ -10,8 +10,8 @@ public sealed record PolarResult(double? ErrorArcmin, double ErrorXPx, double Er
 /// <summary>② 캘리브레이션. Evening = 그날 밤(같은 밤 대상만 바꾸면 재사용)</summary>
 public sealed record CalibrationResult(bool Reused, double? OrthogonalityErrorDeg, string Position, DateOnly Evening, DateTimeOffset At, bool Skipped = false);
 
-/// <summary>③ 대상 이동. AcceptedHere = 이동이 안 돼 "지금 위치를 목표로" 인정함 (센터링도 건너뜀)</summary>
-public sealed record SlewResult(double ArrivalErrorDeg, double AltitudeDeg, DateTimeOffset At, bool AcceptedHere = false);
+/// <summary>③ 대상 이동. AcceptedHere = 이동이 안 돼 "지금 위치를 목표로" 인정함 (센터링도 건너뜀). MovedAt = 이동을 처음 시작한 때 (기다린 시간 뺌 — 준비 시간 기록, Prepare.PrepTimes)</summary>
+public sealed record SlewResult(double ArrivalErrorDeg, double AltitudeDeg, DateTimeOffset At, bool AcceptedHere = false, DateTimeOffset? MovedAt = null);
 
 /// <summary>④ 초점. Manual = 손으로 맞춤(위치·HFR 모름)</summary>
 public sealed record FocusResult(bool Manual, int? Position, double? Hfr, double? TemperatureC, DateTimeOffset At);

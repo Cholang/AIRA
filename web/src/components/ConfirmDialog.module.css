@@ -1,6 +1,7 @@
-/* 확인 창 (ConfirmDialog.tsx): 문장만 — 껍데기·크기·버튼 줄은 공통 Modal */
+/* 확인 창 (ConfirmDialog.tsx): 문장만 — 껍데기·크기·버튼 줄은 공통 Modal. 문장 속 줄바꿈(\n)은 그대로 줄을 바꾼다 */
 .message {
   margin: 0;
+  white-space: pre-line;
 }
 
 /* 확인한 일을 하는 중: 버튼을 잠근다 (모양은 공통 Button의 비활성) */

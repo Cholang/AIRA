@@ -45,8 +45,8 @@ const STEP_TEXT: Record<Step, string> = {
   tracking: '적도의 추적을 끄는 중입니다…',
   focuser: '포커서를 0으로 되돌리는 중입니다…',
   equipment: '장비 연결을 멈추고 연결을 끊는 중입니다…',
-  programs: '앱을 종료 중입니다.',
-  force: '가이딩을 멈추고 적도의 추적을 끄는 중입니다…',
+  programs: '촬영을 위한 프로그램을 종료 중입니다.',
+  force: '가이드를 멈추고 적도의 추적을 끄는 중입니다…',
 }
 
 const NOTE: Record<ClosingApp['state'], string> = { waiting: '', closing: '닫는 중', done: '닫음', failed: '닫지 못함', kept: '남겨 둠' }
@@ -85,7 +85,7 @@ export function QuitProvider({
         return setClosing({
           busy: false,
           forced: true,
-          problem: (safe?.problem ?? '적도의 추적을 껐는지 확인하지 못했습니다. 켜 둔 채 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요.') + ' 그래도 종료하면 이대로 끕니다.',
+          problem: (safe?.problem ?? '적도의 추적을 껐는지 확인하지 못했습니다. 이대로 두면 적도의가 밤새 돌아갈 수 있으니 N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요.') + ' 그래도 종료하면 이대로 끕니다.',
         })
       return closeApp()
     }
@@ -95,13 +95,13 @@ export function QuitProvider({
     if (!tasks?.stopped)
       return setClosing({
         busy: false,
-        problem: tasks?.problem ?? '진행 중인 작업을 멈췄는지 확인하지 못했습니다. 적도의·포커서·가이딩이 멈췄는지 직접 확인해 주세요.',
+        problem: tasks?.problem ?? '진행 중인 작업을 멈췄는지 확인하지 못했습니다. 적도의·포커서·가이드가 멈췄는지 직접 확인해 주세요.',
       })
     // 1-2. 적도의 추적 끄기 — 켜 둔 채 끄면 밤새 돌아 케이블이 감기거나 경통이 삼각대에 닿는다 (2026-10-11 실기: 극축 정렬 중 끄자 몇 시간 뒤 RA 90°). 촬영 중이면 그대로
     setClosing({ busy: true, step: 'tracking' })
     const tracking = await post<{ ok: boolean }>('/api/mount/tracking-off-for-quit')
     if (!tracking?.ok)
-      return setClosing({ busy: false, problem: '적도의 추적을 끄지 못했습니다. 켜 둔 채 두면 적도의가 계속 돌아갑니다. N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요.' })
+      return setClosing({ busy: false, problem: '적도의 추적을 끄지 못했습니다. 이대로 두면 적도의가 계속 돌아갑니다. N.I.N.A.나 적도의에서 추적을 직접 꺼 주세요.' })
     // 2. 포커서를 0(노브 끝까지 넣은 위치)에 두고 끝낸다 — 다음에 노브를 손으로 맞추지 않게 (2026-10-09). 못 해도(촬영 중·미연결 등) 종료는 계속
     setClosing({ busy: true, step: 'focuser' })
     await post<{ problem: string | null }>('/api/focuser/park')
@@ -160,9 +160,9 @@ export function QuitProvider({
       : stage === '촬영'
         ? // 촬영 중 종료: 아이라가 한 장씩 시키는 촬영이라 꺼지면 이어 찍을 수 없다 — 지금 사진이 끝나면 멈추고 평소대로 정리 (CX-30-01).
           // 중단하지 않는 이유: X-T5는 일반 노출을 소프트웨어로 중단할 수 없다 (N.I.N.A. 후지 플러그인은 벌브만 멈춤 — 2026-10-11 실기, ShootSession.StopForQuitAsync)
-          `지금 찍는 사진이 끝나면 촬영을 멈추고 ${PRODUCT.reul} 종료합니다. 사진이 끝날 때까지 기다린 뒤 가이딩·추적을 끄고 장비를 정리합니다.`
+          `촬영을 중단하고 ${PRODUCT.reul} 종료합니다.\n지금 촬영 중인 사진 노출이 끝나면 가이드와 적도의 추적을 종료합니다.`
         : stage
-        ? `${stage} 진행을 종료하고 ${PRODUCT.reul} 종료합니다.`
+        ? `${stage} 진행을 중단하고 ${PRODUCT.reul} 종료합니다.`
         : `${PRODUCT.reul} 종료합니다.`)
 
   return (

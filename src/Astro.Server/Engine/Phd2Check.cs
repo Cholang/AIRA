@@ -39,7 +39,7 @@ public static class Phd2Check
                 "PHD2의 장비 연결 창에서 카메라를 실제 가이드 카메라로 바꿔 연결하고, 창을 닫은 뒤 다시 연결을 눌러 주세요.");
         if (mountName is null || !mountOn)
             return new Problem("PHD2에서 적도의가 연결되지 않았습니다",
-                "PHD2의 장비 연결 창에서 적도의를 연결한 뒤 다시 연결을 눌러 주세요. 가이딩 보정은 이 적도의로 보냅니다.");
+                "PHD2의 장비 연결 창에서 적도의를 연결한 뒤 다시 연결을 눌러 주세요. 가이드 보정은 이 적도의로 보냅니다.");
         // 시뮬레이터: N.I.N.A. 적도의도 시뮬레이터면(장비 없이 시험) 같은 것으로 본다 — 이름은 서로 다를 수 있음
         // (2026-10-08: N.I.N.A. "Telescope Simulator for .NET", PHD2 "Alpaca Telescope Simulator (ASCOM)")
         var phdSim = IsSimulator(mountName);
@@ -47,7 +47,7 @@ public static class Phd2Check
         if (phdSim != ninaSim && !IsOnCamera(mountName)
             || !phdSim && !ninaSim && ninaMountName is { Length: > 0 } nm && !mountName.Contains(nm, StringComparison.OrdinalIgnoreCase) && !IsOnCamera(mountName))
             return new Problem($"PHD2의 적도의가 N.I.N.A.와 다릅니다 (PHD2: {mountName})",
-                $"PHD2의 장비 연결 창에서 적도의를 {(ninaMountName is { Length: > 0 } n ? $"{n}(으)로" : "실제 적도의로")} 바꾼 뒤 다시 연결을 눌러 주세요. 지금은 가이딩 보정이 실제 적도의로 가지 않습니다.");
+                $"PHD2의 장비 연결 창에서 적도의를 {(ninaMountName is { Length: > 0 } n ? $"{n}(으)로" : "실제 적도의로")} 바꾼 뒤 다시 연결을 눌러 주세요. 지금은 가이드 보정이 실제 적도의로 가지 않습니다.");
         return null;
     }
 

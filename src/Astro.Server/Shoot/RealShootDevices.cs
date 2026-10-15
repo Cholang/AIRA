@@ -278,14 +278,14 @@ public sealed class RealShootDevices(NinaRig rig, Phd2Client phd2, LiveImages li
                 if (DateTime.UtcNow - since >= hold) return true;
             }
         }
-        catch (Phd2Exception e) { log.LogWarning("가이딩 안정 확인 실패: {Message}", e.Message); }
+        catch (Phd2Exception e) { log.LogWarning("가이드 안정 확인 실패: {Message}", e.Message); }
         return false;
     }
 
     public async Task<FlipOutcome> FlipAsync(PrepContext ctx, Action<int> step, CancellationToken ct)
     {
         step(0);
-        if (ctx.HasGuider && !await StopGuidingAsync(ct)) return new FlipOutcome(false, false, false); // 가이딩을 멈추지 못하면 반전하지 않는다
+        if (ctx.HasGuider && !await StopGuidingAsync(ct)) return new FlipOutcome(false, false, false); // 가이드를 멈추지 못하면 반전하지 않는다
         var flip = await rig.FlipAsync(ct);
         if (!flip.Flipped) return new FlipOutcome(false, false, false, flip.Still);
         step(1);

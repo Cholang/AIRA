@@ -122,9 +122,9 @@ public sealed class NightSessionStore
             && (profileId is null || s.ProfileId is null || s.ProfileId == profileId)
             && (s.Plan is null || now < s.Plan.End);
         var what = Describe(s);
-        if (resumable) return new PendingSession("resume", $"{what} · {s.UpdatedAt:HH:mm}에 멈췄어요", Destination(s));
-        var why = rebooted ? "컴퓨터가 꺼져 이어서 할 수 없어요" : "시간이 많이 지나 새로 시작해요";
-        return new PendingSession("notice", $"지난번 촬영이 중단됐어요 · {what} · {s.UpdatedAt:M월 d일 HH:mm} · {why}", null);
+        // 화면이 앞뒤 문장을 붙인다 (web App의 이어서 하기 확인 창)
+        if (resumable) return new PendingSession("resume", $"{what} · {s.UpdatedAt:HH:mm}에 중단됨", Destination(s));
+        return new PendingSession("notice", $"{what} · {s.UpdatedAt:M월 d일 HH:mm}", null);
     }
 
     /// <summary>이어서 하면 갈 화면: 촬영·대상 중이었으면 대상(적도의 위치를 모르니 이동부터), 그 밖에는 그 단계</summary>
@@ -159,7 +159,7 @@ public sealed class NightSessionStore
         if (Read() is not { } s) return null;
         foreach (var r in new object?[] { s.Shots, s.Polar, s.Calibration, s.Focus, s.Slew, s.Center, s.FocusCheck, s.Guiding, s.Test, s.Flat, s.Dark, s.Wrap })
             if (r is not null) results.Set(r);
-        if (s.GuiderSkipped) results.Set(new GuiderSkipped("이어서 — 전에 가이딩 없이 진행", _now()));
+        if (s.GuiderSkipped) results.Set(new GuiderSkipped("이어서 — 전에 가이드 없이 진행", _now()));
         if (s.FocusPosition is { } pos) memory.LastFocus = (pos, s.FocusTemperatureC);
         memory.LastCalibration = s.LastCalibration;
         memory.LastPolarAlignedAt = s.LastPolarAlignedAt;

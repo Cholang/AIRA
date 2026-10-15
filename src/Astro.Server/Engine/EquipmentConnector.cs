@@ -121,7 +121,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
             "회전장치 전원과 USB 케이블을 확인해 주세요."),
         new("flatdevice", "FlatDeviceSettings", Optional, "플랫패널", "플랫(밝기 고르게 맞추기용 사진)을 찍을 때 망원경 앞을 고르게 비추는 판입니다.",
             "플랫패널 전원과 USB 케이블을 확인해 주세요."),
-        new("guider", "GuiderSettings", Recommended, "가이딩", "보조 카메라로 별을 지켜보며 흔들림을 바로잡습니다. 없으면 노출을 짧게 찍습니다.",
+        new("guider", "GuiderSettings", Recommended, "가이드", "보조 카메라로 별을 지켜보며 흔들림을 바로잡습니다. 없으면 노출을 짧게 찍습니다.",
             "PHD2가 켜져 있는지, PHD2 안에서 가이드 카메라와 적도의가 연결되어 있는지 확인해 주세요."),
     ];
 
@@ -606,7 +606,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
     /// <summary>장비가 PC에 안 보일 때 배선에 맞춰 덧붙이는 말 (적도의·장비가 파워박스에서 받으면 그 출력부터)</summary>
     private string WiringHint(string kind) =>
         Wiring.SourceOf(kind) == Profiles.PowerWiring.Hub && kind != Hub
-            ? " 전원 배선상 파워박스에서 전원을 받으니, Wanderer Empire에서 그 출력이 켜져 있는지도 확인해 주세요."
+            ? " 전원 설정상 파워박스에서 전원을 받으니, Wanderer Empire에서 그 출력이 켜져 있는지도 확인해 주세요."
             : kind == "mount" && Wiring.SourceOf(Hub) == Profiles.PowerWiring.Mount
                 ? " 적도의 전원을 켜면 파워박스도 함께 켜집니다."
                 : "";

@@ -10,7 +10,7 @@ import styles from './ConfirmDialog.module.css'
  * busy = 확인한 일을 하는 중 (버튼을 잠그고 닫히지 않음 — 예: 장비 연결을 끊고 종료).
  * children = 문장 아래 덧붙이는 내용 (예: 종료 중 닫는 프로그램 목록).
  * single = 버튼 하나(알림), dismissable=false면 Esc·바깥 누름으로 닫히지 않는다(고르지 않고 넘어가면 안 되는 질문 — 예: 이어서 할까요).
- * tone="device" = 적도의가 움직이거나 앱이 꺼지는 확인(빛 테두리), size = 문장이 길면 md
+ * tone="device" = 적도의가 움직이거나 아이라가 꺼지는 확인(빛 테두리), size = 문장이 길면 md. message 속 \n은 줄바꿈
  */
 export default function ConfirmDialog({
   open,

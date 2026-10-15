@@ -83,6 +83,8 @@ public static class AppServer
         Prepare.PrepareSetup.AddPrepare(builder.Services, simulate: builder.Configuration.GetValue("Equipment:Simulate", true));
         // 데이터 폴더(기본 %LOCALAPPDATA%\<product.json의 dataFolder>)는 설정 App:DataDir로 바꿀 수 있다 (테스트용).
         builder.Services.AddSingleton(new ProfileStore(builder.Configuration["App:DataDir"]));
+        // 준비 시간 기록 (이동~시험 사진, 프로필마다) — 계획의 준비 시간
+        builder.Services.AddSingleton(new Prepare.PrepTimes(builder.Configuration["App:DataDir"]));
         builder.Services.AddSingleton<PowerWiringStore>();
         // 그날 밤 진행 기록: 중간에 꺼져도 다시 켜면 이어서 할지 묻는다 (2026-10-08)
         builder.Services.AddSingleton(new Session.NightSessionStore(builder.Configuration["App:DataDir"]));
@@ -187,7 +189,7 @@ public static class AppServer
             if (!shoot.Active && shoot.MountUnconfirmed)
                 return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영 중 적도의가 멈췄는지 확인하지 못한 채 끝났습니다. 촬영 화면에서 \"장비 상태 다시 확인\"을 누르거나 적도의를 직접 확인해 주세요." });
             if (shoot.Active && !await shoot.StopForQuitAsync())
-                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영이 끝나기를 기다렸지만 끝나지 않았거나, 가이딩·적도의가 멈췄는지 확인하지 못했습니다. N.I.N.A.·PHD2와 적도의를 직접 확인해 주세요." });
+                return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영이 끝나기를 기다렸지만 끝나지 않았거나, 가이드·적도의가 멈췄는지 확인하지 못했습니다. N.I.N.A.·PHD2와 적도의를 직접 확인해 주세요." });
             foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
                 if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false, problem = (string?)null });
             if (!await home.StopForQuitAsync())
@@ -367,6 +369,11 @@ public static class AppServer
         prepare.MapPost("/{group}/act", (string group, PrepAct input, Prepare.Flow.PrepareFlow flow) =>
             flow.Runner(group) is not { } r ? Results.NotFound()
             : r.Act(input.Action) is { } problem ? Results.BadRequest(new { error = problem }) : Results.NoContent());
+        // 구도 회전 (⑤ 센터링 뒤): 사진 위 틀을 돌린 각도(화면 시계 방향 +)를 원하는 구도로 · 카메라를 돌린 뒤 다시 찍어 확인
+        prepare.MapPost("/target/framing", (FramingInput input, Prepare.Flow.PrepareFlow flow) =>
+            flow.SetFraming(input.TurnDeg) is { } problem ? Results.BadRequest(new { error = problem }) : Results.NoContent());
+        prepare.MapPost("/target/framing/check", (Prepare.Flow.PrepareFlow flow) =>
+            flow.CheckFraming() is { } problem ? Results.BadRequest(new { error = problem }) : Results.NoContent());
         // 중단 (진행 표시 아래) — 하던 작업을 멈추고 정지를 확인
         prepare.MapPost("/{group}/abort", async (string group, Prepare.Flow.PrepareFlow flow) =>
             flow.Runner(group) is not { } r ? Results.NotFound()
@@ -528,6 +535,7 @@ public static class AppServer
 
     private sealed record RigSelect(string Kind, string? DeviceId, string? Name);
     private sealed record CameraPowerChoice(string? Outlet);
+    private sealed record FramingInput(double TurnDeg);
     private sealed record ClientLog(string? Message);
     private sealed record PowerInput(Dictionary<string, string?> Sources);
 

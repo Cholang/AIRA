@@ -22,7 +22,7 @@ import PrepareScreen from './screens/PrepareScreen'
 import ShootScreen from './screens/ShootScreen'
 import SummaryScreen from './screens/SummaryScreen'
 import { prepareState, type PrepGroup } from './prepare'
-import RigScene, { LOGO_DRAWN_MS, type RigSceneHandle, type SceneMode } from './components/RigScene'
+import RigScene, { BOOT_PROMPT_MS, type RigSceneHandle, type SceneMode } from './components/RigScene'
 import ProfileScreen from './screens/ProfileScreen'
 import SetupCheckScreen from './screens/SetupCheckScreen'
 import SiteScreen from './screens/SiteScreen'
@@ -104,8 +104,6 @@ const LABEL_OF: Partial<Record<Phase, string>> = {
 const FADE_MS = 280
 // 부팅 로고는 더 천천히 투명해진다 (2026-10-10 사용자 — 큰 로고가 0.28초에 사라지면 뚝 끊겨 보임). App.module.css .screen[data-boot]와 같게
 const BOOT_FADE_MS = 800
-/** 부팅의 "Press Any Key"가 나타난 뒤 입력을 받기 시작할 때까지 */
-const BOOT_INPUT_DELAY_MS = 1000
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -169,22 +167,18 @@ export default function App() {
     void fetch('/api/engine/prelaunch', { method: 'POST' }).catch(() => null)
   }, [phase])
 
-  // 부팅: 저절로 넘어가지 않는다 — 게임 시작 화면처럼 로고가 다 그려지고 프로필 목록을 받으면 "Press Any Key",
-  // 아무 키나 누르거나 화면을 누르면 프로필로(없으면 바로 만들기 화면). 다 보이기 전에 눌리지 않게 글자가 나타나고 1초 뒤부터 받는다 (2026-10-15 사용자)
+  // 부팅: 저절로 넘어가지 않는다 — 게임 시작 화면처럼 로고가 차례로 나타나고(AIRA → 아이라 → 풀이) 프로필 목록을 받으면 "Press Any Key",
+  // 아무 키나 누르거나 화면을 누르면 프로필로(없으면 바로 만들기 화면). 입력은 "Press Any Key"가 나타난 때부터 — 앞의 차례가 기다림이 된다 (2026-10-16 사용자)
   const bootAt = useRef(performance.now())
   const [bootPrompt, setBootPrompt] = useState(false)
   useEffect(() => {
     if (phase !== 'boot' || profiles === null) return
-    const t = setTimeout(() => setBootPrompt(true), Math.max(0, LOGO_DRAWN_MS - (performance.now() - bootAt.current)))
+    const t = setTimeout(() => setBootPrompt(true), Math.max(0, BOOT_PROMPT_MS - (performance.now() - bootAt.current)))
     return () => clearTimeout(t)
   }, [phase, profiles])
   useEffect(() => {
     if (phase !== 'boot' || !bootPrompt) return
-    let armed = false
-    const arm = setTimeout(() => {
-      armed = true
-    }, BOOT_INPUT_DELAY_MS)
-    const go = () => armed && fadeTo((profiles ?? []).length === 0 ? 'newProfile' : 'profiles')
+    const go = () => fadeTo((profiles ?? []).length === 0 ? 'newProfile' : 'profiles')
     // 수정 키만 누르거나 단축키(Ctrl·Alt·Win과 함께 — 테마 바꾸기·창 닫기 등)는 넘기지 않는다
     const key = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || ['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return
@@ -193,7 +187,6 @@ export default function App() {
     window.addEventListener('keydown', key)
     window.addEventListener('pointerdown', go)
     return () => {
-      clearTimeout(arm)
       window.removeEventListener('keydown', key)
       window.removeEventListener('pointerdown', go)
     }
@@ -608,15 +601,17 @@ export default function App() {
         open={pending !== null}
         message={
           pending?.busy
-            ? '장비를 멈추고, 전에 끝낸 작업이 그대로인지 확인하는 중이에요…'
+            ? '장비를 멈추고, 전에 끝낸 작업이 그대로인지 확인하는 중입니다…'
             : pending?.error
               ? `${pending.error} (${pending.summary})`
               : pending?.kind === 'resume'
-                ? `오늘 밤 진행 기록이 있어요 · ${pending.summary}. 이어서 할까요? 출발 전 점검은 건너뛰고, 끝낸 작업은 장비가 그대로인지 확인한 뒤 건너뛰어요.`
-                : (pending?.summary ?? '')
+                ? `오늘 밤 진행 기록이 있습니다.\n${pending.summary}.\n이어서 할까요?`
+                : pending
+                  ? `지난번 촬영이 중단됐습니다.\n${pending.summary}\n재부팅되었거나 시간이 많이 지났으므로 새로 시작합니다.`
+                  : ''
         }
         confirmLabel={pending?.kind === 'resume' ? (pending.error ? '다시 시도' : '이어서 하기') : '확인'}
-        cancelLabel="새로 시작"
+        cancelLabel="새로 시작하기"
         size="md"
         single={pending?.kind !== 'resume'}
         dismissable={false}
