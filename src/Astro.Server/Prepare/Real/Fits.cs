@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Astro.Server.Prepare.Real;
 
-/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램·포화 비율</summary>
+/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램·포화 비율·배경·카메라 눈금</summary>
 public static class Fits
 {
     public static byte[]? ToPng(string path, int maxWidth = 960)
@@ -33,13 +33,16 @@ public static class Fits
         }
     }
 
-    /// <summary>시험 사진 화소 통계: 히스토그램(0~65535를 칸으로 나눈 픽셀 수)과 포화 비율(%)</summary>
-    public sealed record Pixels(int[] Histogram, double SaturatedPercent);
+    /// <summary>
+    /// 시험 사진 화소 통계: 히스토그램(바닥~포화를 칸으로 나눈 픽셀 수), 포화 비율(%), 배경 밝기(바닥 위 0~1), 카메라 눈금(포화되는 값·바닥값)
+    /// </summary>
+    public sealed record Pixels(int[] Histogram, double SaturatedPercent, double Background, int White, int Black);
 
     /// <summary>
-    /// 히스토그램과 포화 비율을 한 번 읽어 함께 (N.I.N.A. API는 히스토그램·포화를 주지 않음 — 통계만, 2026-10-09 확인).
-    /// 포화 = 가장 밝은 값의 99% 이상인 화소 비율: 센서가 넘치면 같은 값에 몰리고, 넘친 곳이 없으면 가장 밝은 별 꼭대기 몇 점뿐이라 0에 가깝다.
-    /// 센서 최대값(14비트 카메라가 16비트 칸에 담기는지 등)을 몰라도 된다. 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
+    /// 한 번 읽어 함께 센다 (N.I.N.A. API는 히스토그램·포화를 주지 않고, 통계의 밝기는 N.I.N.A. "비트 수" 설정에 기대 틀릴 수 있다 — CameraScale).
+    /// 눈금은 사진에서 알아낸다: 가장 밝은 값에 여러 점이 몰려 있으면 센서가 넘친 자리라 그 값이 포화 값(White), 아니면 그 값을 담는 표준 눈금(12·14·16비트).
+    /// 바닥값(Black)은 카메라별 — 후지 14비트 원본은 1024(2026-10-15 X-T5 원본 FITS로 확인), 모르는 카메라는 0 [임시].
+    /// 포화 = 포화 값 바로 아래(바닥~포화의 1%)까지의 화소 비율, 넘친 곳이 없으면 0. 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
     /// </summary>
     public static Pixels? Analyze(string path, int bins = 256)
     {
@@ -60,22 +63,47 @@ public static class Fits
                     : bytes[dataStart + i] * 257;
                 each[v]++;
             }
+            if (seen == 0) return null;
+            var max = Array.FindLastIndex(each, c => c > 0);
+            var clipped = max > 0 && each[max] >= 3; // 같은 최댓값에 여러 점 = 센서가 넘친 자리
+            var white = clipped ? max : max <= 4095 ? 4095 : max <= 16383 ? 16383 : 65535;
+            var black = BlackLevel(Instrument(bytes), white);
+
             var counts = new int[bins];
-            var max = 0;
-            for (var v = 0; v < each.Length; v++)
+            long below = 0, saturated = 0;
+            var median = -1;
+            var satFrom = white - (white - black) / 100;
+            for (var v = 0; v <= max; v++)
             {
                 if (each[v] == 0) continue;
-                counts[(int)((long)v * bins / 65536)] += each[v];
-                max = v;
+                counts[Math.Clamp((int)((long)(v - black) * bins / (white - black + 1)), 0, bins - 1)] += each[v];
+                below += each[v];
+                if (median < 0 && below * 2 >= seen) median = v;
+                if (clipped && v >= satFrom) saturated += each[v];
             }
-            long saturated = 0;
-            for (var v = (int)Math.Ceiling(max * 0.99); v <= max; v++) saturated += each[v];
-            return new Pixels(counts, seen == 0 || max == 0 ? 0 : saturated * 100.0 / seen);
+            return new Pixels(counts, saturated * 100.0 / seen, CameraScale.Fraction(median, white, black), white, black);
         }
         catch (Exception e) when (e is IOException or ArgumentOutOfRangeException or UnauthorizedAccessException)
         {
             return null;
         }
+    }
+
+    /// <summary>바닥값(블랙 레벨). 후지 14비트 원본 = 1024 (빛이 거의 없는 X-T5 사진의 중앙값 1075·최솟값 942). 그 밖에는 모름 → 0 [임시] (16비트 카메라는 바닥이 작아 영향이 작다)</summary>
+    private static int BlackLevel(string instrument, int white) =>
+        white <= 16383 && (instrument.Contains("fuji", StringComparison.OrdinalIgnoreCase) || instrument.StartsWith("X-", StringComparison.OrdinalIgnoreCase)
+            || instrument.StartsWith("GFX", StringComparison.OrdinalIgnoreCase)) ? 1024 : 0;
+
+    /// <summary>머리글의 카메라 이름 (INSTRUME). 없으면 빈 문자열</summary>
+    private static string Instrument(byte[] b)
+    {
+        for (var o = 0; o + 80 <= Math.Min(b.Length, 2880 * 10); o += 80)
+        {
+            var line = Encoding.ASCII.GetString(b, o, 80);
+            if (line.StartsWith("END", StringComparison.Ordinal)) break;
+            if (line.StartsWith("INSTRUME", StringComparison.Ordinal)) return line[10..].Split('/')[0].Trim().Trim('\'').Trim();
+        }
+        return "";
     }
 
     private static (int W, int H, int Bitpix, double Bzero, int DataStart) Header(byte[] b)

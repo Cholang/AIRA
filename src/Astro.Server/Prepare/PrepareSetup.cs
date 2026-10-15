@@ -51,6 +51,7 @@ public static class PrepareSetup
             s.AddSingleton<IFocusDevices, Real.RealFocusDevices>();
             s.AddSingleton<ICenterDevices, Real.RealCenterDevices>();
             s.AddSingleton<IGuidingDevices, Real.RealGuidingDevices>();
+            s.AddSingleton<Real.CameraScale>(); // 시험 사진에서 알아낸 카메라 눈금 — 그날 밤 플랫도 씀
             s.AddSingleton<ITestShotDevices, Real.RealTestShotDevices>();
             s.AddSingleton<IWrapDevices, RealWrapDevices>();
             s.AddSingleton<Shoot.IShootDevices, Shoot.RealShootDevices>();

@@ -102,7 +102,7 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 | `AscomAxis` | ASCOM COM(N.I.N.A.와 같은 적도의에 동시 연결) | RA축 `MoveAxis` 회전(극 찾기), 축 멈춤, 비상 정지(AbortSlew + 두 축 멈춤). 명령은 뒤에서 하나씩 15초 한도 — 시작 명령을 포기한 뒤 늦게 풀리면 돌리지 않거나 바로 멈추고, 멈춤·비상 정지는 앞 명령이 막혀도 보냄(CX-32-01). 드라이버 객체는 쓰고 바로 놓음. 드라이버 Id는 연결된 적도의에서 배움 |
 | `OasisSdk` | Oasis 제조사 DLL | 포커서 0점 잡기 전용(ASCOM·N.I.N.A.에 Set Zero가 없음). 일련번호가 맞는 포커서만 |
 | `LiveImages` | 위 셋 + 파일 | 하늘 화면 이미지(SharpCap 저장 영상 · PHD2 가이드 사진(FITS → PNG) · N.I.N.A. 마지막 사진) |
-| `Fits` · `Png` | — | FITS 읽기(가이드 사진, 시험 사진 히스토그램), PNG 만들기 |
+| `Fits` · `Png` · `CameraScale` | — | FITS 읽기(가이드 사진, 시험 사진 히스토그램·포화·배경·카메라 눈금), PNG 만들기, 그날 밤 카메라 눈금 |
 | `Phd2Windows` | Windows 창 | PHD2 장비 연결 창이 열려 있는지(열려 있으면 PHD2가 가이드 카메라를 놓지 못함) |
 | `AscomWeather` | ASCOM ObservingConditions | WandererBox 환경 센서의 기온·습도·이슬점 직접 읽기(N.I.N.A.와 동시에) |
 
@@ -120,7 +120,7 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 - **센터링**: N.I.N.A.의 센터링 명령이 아니라 아이라가 사진 + 솔빙 → 거리 → 동기화 → 다시 이동을 반복(`RealCenterDevices`) — 사진의 HFR·별 수를 초점 확인에 넘기려고.
 - **초점 확인**: 괜찮으면 `AutoNext`(근거만 잠깐 보여 주고 가이딩으로).
 - **가이딩**: N.I.N.A. 가이더 명령으로 시작해야 N.I.N.A.가 가이딩 상태를 안다(디더링·반전 후 재시작). `KeepsRunning`이라 앞 작업을 다시 하거나 중단할 때 러너가 먼저 멈춘다.
-- **시험 사진**: 히스토그램·배경·포화는 N.I.N.A.가 주지 않아 저장된 FITS를 직접 읽는다. 읽은 뒤 같은 날짜 폴더의 "시험" 폴더로 옮긴다(`ImageFolders.Move` — SNAPSHOT 폴더면 그 옆, 아니면 그 아래).
+- **시험 사진**: 히스토그램·배경·포화는 N.I.N.A.가 주지 않아 저장된 FITS를 직접 읽는다(`Fits.Analyze`). 밝기는 사진에서 알아낸 카메라 눈금(포화 값·바닥값)으로 읽고 `CameraScale`에 남겨 그날 밤 플랫 노출 찾기(`RealWrapDevices`)도 쓴다 — N.I.N.A. 비트 수는 사용자 설정이라 틀릴 수 있다. 읽은 뒤 같은 날짜 폴더의 "시험" 폴더로 옮긴다(`ImageFolders.Move` — SNAPSHOT 폴더면 그 옆, 아니면 그 아래).
 - **노출 멈추기**(센터링·시험 사진·마무리·이어서 하기): X-T5는 일반 노출을 중단할 수 없어 중단 명령 대신 끝나기를 기다린다(`NinaRig.AbortExposureAsync`). 노출이 정지 확인 한도(15초)보다 길면 "장비 상태 다시 확인"이 뜨고, 끝난 뒤 누르면 풀린다.
 - **마무리**: 같은 러너를 쓰는 작업 셋. 장비 정리 뒤 프로그램 닫기는 `ProgramCloser`(아이라 종료와 같은 차례).
 
