@@ -4,7 +4,7 @@
 
 > 작성일: 2026-09-28 (집 PC에서 논의)
 > 앱 이름: **AA (Astrophoto Assistant)** — 가칭
-> 관련 문서: [운영 절차](../OPERATION_PROCEDURE.md) · [화면 디자인](../../DESIGN.md) · [사전 준비](../reference/NINA_SETUP.md) · [API 대응표](../reference/NINA_API_COVERAGE.md) · [플로우](../../flow.mmd)
+> 관련 문서: [운영 절차](../OPERATION_PROCEDURE.md) · [화면 디자인](../../DESIGN.md) · [사전 준비](../reference/NINA_SETUP.md) · [API 대응표](../reference/NINA_API_COVERAGE.md)
 
 ---
 
@@ -39,7 +39,7 @@ NINA에서 장비를 연결하려면 지금은 이렇게 해야 한다.
   - 이미지는 가운데를 정사각형으로 잘라 256×256 WebP로 저장(사진의 회전 정보 반영) → 원본 크기·비율과 관계없이 왜곡 없음. HEIC 등 못 여는 형식은 안내
   - 저장: `%LOCALAPPDATA%\AA\profiles.json`, `profile-images\{id}.webp` (서버가 관리 → 폰에서도 같은 목록)
   - 이미지 선택 창은 OS 파일 대화상자라 촬영용 적색 테마가 적용되지 않음. 프로필 만들기는 촬영 전 단계라 허용
-- `flow.mmd`의 ① 시작 · 연결에 반영함
+- 흐름은 운영 절차(OPERATION_PROCEDURE.md) 1장
 
 ---
 

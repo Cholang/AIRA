@@ -35,14 +35,14 @@ import { ErrorBoundary, ScreenError } from './components/ErrorBoundary'
 import { dismissSession, pendingSession, reportPhase, resumeSession, type PendingSession } from './session'
 import styles from './App.module.css'
 
-// flow.mmd ① 시작 · 연결:
-// 부팅 로고 → 프로필 선택 (없으면 새 프로필 만들기) → 0단계 설치 확인 → 1단계 엔진 켜기 → 장비 연결
-// → 출발 전 점검 → 장비 준비(rig) → 대상(계획 → target) → (다음: 촬영). OPERATION_PROCEDURE.md "장비 준비 · 대상" (2026-10-07)
+// 앱 흐름 (OPERATION_PROCEDURE.md 1장):
+// 부팅 로고 → 프로필 선택 (없으면 새 프로필 만들기) → (오늘 밤 기록이 있으면 "이어서 할까요?") → 출발 전 점검(2026-10-15 맨 앞, 이어서 하면 건너뜀)
+// → 0단계 설치 확인 → 1단계 엔진 켜기 → 장비 연결 → 장비 준비(rig) → 대상(계획 → target) → 촬영 → 마무리. OPERATION_PROCEDURE.md 1장
 type Phase = 'boot' | 'profiles' | 'newProfile' | 'check' | 'engine' | 'equipment' | 'site' | 'preflight' | 'rig' | 'plan' | 'target' | 'shoot' | 'wrap' | 'summary'
 
 /** 화면 → 하단 단계 레일의 단계. 부팅·프로필 화면에는 레일이 없다 (DESIGN.md "진행 표시") */
 /** 장비 연결 뒤 화면들: 왼쪽 위에 구석 태양을 둔다 (2026-10-11 사용자 요청, CornerSun) */
-const CORNER_SUN: Phase[] = ['site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
+const CORNER_SUN: Phase[] = ['site', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
 
 /** 프로필 화면: 레일은 없지만 N.I.N.A.·PHD2·Empire를 미리 켰으니 창 ×도 종료 절차(켠 프로그램 닫기)를 거친다 (CX-34-02) */
 const prelaunchedPhase = (p: Phase) => p === 'profiles' || p === 'newProfile'
@@ -75,11 +75,11 @@ const NOTICE_HIDE: Partial<Record<Phase, string[]>> = {
 const NO_HIDE: string[] = []
 
 /** N.I.N.A.가 켜져 있어야 하는 화면 (1단계 엔진 켜기 이후). 여기서 N.I.N.A.가 꺼지면 알린다 */
-const WATCHED: Phase[] = ['equipment', 'site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap']
+const WATCHED: Phase[] = ['equipment', 'site', 'rig', 'plan', 'target', 'shoot', 'wrap']
 
 /** 상태 줄에 관측지를 보여 주는 화면 (장비 연결 이후). 연필은 장비 연결·관측지 고르기 화면에서는 숨긴다 */
-const SITE_SHOWN: Phase[] = ['equipment', 'site', 'preflight', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
-const SITE_EDITABLE: Phase[] = ['preflight', 'rig', 'plan', 'target']
+const SITE_SHOWN: Phase[] = ['equipment', 'site', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
+const SITE_EDITABLE: Phase[] = ['rig', 'plan', 'target']
 
 /** 상단 상태 줄의 지금 단계 이름 */
 const LABEL_OF: Partial<Record<Phase, string>> = {
@@ -168,21 +168,34 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase, profiles, fadeTo])
 
-  // 프로필을 고르면 설치 상태를 바로 확인한다.
+  // 점검 다음: 설치 상태를 바로 확인한다.
   // 모두 설치돼 있으면 0단계 화면은 건너뛰고(누를 필요 없는 "다음"을 없앤다), 빠진 게 있으면 0단계로.
   // 0단계는 빠진 첫 항목이 선택된 상태로 시작한다. 확인에 실패하면 안전하게 0단계로.
+  const toSetup = useCallback(async () => {
+    let allInstalled = false
+    try {
+      const res = await fetch('/api/setup/status')
+      const items = res.ok ? ((await res.json()) as { status: string }[]) : []
+      allInstalled = items.length > 0 && items.every((i) => i.status === 'Pass')
+    } catch {
+      /* 0단계에서 다시 확인한다 */
+    }
+    fadeTo(allInstalled ? 'engine' : 'check')
+  }, [fadeTo])
+
+  // 지난 진행 기록 (아이라가 중간에 꺼졌다 다시 켬 — 2026-10-08): 프로필을 고른 직후에 묻는다(2026-10-15).
+  // 이어서 하면 출발 전 점검을 건너뛰고, 장비 연결 뒤에 이어서 한다(장비를 멈추고 끝낸 작업을 확인 — 장비가 있어야 함)
+  const [pending, setPending] = useState<(PendingSession & { when: 'profile' | 'equipment'; changeSite: boolean; error?: string; busy?: boolean }) | null>(null)
+  const resuming = useRef<PendingSession | null>(null)
+
+  // 프로필을 고르면: 오늘 밤 기록이 있으면 이어서 할지 묻고, 아니면 출발 전 점검 (2026-10-15 — 점검이 맨 앞)
   const start = useCallback(
     async (p: Profile) => {
       setProfile(p)
-      let allInstalled = false
-      try {
-        const res = await fetch('/api/setup/status')
-        const items = res.ok ? ((await res.json()) as { status: string }[]) : []
-        allInstalled = items.length > 0 && items.every((i) => i.status === 'Pass')
-      } catch {
-        /* 0단계에서 다시 확인한다 */
-      }
-      fadeTo(allInstalled ? 'engine' : 'check')
+      resuming.current = null
+      const s = await pendingSession(p.id)
+      if (s) return setPending({ ...s, when: 'profile', changeSite: false })
+      fadeTo('preflight')
     },
     [fadeTo],
   )
@@ -214,8 +227,8 @@ export default function App() {
   // ── 관측지 (OPERATION_PROCEDURE.md "관측지"): 지금 관측지 = N.I.N.A.에 설정된 좌표. undefined면 아직 모름 ─────────
   const [site, setSite] = useState<CurrentSite | null | undefined>(undefined)
   const [siteSyncing, setSiteSyncing] = useState<string | null>(null)
-  // 관측지 고르기 화면이 끝나면 돌아갈 곳 (장비 연결 뒤 → 출발 전 점검, 상태 줄 "관측지 편집" → 원래 화면)
-  const siteReturn = useRef<Phase>('preflight')
+  // 관측지 고르기 화면이 끝나면 돌아갈 곳 (장비 연결 뒤 → 장비 준비, 상태 줄 "관측지 편집" → 원래 화면)
+  const siteReturn = useRef<Phase>('rig')
   useEffect(() => {
     // 장비 연결 화면에 들어올 때 읽어 둔다 (N.I.N.A.가 켜진 뒤)
     if (phase === 'equipment') fetchCurrentSite().then(setSite, () => setSite(null))
@@ -233,8 +246,20 @@ export default function App() {
     [fadeTo, site],
   )
 
-  // 지난 진행 기록 (AA가 중간에 꺼졌다 다시 켬 — 2026-10-08): 장비 연결 뒤에 묻는다
-  const [pending, setPending] = useState<(PendingSession & { changeSite: boolean; error?: string; busy?: boolean }) | null>(null)
+  // 이어서 하기 (프로필에서 골랐으면 장비 연결 뒤에): 장비를 멈추고 끝낸 작업을 다시 확인하는 동안(몇 초) 기다림 창, 못 하면 이유와 함께 다시 묻기
+  const runResume = useCallback(
+    async (p: PendingSession, changeSite: boolean) => {
+      setPending({ ...p, when: 'equipment', changeSite, busy: true })
+      const result = await resumeSession()
+      if ('phase' in result) {
+        setPending(null)
+        resuming.current = null
+        return goAfterEquipment(result.phase as Phase, changeSite)
+      }
+      setPending({ ...p, when: 'equipment', changeSite, busy: false, error: result.error })
+    },
+    [goAfterEquipment],
+  )
 
   const toNext: EquipmentDone = useCallback((items, opts) => {
     // 상태 줄에는 장비 이름(OnStep 등)을 쓴다. 칸의 큰 글씨는 장비 종류, 작은 글씨(term)가 장비 이름
@@ -242,32 +267,32 @@ export default function App() {
     const back = resumeTo.current
     resumeTo.current = null
     if (back) return goAfterEquipment(back, !!opts.changeSite)
-    void pendingSession(profile?.id ?? null).then((p) => {
-      if (p) setPending({ ...p, changeSite: !!opts.changeSite })
-      else goAfterEquipment('preflight', !!opts.changeSite)
-    })
-  }, [goAfterEquipment, profile])
+    if (resuming.current) return void runResume(resuming.current, !!opts.changeSite)
+    goAfterEquipment('rig', !!opts.changeSite)
+  }, [goAfterEquipment, runResume])
 
   // 이어서: 출발 전 점검은 건너뛴다 (앱만 꺼졌다 켠 경우 — 2026-10-08 사용자 결정). 대상·촬영 중이었으면 대상 단계(이동부터)
   const answerPending = useCallback(
     async (resume: boolean) => {
       const p = pending
       if (!p || p.busy) return
-      if (resume && p.kind === 'resume') {
-        // 장비를 멈추고 끝낸 작업을 다시 확인하는 동안 (몇 초)
-        setPending({ ...p, busy: true, error: undefined })
-        const result = await resumeSession()
-        if ('phase' in result) {
-          setPending(null)
-          return goAfterEquipment(result.phase as Phase, p.changeSite)
+      if (p.when === 'profile') {
+        setPending(null)
+        if (resume && p.kind === 'resume') {
+          resuming.current = p
+          return void toSetup()
         }
-        return setPending({ ...p, busy: false, error: result.error }) // 장비를 멈추지 못함 → 이유와 함께 다시 묻기
+        dismissSession()
+        return fadeTo('preflight')
       }
+      // 장비 연결 뒤 이어서 하기에 실패해 다시 묻는 중: 다시 시도 · 새로 시작(장비 준비부터 — 점검은 이미 지났다)
+      if (resume && p.kind === 'resume') return void runResume(p, p.changeSite)
       setPending(null)
+      resuming.current = null
       dismissSession()
-      goAfterEquipment('preflight', p.changeSite)
+      goAfterEquipment('rig', p.changeSite)
     },
-    [pending, goAfterEquipment],
+    [pending, goAfterEquipment, runResume, toSetup, fadeTo],
   )
 
   // 지금 단계를 서버에 알린다 (장비 준비 이후만 기록 — 요약에 닿으면 그 밤은 끝)
@@ -322,7 +347,7 @@ export default function App() {
     if (ninaLost) setDevices((d) => d?.map((x) => ({ ...x, connected: false })) ?? d)
   }, [ninaLost])
   const restartNina = useCallback(async () => {
-    if (phase === 'site' || phase === 'preflight' || phase === 'rig' || phase === 'plan' || phase === 'target' || phase === 'wrap') resumeTo.current = phase
+    if (phase === 'site' || phase === 'rig' || phase === 'plan' || phase === 'target' || phase === 'wrap') resumeTo.current = phase
     // 촬영 중이었으면: 촬영을 멈추고(가이딩 정지 확인) 다시 켠 뒤 대상 단계를 이동부터 (적도의 위치·가이딩을 알 수 없으므로 — CX-APP-R4)
     if (phase === 'shoot') {
       resumeTo.current = 'target'
@@ -331,7 +356,6 @@ export default function App() {
     setNina('Unknown')
     fadeTo('engine')
   }, [phase, fadeTo])
-  const toRig = useCallback(() => fadeTo('rig'), [fadeTo])
   // 다른 대상으로 계획에 돌아갈 때: 적도의는 움직이지 않고 추적만 끈다 — 이동까지 오래 기다릴 수 있어서 (2026-10-14). 끄지 못했으면 계획 화면 오류 줄에
   const [planNotice, setPlanNotice] = useState<string | null>(null)
   const toPlan = useCallback(() => {
@@ -383,7 +407,7 @@ export default function App() {
           what: '출발 전 점검',
           success: () => {
             void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
-            toRig()
+            void toSetup()
           },
         }
     : phase === 'plan'
@@ -504,9 +528,9 @@ export default function App() {
         {phase === 'preflight' && (
           <PreflightScreen
             onContinue={() => {
-              // 점검을 마침 = "포커서 0점" 확인 → 초점 작업이 0점을 잡는다 (이어서 하기는 점검을 건너뛰어 잡지 않음)
+              // 점검을 마침 = "포커서 0점" 확인 → 초점 작업이 0점을 잡는다 (이어서 하기는 점검을 건너뛰어 잡지 않음). 다음은 설치 확인
               void fetch('/api/prepare/focuser-zero', { method: 'POST' }).catch(() => null)
-              toRig()
+              void toSetup()
             }}
           />
         )}

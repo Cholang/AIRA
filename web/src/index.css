@@ -61,6 +61,12 @@
   /* 하늘 화면(준비 단계 배경): 사진이라 밝게 테마에서도 어둡다. 그 위 글자·선은 하늘 전용 색 */
   --sky: #0e0f11;
   --star: #e8e6e1;
+  /* 출발 전 점검의 장비 선화 (2026-10-15, 시안 aira-preflight-motion): 선 · 흐린 선 · 노트북 화면(꺼짐·켜짐) · 땅 */
+  --art-ink: #8f8c86;
+  --art-ink-soft: #5d5b57;
+  --art-screen: rgb(169 166 247 / 0.1);
+  --art-screen-on: rgb(169 166 247 / 0.38);
+  --art-ground: #18191b;
   --sky-muted: rgb(255 255 255 / 0.55);
   --sky-line: rgb(255 255 255 / 0.16);
   /* 계획 그래프 (2026-10-14): 대상 종류 그림 · 달 · 박명 · 먼 산 */
@@ -125,6 +131,11 @@
   --conn-flash: rgb(184 0 0 / 0.45);
   --sky: #000000;
   --star: #b80000;
+  --art-ink: #6a0000;
+  --art-ink-soft: #3c0000;
+  --art-screen: rgb(184 0 0 / 0.08);
+  --art-screen-on: rgb(184 0 0 / 0.32);
+  --art-ground: #050000;
   --sky-muted: #9a0000;
   --sky-line: rgb(184 0 0 / 0.3);
   --dso-galaxy: #b80000;

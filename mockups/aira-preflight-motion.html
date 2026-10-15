@@ -60,8 +60,8 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
 .app[data-scene="check"] .world { pointer-events:auto; }
 .world.zoom { transition:transform .95s cubic-bezier(.55,0,.8,.35), opacity .35s ease .7s; }
 .screen { position:absolute; left:0; top:44px; right:var(--rail-w); bottom:0; }
-.title, .foot, .rail, .callout, .leader { transition:opacity .45s ease; }
-.app:not([data-scene="check"]) .title, .app:not([data-scene="check"]) .foot, .app:not([data-scene="check"]) .rail,
+.title, .rail, .callout, .leader { transition:opacity .45s ease; }
+.app:not([data-scene="check"]) .title, .app:not([data-scene="check"]) .rail,
 .app:not([data-scene="check"]) .callout, .app:not([data-scene="check"]) .leader { opacity:0; pointer-events:none; }
 .title { position:absolute; left:96px; top:44px; }
 .title h2 { margin:0; font-size:30px; font-weight:700; letter-spacing:-.01em; }
@@ -159,7 +159,7 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
 <div class="page">
   <div class="top">
     <h1>출발 전 점검 — 모션 시안</h1>
-    <p>프로필을 누르면: 밤하늘에서 카메라가 내려오고(별이 위로 흐름) 장비 선화가 아래에서 올라와 멈춥니다 → 점검 네 가지(그림을 누르거나 "확인했어요") → 노트북 화면이 빛나고 역삼각형이 내려와 가리킴 → 노트북을 누르면 화면 쪽으로 확대되며 다음 단계(설치 확인)가 화면을 채웁니다. 들어오는 중에 누르면 끝으로 건너뜁니다.</p>
+    <p>프로필을 누르면: 밤하늘에서 카메라가 내려오고(별이 위로 흐름) 장비 선화가 아래에서 올라와 멈춥니다 → 점검 네 가지(지금 부분의 그림을 눌러 확인 — 버튼 없음) → 노트북 화면이 빛나고 역삼각형이 내려와 가리킴 → 노트북을 누르면 화면 쪽으로 확대되며 다음 단계(설치 확인)가 화면을 채웁니다. 들어오는 중에 누르면 끝으로 건너뜁니다.</p>
   </div>
   <div class="controls">
     <span class="lbl">테마</span>
@@ -329,9 +329,8 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
           </div>
           <div class="callout" data-for="p-focus" style="left:96px; top:478px"><p>포커서 노브를 끝까지 넣어 0에 맞췄나요?</p></div>
           <div class="callout" data-for="p-power" style="left:96px; top:876px"><p>적도의 전원을 켰나요?</p></div>
-          <div class="callout" data-for="p-dir" style="left:820px; top:590px"><p>북쪽을 향해 홈 자세로 두었나요?</p></div>
+          <div class="callout" data-for="p-dir" style="left:820px; top:590px"><p>적도의를 북쪽으로 향하게 세우고 홈 자세로 두었나요?</p></div>
           <div class="callout" data-for="p-caps" style="left:480px; top:340px"><p>망원경 뚜껑을 모두 열었나요?</p></div>
-          <div class="foot"><button class="btn" id="all">모두 확인 완료</button></div>
         </div>
         <nav class="rail">
           <div class="row"><span class="now-name">점검</span><span class="dot now"></span></div>
@@ -374,7 +373,6 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
     app.dataset.aligned = String(aligned);
     app.style.setProperty('--skyx', aligned ? '-200px' : '0px');
     var done = at >= ITEMS.length;
-    $('all').style.visibility = done ? 'hidden' : 'visible';
     $('laptop').dataset.ready = String(done);
   }
   function next() { if (at < ITEMS.length) { at++; render(); } }
@@ -410,7 +408,6 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
 
   $('profile').onclick = function (e) { e.stopPropagation(); start(); };
   app.addEventListener('click', skipIntro);
-  $('all').onclick = function () { (function step() { if (at < ITEMS.length) { next(); later(step, 600); } })(); };
   ITEMS.forEach(function (it, i) { $(it.part).addEventListener('click', function () { if (app.dataset.scene === 'check' && i === at) next(); }); });
   $('laptop').addEventListener('click', enter);
   app.addEventListener('keydown', function (e) { if (e.key === 'Enter') enter(); });

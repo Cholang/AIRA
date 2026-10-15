@@ -3,7 +3,7 @@
 > 작성일: 2026-09-28
 > 기준: Advanced API v2.2.15 명세 (github.com/christian-photo/ninaAPI `api_spec.yaml`, `websocket_spec.yaml`)
 > 베이스 URL: `http://localhost:1888/v2/api` · 이벤트: `ws://localhost:1888/v2/socket`
-> 플로우 원본: `flow.mmd`
+> 앱 흐름: [운영 절차](../OPERATION_PROCEDURE.md)
 
 표기: ✅ API로 가능 · ⚠️ 가능하지만 조건·우회 필요 · ❌ API에 없음(우리 앱이 직접 구현) · 🔍 실기 확인 필요
 

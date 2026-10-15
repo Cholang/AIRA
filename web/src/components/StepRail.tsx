@@ -4,7 +4,7 @@ import Button from './Button'
 import styles from './StepRail.module.css'
 
 /** 촬영 단계 (DESIGN.md "진행 표시", "장비 준비 · 대상" 2026-10-07). 연결 = 설치 확인·엔진 켜기·장비 연결 */
-export const STAGES = ['연결', '점검', '장비 준비', '대상', '촬영', '마무리'] as const
+export const STAGES = ['점검', '연결', '장비 준비', '대상', '촬영', '마무리'] as const // 2026-10-15 점검이 맨 앞(프로필 바로 다음)
 export type Stage = (typeof STAGES)[number]
 
 /** 지금 단계 아래에 펼치는 작업 한 줄 (예: 장비 준비의 극축 정렬 · 캘리브레이션 · 초점) */
