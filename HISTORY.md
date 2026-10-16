@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — AppServer의 영역별 엔드포인트를 partial로
+## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — LiveView를 사진·판·모의 그림으로
+
+**요청**: 분리 계획 3단계(웹 컴포넌트) 첫 파일.
+
+**변경** (옮기기만 — 옮긴 것에 `export`, import만 바뀜): `components/LiveView.tsx`(688 → 120줄: 하늘 화면 고르기)에서 `LivePhoto.tsx`(히스토그램·실제 사진·사진 틀·솔빙 사진·시험 사진·9칸, 253줄) · `LivePanels.tsx`(초점·SharpCap·가이드 사진·가이드 그래프·하늘 지도·초점 곡선, 283줄) · `liveSimFields.tsx`(좌표 VW·VH·FX·FY와 모의 별밭·은하, 59줄) · `useSlewTrack.ts`(이동 진행 훅 — 컴포넌트 파일에서 훅을 내보내면 lint 경고라 따로). CSS 모듈은 모두 `LiveView.module.css`를 함께 씀.
+
+**확인**: 바뀐 줄은 `export`·import·파일 설명 줄뿐(옮긴 줄 548). tsc·lint(경고 38 그대로)·웹 시험 52·웹 빌드. 화면 확인은 3단계 끝에 한꺼번에.
+
+---
+
+## 2026-10-16 · 36c96e4 [Claude] 큰 파일 분리 2단계 — AppServer의 영역별 엔드포인트를 partial로
 
 **요청**: 분리 계획 2단계 다섯째 파일.
 
