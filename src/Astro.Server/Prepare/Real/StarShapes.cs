@@ -36,12 +36,14 @@ public static class StarShapes
     }
 
     /// <summary>
-    /// 별 목록. ASTAP은 사진 옆에 같은 이름의 .csv를 쓴다(-o로 바꿀 수 없음) → 이번에 쓴 것만 읽고 지운다.
+    /// 별 목록. ASTAP은 사진 옆에 같은 이름의 .csv를 쓴다(-o로 바꿀 수 없음) → 실행 전에 없던 것만, 이번에 쓴 것만 읽고 지운다.
     /// 실행 실패·시간 초과(60초)·별 목록이 없으면 null
     /// </summary>
     public static async Task<IReadOnlyList<Star>?> ExtractAsync(string cli, string fits, CancellationToken ct)
     {
         var csv = Path.ChangeExtension(fits, ".csv");
+        // 같은 이름의 CSV가 이미 있으면 사용자 것일 수 있다 — 읽지도 지우지도 않고 별 모양을 건너뛴다 (CX-38-04)
+        if (File.Exists(csv)) return null;
         var started = DateTime.UtcNow.AddSeconds(-2); // 파일 시각의 거친 눈금
         using var p = new Process
         {

@@ -163,6 +163,9 @@ public sealed class NightSessionStore
         if (s.FocusPosition is { } pos) memory.LastFocus = (pos, s.FocusTemperatureC);
         memory.LastCalibration = s.LastCalibration;
         memory.LastPolarAlignedAt = s.LastPolarAlignedAt;
+        // 꺼지기 전에 극 찾기로 RA축을 돌렸는지 알 수 없다 — 극축 정렬을 다시 하면 먼저 홈으로 (CX-38-01: 기억이 메모리에만 있어 다시 켜면 사라졌다.
+        // 저장 파일에 적는 방식은 저장 주기 사이에 꺼지면 빈틈이 남는다)
+        memory.PolarNeedsReturn = true;
         if (s.Plan is { } plan && planner is not null) await planner.RestoreAsync(plan, s.Talk, ct);
         return s;
     }

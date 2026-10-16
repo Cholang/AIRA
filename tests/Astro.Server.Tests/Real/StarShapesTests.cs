@@ -152,6 +152,17 @@ public class StarShapesTests : IDisposable
     }
 
     [Fact]
+    public async Task CX38_04_같은_이름의_CSV가_이미_있으면_읽지도_지우지도_않는다()
+    {
+        var file = Write((_, _) => (2.5, 2.5));
+        var csv = Path.ChangeExtension(file, ".csv");
+        File.WriteAllText(csv, "x,y,hfd,snr" + Environment.NewLine + "10,10,3,50");
+        // 실행할 수 없는 경로를 줘도 실행 전에 돌아온다 — 사용자 파일은 그대로
+        Assert.Null(await StarShapes.ExtractAsync(Path.Combine(_dir, "no-astap.exe"), file, CancellationToken.None));
+        Assert.Equal("x,y,hfd,snr" + Environment.NewLine + "10,10,3,50", File.ReadAllText(csv));
+    }
+
+    [Fact]
     public async Task ASTAP이_있으면_사진에서_별을_찾고_목록_파일을_지운다()
     {
         if (StarShapes.CliPath(null) is not { } cli) return; // ASTAP이 설치된 PC에서만 (두 PC 모두 설치됨)

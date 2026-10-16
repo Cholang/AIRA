@@ -103,6 +103,21 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
   const edits = useRef<Promise<boolean>>(Promise.resolve(true))
   const pendingEdits = useRef(0)
 
+  // 화면과 서버의 계획이 어긋났을 수 있음 (고침이 거절된 뒤 다시 받기를 못 함) — 확정 전에 다시 받는다
+  const stale = useRef(false)
+  const resync = useCallback(async () => {
+    const at = changes.current
+    const s = await fetch('/api/plan/state')
+      .then((r) => (r.ok ? (r.json() as Promise<PlanState>) : null))
+      .catch(() => null)
+    stale.current = !s || !!s.error
+    if (s && !s.error && changes.current === at) {
+      setPlan(s.plan)
+      setChart(s.chart)
+    }
+    return !stale.current
+  }, [])
+
   /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에. 그 뒤 다른 고침·AI 답이 있었으면 늦은 응답은 버린다 */
   const edit = useCallback((change: () => Promise<Edited>) => {
     setError(null)
@@ -119,6 +134,8 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
       } catch (e) {
         setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
         setRejects((n) => n + 1)
+        // 앞서 성공한 고침의 응답을 버렸을 수 있다 — 서버의 지금 계획으로 화면을 다시 맞춘다 (CX-38-02)
+        await resync()
         return false
       } finally {
         pendingEdits.current--
@@ -126,7 +143,7 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
     })
     edits.current = next
     return next
-  }, [])
+  }, [resync])
   const planFromChat = useCallback((p: Plan) => {
     changes.current++
     setPlan(p)
@@ -137,9 +154,17 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
   const start = async () => {
     if (starting) return
     setStarting(true)
-    // 칸을 떠나며 보낸 고침(같은 누름에서 시작됨)이 끝나기를 기다린다. 그 고침이 거절됐으면 확정하지 않는다(오류 줄을 보게)
-    const waiting = pendingEdits.current > 0
-    if (!(await edits.current) && waiting) {
+    // 칸을 떠나며 보낸 고침(같은 누름에서 시작됨)과 기다리는 사이 더한 고침이 모두 끝나기를 기다린다 (CX-38-03 — 누른 순간의 것만 기다렸다).
+    // 그중 하나라도 거절됐거나 화면을 서버와 다시 맞추지 못했으면 확정하지 않는다(오류 줄을 보게)
+    let failed = false
+    for (;;) {
+      const p = edits.current
+      const waited = pendingEdits.current > 0
+      if (!(await p) && waited) failed = true
+      if (p === edits.current) break
+    }
+    if (failed || (stale.current && !(await resync()))) {
+      if (stale.current) setError('서버의 계획을 다시 받지 못했습니다. 잠시 뒤 다시 눌러 주세요.')
       setStarting(false)
       return
     }

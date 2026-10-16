@@ -86,6 +86,18 @@ public class NightSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task CX38_01_이어서_하면_극축_정렬은_먼저_홈으로_되돌린다()
+    {
+        // 꺼지기 전에 RA축을 돌렸는지 알 수 없다 — 되살린 기억은 늘 "되돌려야 함"
+        var restored = Saved() with { Plan = null };
+        File.WriteAllText(Path.Combine(_dir, "session.json"), System.Text.Json.JsonSerializer.Serialize(restored, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+        var memory = new InMemoryPrepMemory();
+        Assert.False(memory.PolarNeedsReturn);
+        await Store().RestoreAsync(null, new PrepResults(), memory, CancellationToken.None);
+        Assert.True(memory.PolarNeedsReturn);
+    }
+
+    [Fact]
     public async Task 이어서_찍으면_전에_찍은_장수부터_센다()
     {
         var snap = Saved();
