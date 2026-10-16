@@ -126,7 +126,9 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
     private static (string Title, string Text, double Frame) FramingCheck(PrepContext ctx, double? angle)
     {
         const string confirm = "구도가 마음에 들면 확정하세요. 다른 대상을 고르면 계획으로 돌아가고, 장비 준비는 그대로 씁니다.";
-        if (ctx.Results.Get<FramingGoal>() is not { } goal || goal.TargetId != ctx.Plan.TargetId)
+        if (ctx.Results.Get<FramingGoal>() is { } old && old.PlanKey != FramingGoal.KeyOf(ctx))
+            ctx.Results.Remove(typeof(FramingGoal)); // 다른 계획에서 정한 구도 (CX-36-07)
+        if (ctx.Results.Get<FramingGoal>() is not { } goal)
             return ("이 대상으로 확정할까요?",
                 "가운데에 맞춘 사진이에요. " + (angle is null ? "" : "사진 모서리를 끌어 틀을 돌리면 그 구도로 카메라를 돌리는 방법을 알려 드려요. ") + confirm, 0);
         if (angle is not { } now)

@@ -35,7 +35,9 @@ public sealed class RealTestShotDevices(NinaRig rig, LiveImages live, ILogger<Re
         var rms = await rig.GuideRmsArcsecAsync(ct) ?? 0;
         // 히스토그램·포화·배경: 저장된 FITS를 직접 읽어 센다 (N.I.N.A.는 통계만 주고, 그 밝기는 "비트 수" 설정에 기대 틀릴 수 있다). 80MB 읽기라 따로
         var photo = file.Length > 0 && File.Exists(file) ? await Task.Run(() => Fits.Open(file), ct) : null;
-        var px = photo is null ? null : await Task.Run(() => Fits.Analyze(photo), ct);
+        // 눈금의 바닥은 N.I.N.A. 비트 수(후지는 사진의 카메라 이름으로 14비트) — 어두운 사진이라고 눈금을 내리지 않게 (CX-36-06)
+        var bits = photo is null ? null : await rig.CameraBitDepthAsync(ct);
+        var px = photo is null ? null : await Task.Run(() => Fits.Analyze(photo, bits), ct);
         if (px is not null) scale?.Learn(px.White, px.Black);
         // 별 모양: 시험 폴더로 옮기기 전에 (ASTAP이 사진 옆에 별 목록을 쓴다)
         var shape = photo is null ? null : await StarShapesAsync(file, photo, ct);

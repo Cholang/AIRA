@@ -106,18 +106,33 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
     return () => window.clearInterval(t)
   }, [])
 
-  /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에 */
-  const edit = useCallback(async (change: () => Promise<Edited>) => {
+  // 화면에서 고친 것은 차례로 보내고, 이동(확정)은 마지막 고침이 끝난 뒤에 (CX-36-05 — 노출을 입력하고 바로 이동을 누르면 이전 값으로 확정될 수 있었다)
+  const edits = useRef<Promise<boolean>>(Promise.resolve(true))
+  const pendingEdits = useRef(0)
+
+  /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에. 그 뒤 다른 고침·AI 답이 있었으면 늦은 응답은 버린다 */
+  const edit = useCallback((change: () => Promise<Edited>) => {
     setError(null)
-    changes.current++
-    try {
-      const r = await change()
-      setPlan(r.plan)
-      setChart(r.chart)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
-      setRejects((n) => n + 1)
-    }
+    const mine = ++changes.current
+    pendingEdits.current++
+    const next = edits.current.then(async () => {
+      try {
+        const r = await change()
+        if (changes.current === mine) {
+          setPlan(r.plan)
+          setChart(r.chart)
+        }
+        return true
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
+        setRejects((n) => n + 1)
+        return false
+      } finally {
+        pendingEdits.current--
+      }
+    })
+    edits.current = next
+    return next
   }, [])
   const planFromChat = useCallback((p: Plan) => {
     changes.current++
@@ -129,6 +144,12 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
   const start = async () => {
     if (starting) return
     setStarting(true)
+    // 칸을 떠나며 보낸 고침(같은 누름에서 시작됨)이 끝나기를 기다린다. 그 고침이 거절됐으면 확정하지 않는다(오류 줄을 보게)
+    const waiting = pendingEdits.current > 0
+    if (!(await edits.current) && waiting) {
+      setStarting(false)
+      return
+    }
     setError(null)
     try {
       const res = await fetch('/api/plan/confirm', { method: 'POST' })

@@ -49,6 +49,8 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
     /// 장비 준비를 다시 하고 돌아올 때·아이라를 다시 켜 이어 갈 때·N.I.N.A.를 다시 켠 뒤에는 승인이 없어 "○○로 이동"을 묻는다
     /// </summary>
     private bool _approved;
+    /// <summary>적도의를 잡았을 때 대상이 이미 낮아져 이동을 보내지 않았다 (CX-36-03)</summary>
+    private bool _lowAtLock;
     /// <summary>계획 화면의 이동 버튼을 누르고 이만큼 안에 시작한 대상 이동만 그 누름을 이동 승인으로 본다</summary>
     private static readonly TimeSpan ApprovalWindow = TimeSpan.FromMinutes(2);
 
@@ -61,6 +63,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
         var ctx = run.Context;
         _acceptHere = false;
         _moveNow = false;
+        _lowAtLock = false;
         _approved = ctx.MoveApprovalUsed != ctx.Plan.ConfirmedAt && DateTimeOffset.Now - ctx.Plan.ConfirmedAt < ApprovalWindow;
         ctx.MoveApprovalUsed = ctx.Plan.ConfirmedAt;
         run.Live("sky-map");
@@ -82,7 +85,12 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
             movedAt ??= ctx.Now();
             var moved = await MoveAsync(run, ct);
             if (_acceptHere) return Accepted(ctx);
-            if (moved is null) continue; // 멈춤 → 다시 이동을 누르면 처음부터(고도 확인 포함)
+            if (moved is null)
+            {
+                // 잡는 사이 낮아짐 → 움직이지 않았다: 기다리기부터 다시(때가 되면 다시 누른다)
+                if (_lowAtLock) { _lowAtLock = false; movedAt = null; }
+                continue; // 멈춤 → 다시 이동을 누르면 처음부터(고도 확인 포함)
+            }
             run.SubStep(2);
             if (moved.ArrivalErrorDeg > ArrivalLimitDeg)
             {
@@ -201,6 +209,12 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
             run.Status("적도의가 다른 동작을 마치기를 기다리는 중입니다");
             await using (await ctx.Mount.AcquireAsync(ct))
             {
+                // 기다리는 사이(홈 이동 등) 대상이 15° 아래로 내려갔으면 보내지 않는다 — 잡은 뒤 명령 바로 앞에서 다시 본다 (CX-36-03)
+                if (TooLow(ctx))
+                {
+                    _lowAtLock = true;
+                    return null;
+                }
                 run.Guide($"{Core.Josa.Ro(ctx.TargetName)} 이동하고 있습니다", "적도의가 대상 쪽으로 돌고 있습니다. 케이블이 걸리면 멈춤을 누르세요.");
                 run.Status("이동 중입니다");
                 stop = run.AskAsync([new("stop", "멈춤", true)], asking.Token);

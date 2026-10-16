@@ -89,23 +89,25 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     /// <summary>
     /// 다른 대상으로 계획에 돌아올 때(센터링·시험 사진·촬영의 "다른 대상"): 움직이지 않고 추적만 끈다 (2026-10-14 자체 리뷰 — 이동은 "촬영 시작 − 준비 시간"까지
     /// 기다리므로 몇 시간 앞 대상을 추적한 채 한계 쪽으로 흘러갈 수 있었다. 장비 준비 뒤 쉬게 하기와 같은 이유, 다만 홈으로 옮기지는 않는다).
-    /// 끄려 했는데 끄지 못했으면 사용자에게 보일 문장. 껐거나, 끌 수 없는 때(촬영 중·작업 중·미연결 — 로그만)면 null
+    /// 끄려 했는데 끄지 못했거나 적도의 상태를 읽지 못했으면 사용자에게 보일 문장. 껐거나, 끌 일이 없거나(미연결이라고 분명히 답함·이미 꺼짐),
+    /// 끌 수 없는 때(촬영 중·작업 중·홈 이동 중·멈춤 확인 필요 — 로그만)면 null.
+    /// 상태를 못 읽음은 "미연결"로 보지 않는다 (CX-36-04 — 그대로 넘겨 추적이 켜진 채 남을 수 있었다. 종료 전 추적 끄기와 같은 구분)
     /// </summary>
     public async Task<string?> RestForPlanAsync(CancellationToken ct)
     {
         if (mode.Simulate) return null;
-        var s = await StateAsync(ct);
-        if (!s.Available)
+        string? busy = _homing ? "홈 이동 중" : NeedsCheck ? "멈춤 확인 필요" : shoot.Active ? "촬영 중" : mount.IsHeld ? "적도의 사용 중" : null;
+        foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
+            busy ??= runner.ActiveTaskTitle is { } task ? $"{task} 작업 중" : null;
+        if (busy is not null)
         {
-            log.LogInformation("계획으로 돌아가며 추적 끄기를 하지 않음: {Reason}", s.Reason);
+            log.LogInformation("계획으로 돌아가며 추적 끄기를 하지 않음: {Reason}", busy);
             return null;
         }
+        bool? off;
         await using (await mount.AcquireAsync(ct))
-        {
-            if (await wrap.TrackingOffAsync(ct)) { log.LogInformation("계획으로 돌아가며 추적을 끔"); return null; }
-        }
-        log.LogWarning("계획으로 돌아가며 추적을 끄지 못함");
-        return "추적을 끄지 못했습니다. N.I.N.A.에서 추적이 꺼졌는지 확인해 주세요.";
+            off = await TrackingOffKnownAsync("계획으로 돌아가며", ct);
+        return off == false ? "추적을 끄지 못했거나 적도의 상태를 읽지 못했습니다. N.I.N.A.에서 추적이 꺼졌는지 확인해 주세요." : null;
     }
 
     /// <summary>
@@ -116,16 +118,25 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     public async Task<bool?> TrackingOffForQuitAsync(CancellationToken ct)
     {
         if (mode.Simulate || shoot.Active) return null;
+        return await TrackingOffKnownAsync("종료 전", ct);
+    }
+
+    /// <summary>
+    /// 추적 끄기 — 상태를 못 읽음과 미연결을 나눈다: 미연결이라고 분명히 답하면 null(할 일 없음), 이미 꺼져 있거나 껐으면 true,
+    /// 상태를 못 읽었거나 끄지 못했으면 false
+    /// </summary>
+    private async Task<bool?> TrackingOffKnownAsync(string when, CancellationToken ct)
+    {
         if (await nina.GetInfoAsync("mount", ct) is not { ValueKind: System.Text.Json.JsonValueKind.Object } info
             || !info.TryGetProperty("Connected", out var c) || c.ValueKind is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
         {
-            log.LogWarning("종료 전 적도의 추적 끄기: 적도의 상태를 읽지 못함");
+            log.LogWarning("{When} 적도의 추적 끄기: 적도의 상태를 읽지 못함", when);
             return false;
         }
         if (c.ValueKind == System.Text.Json.JsonValueKind.False) return null;
         if (info.TryGetProperty("TrackingEnabled", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.False) return true;
         var off = await wrap.TrackingOffAsync(ct);
-        log.LogInformation("종료 전 적도의 추적 끄기: {Result}", off ? "끔" : "실패");
+        log.LogInformation("{When} 적도의 추적 끄기: {Result}", when, off ? "끔" : "실패");
         return off;
     }
 

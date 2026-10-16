@@ -91,7 +91,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             PolarReturn back;
             await using (await run.Context.Mount.AcquireAsync(ct))
                 back = await devices.ReturnToStartAsync(ct);
-            if (back == PolarReturn.AtStart) return true;
+            if (back == PolarReturn.AtStart) { run.Context.Memory.PolarNeedsReturn = false; return true; }
             var unconfirmed = back == PolarReturn.StopUnconfirmed;
             while (unconfirmed)
             {
@@ -100,8 +100,11 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 await using (await run.Context.Mount.AcquireAsync(ct))
                     unconfirmed = !await devices.MountStillAsync(ct);
             }
-            run.Status("홈으로 되돌리지 못했습니다. 적도의를 홈 근처(망원경이 북극성 쪽, 균형추가 아래)로 옮긴 뒤 다시 시도해 주세요", Tone.Fail);
-            if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+            // 멈춘 것은 확인됨: 자동 홈을 다시 시도하거나, 손으로 홈에 옮겼으면 그대로 극 찾기로 (CX-36-09 — 실패하는 홈 명령만 되풀이하지 않게)
+            run.Status("홈으로 되돌리지 못했습니다. 적도의를 홈 근처(망원경이 북극성 쪽, 균형추가 아래)로 옮긴 뒤 눌러 주세요", Tone.Fail);
+            var c = await run.AskAsync([new("manual-home", "손으로 홈에 옮겼어요", true), new("retry", "다시 홈으로 보내기"), new("skip", "극축 정렬 건너뛰기")], ct);
+            if (c == "skip") return false;
+            if (c == "manual-home") { run.Context.Memory.PolarNeedsReturn = false; return true; }
         }
     }
 
@@ -185,11 +188,13 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         // 케이블 확인은 출발 전 점검에서 빼고 크게 돌리기 직전에 (2026-10-12 사용자 결정)
         run.Guide("극 찾기", CloudNotice.With("적도의를 RA축으로 크게 돌려 회전 전후의 별 위치를 비교합니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.", cloud));
         run.Live("sharpcap", "/api/prepare/live/sharpcap");
-        var rotated = false; // 앞 시도에서 RA축을 돌렸다 → 다시 하기 전에 시작 위치로
+        var memory = run.Context.Memory;
         while (true)
         {
-            if (rotated && !await ReturnToStartAsync(run, ct)) return false;
-            rotated = false;
+            // 앞서 RA축을 돌렸으면(이번 실행이든, 중단하고 다시 시작한 앞 실행이든) 다시 하기 전에 시작 위치로 (CX-36-01)
+            if (memory.PolarNeedsReturn && !await ReturnToStartAsync(run, ct)) return false;
+            // 돌리기 전에 켠다 — 도중에 취소돼도 다음 시작이 되돌리기부터
+            memory.PolarNeedsReturn = true;
             // 극 찾기는 RA축을 돌린다 — 끝나고 멈춘 것을 확인할 때까지 적도의 잠금을 쥔다 (CX-30-02)
             PoleFindResult found;
             await using (await run.Context.Mount.AcquireAsync(ct))
@@ -203,7 +208,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 });
             }, ct);
             if (found.Ok) return true;
-            rotated = found.Rotated;
+            if (!found.Rotated) memory.PolarNeedsReturn = false; // 돌리기 전에 실패(첫 사진 등) — 되돌릴 것 없음
             // 멈춘 것을 확인하지 못했으면 다시 돌리지 않는다: 확인될 때까지 "장비 상태 다시 확인"만
             var unconfirmed = found.StopUnconfirmed;
             while (unconfirmed)

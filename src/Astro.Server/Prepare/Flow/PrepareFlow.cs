@@ -84,7 +84,15 @@ public sealed class PrepareFlow
 
     // AA를 다시 켜 이어서 (Session/NightSession): 같은 열쇠로 시작해 화면이 열 때 "같은 계획 — 이어서"가 되게
     public Task ResumeRigAsync(PrepContext ctx, DateOnly evening, IReadOnlySet<string> done) => Rig.StartResumedAsync(ctx, $"rig:{evening:yyyy-MM-dd}", done);
-    public Task ResumeTargetAsync(PrepContext ctx, IReadOnlySet<string> done) => Target.StartResumedAsync(ctx, ctx.Plan.ConfirmedAt.ToString("O"), done);
+    /// <summary>
+    /// 이어서 하기: 계획 화면의 확정은 지난 실행의 누름이라 이번 이동 승인이 아니다 — 쓴 것으로 두고 시작해 이동을 다시 묻게 한다
+    /// (CX-36-02: 확정 뒤 2분 안에 다시 켜 이어 가면 누르지 않아도 이동했다)
+    /// </summary>
+    public Task ResumeTargetAsync(PrepContext ctx, IReadOnlySet<string> done)
+    {
+        ctx.MoveApprovalUsed = ctx.Plan.ConfirmedAt;
+        return Target.StartResumedAsync(ctx, ctx.Plan.ConfirmedAt.ToString("O"), done);
+    }
     public Task ResumeWrapAsync(PrepContext ctx, DateOnly evening, IReadOnlySet<string> done) => Wrap.StartResumedAsync(ctx, $"wrap:{evening:yyyy-MM-dd}", done);
 
     /// <summary>세 묶음에서 끝난 작업들</summary>
@@ -105,7 +113,7 @@ public sealed class PrepareFlow
         if (CenterPhoto() is not { } at) return "센터링을 마친 사진에서만 구도를 돌릴 수 있습니다.";
         var turn = Tasks.Center.Framing.Wrap(turnDeg);
         if (Math.Abs(turn) <= Tasks.Center.Framing.ToleranceDeg) at.Ctx.Results.Remove(typeof(Tasks.Center.FramingGoal));
-        else at.Ctx.Results.Set(new Tasks.Center.FramingGoal(at.Ctx.Plan.TargetId, at.Angle, turn));
+        else at.Ctx.Results.Set(new Tasks.Center.FramingGoal(Tasks.Center.FramingGoal.KeyOf(at.Ctx), at.Angle, turn));
         return null;
     }
 
@@ -113,7 +121,7 @@ public sealed class PrepareFlow
     public string? CheckFraming()
     {
         if (CenterPhoto() is not { } at) return "센터링을 마친 사진에서만 확인할 수 있습니다.";
-        if (at.Ctx.Results.Get<Tasks.Center.FramingGoal>() is not { } goal || goal.TargetId != at.Ctx.Plan.TargetId) return "돌릴 구도가 정해지지 않았습니다.";
+        if (at.Ctx.Results.Get<Tasks.Center.FramingGoal>() is not { } goal || goal.PlanKey != Tasks.Center.FramingGoal.KeyOf(at.Ctx)) return "돌릴 구도가 정해지지 않았습니다.";
         SimulateTurn?.Invoke(goal.TurnDeg);
         _ = Target.RedoAsync("center", fromRunning: false);
         return null;

@@ -317,7 +317,12 @@ export default function RigScene({
   }, [scene, done, dive, onDone])
   useEffect(() => {
     if (!done || scene !== 'check') return
-    const key = (e: globalThis.KeyboardEvent) => e.key === 'Enter' && enter()
+    // 팝업(종료 확인 등)이 열려 있거나 이미 처리된 키·길게 눌러 반복되는 키는 넘기지 않는다 — 팝업에서 누른 Enter가 window까지 올라와
+    // 뒤 화면도 넘어갔다 (CX-36-08)
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat || e.defaultPrevented || document.querySelector('dialog[open]')) return
+      enter()
+    }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
   }, [done, scene, enter])

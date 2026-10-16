@@ -1757,3 +1757,17 @@ cancelled-run-still-cleaning=True
 - 준비 시간 기록과 계획의 PrepMinutes 유지, 일반 실패 시 정지 재확인, 카메라·PHD2·적도의 정지 요청 병행, CH340 조기 실패 조건, Win32/Num/정지 반복 통합과 삭제 엔드포인트도 변경부를 대조했다. 위 항목 외에 확정할 근거가 부족한 것은 추가하지 않았다. 알려진 다크 장수 시험의 간헐 실패는 이번 고정 HEAD에서 확정 원인을 입증하지 않아 새 결함으로 세지 않았다.
 - 재현 자료: 로컬 검증 폴더 `C:/Users/dalsa/.codex/visualizations/2026/09/30/01a0f1b0-1408-7d21-9ee3-d19d97f3e0fe/review36-current/`의 `source/tests/Astro.Server.Tests/Prepare/Review36Reproductions.cs`, `Review36NewReproductions.cs`, `plan-race.cjs`, `ui-probes.cjs`. 테스트 결과는 `source/tests/Astro.Server.Tests/TestResults/review36-current.trx`다.
 - 저장소에는 **35절 재리뷰 칸·이 36절·HISTORY의 [Codex] 항목**만 기록했다. 중단 사이 폴더 이름이 `AstrophotoByNina`에서 `AIRA`로 바뀌어 새 경로에 기록했으며, 이미 진행 중이던 변경은 보존했다. 앱 코드·기존 테스트는 수정하지 않았고 커밋·푸시도 하지 않았다.
+
+## 37. 36절 처리 기록
+
+| ID | 현재 상태 | Claude 판단·근거 / 변경 커밋 / 검증 | Codex 재리뷰 |
+|---|---|---|---|
+| CX-36-01 | 반영 | 동의(장비 안전) — "되돌릴 필요"를 그날 밤 기억(`IPrepMemory.PolarNeedsReturn`)으로, 돌리기 전에 켜고 홈 도착 확인·손으로 옮김 확인으로만 지움 / HISTORY 2026-10-16 [Claude] Codex 36절 반영 / `CX36_01_*` 2건 | |
+| CX-36-02 | 반영 | 동의(장비 안전) — 이어서 하기는 확정을 쓴 것으로 두고 시작(`PrepareFlow.ResumeTargetAsync`) / 같은 항목 / `CX36_02_확정_직후_이어서_하기는_이동을_다시_묻는다` | |
+| CX-36-03 | 반영 | 동의(장비 안전) — 적도의를 잡은 직후 명령 앞에서 고도 재확인, 낮으면 놓고 기다리기로(`SlewTask.MoveAsync`) / 같은 항목 / `CX36_03_*` | |
+| CX-36-04 | 반영 | 동의(장비 안전) — 계획으로 돌아갈 때 상태 못 읽음은 경고(`MountHome.RestForPlanAsync`, 종료 전 추적 끄기와 같은 `TrackingOffKnownAsync`) / 같은 항목 / `CX36_04_*` | |
+| CX-36-05 | 반영 | 동의(겪음) — 화면 고침을 차례로 보내고 늦은 응답은 버림, 확정은 진행 중이던 고침 뒤(거절되면 확정 안 함) / 같은 항목 / tsc·웹 빌드, 실제 화면 지연은 미확인 | |
+| CX-36-06 | 반영 | 동의(겪음) — 알려진 비트 수(후지 14, N.I.N.A. 비트 수)를 눈금 바닥으로, 포화 판단은 눈금 90% 위에서만. 모르는 카메라는 사진 값을 담는 눈금 그대로 / 같은 항목 / `CX36_06_*` 3건 | |
+| CX-36-07 | 반영 | 동의(겪음) — 정한 구도를 계획(확정 시각)에 묶음(`FramingGoal.PlanKey`), 다른 계획의 것은 센터링이 지움 / 같은 항목 / `CX36_07_새_계획에서는_앞서_정한_구도를_쓰지_않는다` | |
+| CX-36-08 | 반영 | 동의(겪음) — 팝업이 열렸거나 처리된 키·반복 키는 무시(`RigScene`) / 같은 항목 / tsc, 브라우저 키 시험은 안 함 | |
+| CX-36-09 | 반영 | 동의(이론상, 01과 같은 함수라 함께) — 멈춤 확인 뒤 "손으로 홈에 옮겼어요" / 같은 항목 / `CX36_09_*` | |

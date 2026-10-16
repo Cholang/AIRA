@@ -583,7 +583,9 @@ public class ShootAndWrapTests
         var asked = await flow.Wrap.Until(x => x.Has("covered") && x.Current!.Center.Readout?.Big == "10", "10장");
         Assert.Equal(10, asked.Current!.Center.Readout!.Values["count"]);
         await flow.Wrap.Press("covered");
-        await flow.Wrap.Press("stop-here");
+        // 모의는 기다리지 않아 "여기까지만"이 뜨기 전에 다 찍을 수 있다 — 뜨면 누르고, 이미 끝났으면 그대로 (가끔 10초 기다리다 실패하던 시험)
+        var at = await flow.Wrap.Until(x => x.Has("stop-here") || x.Ready, "여기까지만 또는 요약");
+        if (at.Has("stop-here")) _ = flow.Wrap.Act("stop-here");
         await flow.Wrap.Until(x => x.Ready, "요약");
         var n = results.Get<DarkResult>()!.Sets.Sum(s => s.Count);
         Assert.InRange(n, 1, 10); // 모의는 기다리지 않아 누르기 전에 다 찍을 수도 있다

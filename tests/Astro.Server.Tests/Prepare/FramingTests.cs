@@ -21,7 +21,7 @@ public class FramingTests
     [Fact]
     public void 안내대로_돌렸으면_남은_각도는_0()
     {
-        var goal = new FramingGoal("m31", 87, 30);
+        var goal = new FramingGoal("plan", 87, 30);
         Assert.Equal(0, Framing.Remaining(goal, 87 + Framing.AnglePerTurn * 30), 6);
         Assert.Equal(30, Framing.Remaining(goal, 87), 6); // 안 돌림
         Assert.Equal(10, Framing.Remaining(goal, 87 + Framing.AnglePerTurn * 20), 6); // 덜 돌림
@@ -64,11 +64,12 @@ public class FramingTests
     /// <summary>센터링이 끝나 다음 버튼이 보일 때까지 (그 전 작업의 주 버튼은 누른다)</summary>
     private static async Task<PrepView> UntilCenterDone(PrepareFlow flow)
     {
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < 40; i++)
         {
             var v = await flow.Target.Until(x => x.Current?.Center.Actions.Count > 0, "버튼");
             if (v.Current!.TaskId == "center" && v.Row("center") == PrepTaskStatus.Done) return v;
-            Assert.Null(flow.Target.Act(v.Current.Center.Actions.First(a => a.Primary).Id));
+            // 보고 누르는 사이 저절로 다음으로 넘어갔으면(바로 넘어가는 작업) 거절된다 — 다시 본다 (가끔 실패하던 시험)
+            _ = flow.Target.Act(v.Current.Center.Actions.First(a => a.Primary).Id);
             await Task.Delay(5);
         }
         throw new InvalidOperationException("센터링이 끝나지 않았습니다: " + Harness.Describe(flow.Target.View()));
@@ -103,6 +104,20 @@ public class FramingTests
         v = await UntilCenterDone(flow);
         Assert.Equal(0, v.Current!.Center.Readout!.Values["frameDeg"]);
         Assert.Equal("구도를 맞췄어요", v.Current.Guide.Title);
+        Assert.Equal("돌릴 구도가 정해지지 않았습니다.", flow.CheckFraming());
+    }
+
+    [Fact]
+    public async Task CX36_07_새_계획에서는_앞서_정한_구도를_쓰지_않는다()
+    {
+        var (flow, _) = await AtCenterPhoto();
+        Assert.Null(flow.SetFraming(30));
+        // 다른 대상을 골랐다가 같은 대상으로 돌아온 것처럼 — 새로 확정한 계획
+        var results = flow.ResultsFor(DateOnly.Parse(Evening));
+        Assert.Null(flow.StartTarget(Harness.TargetContext(results, new InMemoryPrepMemory(), Harness.Plan(DateTimeOffset.Now.AddSeconds(1)))));
+        var v = await UntilCenterDone(flow);
+        Assert.Equal(0, v.Current!.Center.Readout!.Values["frameDeg"]);
+        Assert.NotEqual("조금 더 돌려 주세요", v.Current.Guide.Title);
         Assert.Equal("돌릴 구도가 정해지지 않았습니다.", flow.CheckFraming());
     }
 

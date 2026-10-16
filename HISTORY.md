@@ -8,6 +8,26 @@
 
 ---
 
+## 2026-10-16 · [Claude] Codex 36절 반영 — 극 찾기 재시작·이어서 하기 승인·잠금 뒤 고도·계획 복귀 추적, 계획 고침 순서·밝기 눈금·구도 수명·팝업 Enter
+
+**요청**: Codex 36절 9건 모두 반영(사용자 동의, 장비 안전 4 · 겪음 4 · 이론상 1).
+
+**변경**:
+- CX-36-01·09 `PolarTask`: `IPrepMemory.PolarNeedsReturn`(돌리기 전에 켬, 홈 도착·"손으로 홈에 옮겼어요"로만 끔), 홈 실패 뒤 선택 "손으로 홈에 옮겼어요 / 다시 홈으로 보내기 / 건너뛰기".
+- CX-36-02 `PrepareFlow.ResumeTargetAsync`: 이어서 하기는 확정을 쓴 것으로 둠.
+- CX-36-03 `SlewTask.MoveAsync`: 잡은 직후 `TooLow` → 보내지 않고 기다리기로(`_lowAtLock`, 이동 시작 시각도 지움).
+- CX-36-04 `MountHome.RestForPlanAsync`: 바쁜 때(홈·확인 필요·촬영·작업·잠금)만 넘기고, 나머지는 `TrackingOffKnownAsync`(종료 전 추적 끄기와 공용 — 미연결 null · 못 읽음/실패 false → 오류 줄).
+- CX-36-05 `PlanScreen`: 고침을 `edits` 사슬로 차례로, 늦은 응답은 버림, `start`는 진행 중이던 고침을 기다리고 거절되면 확정 안 함.
+- CX-36-06 `Fits.Analyze(img, knownBits)`: 후지 14비트·N.I.N.A. 비트 수를 눈금 바닥으로, 포화는 눈금 90% 위에서 몰린 최댓값만. `RealTestShotDevices`가 `CameraBitDepthAsync`를 넘김.
+- CX-36-07 `FramingGoal.PlanKey`(확정 시각), 센터링이 다른 계획의 구도를 지움.
+- CX-36-08 `RigScene`: 팝업이 열렸거나 처리된·반복 Enter는 무시.
+- 시험: 새 `Review36Tests` 6 · `FitsTests` 3 · `FramingTests` 1. 가끔 실패하던 시험 둘(`FramingTests.UntilCenterDone`, `다크_장수는_5장씩…`)은 보고 누르는 사이 저절로 넘어가는 경우를 기다리게 고침(시험만).
+- 문서: OPERATION_PROCEDURE(극 찾기 되돌리기 · 이동 다시 확인 · 계획 복귀 추적 · 구도 수명 · 밝기 눈금), DECISION_HISTORY, REVIEW_CODEX 37절 처리 기록.
+
+**확인**: 서버 시험 316 통과·1 건너뜀(전체 3번 연속, 새 시험은 8번 연속), 웹 tsc·lint(경고 38 그대로)·시험 52·빌드, 솔루션 빌드 경고·오류 0. 05·08은 화면에서 직접 눌러 보지 않음(코드·타입 검사만). 실장비 미사용.
+
+---
+
 ## 2026-10-16 · [Codex] 38e1744..2a0428f 리뷰 — 재시작·이동 승인·추적 정리, 계획·구도·밝기 눈금
 
 **요청**: 저장소의 Codex 리뷰 요청서에 따라 정확성·장비 안전을 독립 검토하고 35절 재리뷰 칸·36절에 기록. 중단 전 고정한 `2a0428f286effa17d0a1dcf48dfa8bf61fc8636a`까지 유지. 사용자 추가 결정으로 장비 없이 화면 확인용인 `[임시] 건너뛰기` 관련 지적은 제외.
@@ -20,7 +40,7 @@
 
 ---
 
-## 2026-10-16 · [Claude] Gemini 리뷰 7 B-05·B-06 — 팝업 크기 한도를 틀 단위로, 죽은 DiagnosisCard 지움, 툴팁 세 곳을 공통 Tooltip으로
+## 2026-10-16 · 79ac4c0 [Claude] Gemini 리뷰 7 B-05·B-06 — 팝업 크기 한도를 틀 단위로, 죽은 DiagnosisCard 지움, 툴팁 세 곳을 공통 Tooltip으로
 
 **요청**: 미뤄 둔 B-05·B-06을 지금 반영.
 

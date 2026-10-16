@@ -59,6 +59,35 @@ public class FitsTests : IDisposable
     }
 
     [Fact]
+    public void CX36_06_밝은_별이_없는_후지_사진도_14비트_눈금으로_읽는다()
+    {
+        // 최댓값 3000 하나, 배경 2024 — 12비트로 내려 읽으면 배경이 약 33%(실제 약 6.5%)
+        Write(100, 100, i => i == 5 ? 3000 : 2024, "Fujifilm X-T5");
+        var px = Fits.Analyze(_file)!;
+        Assert.Equal((16383, 1024), (px.White, px.Black));
+        Assert.Equal(1000.0 / (16383 - 1024), px.Background, 3);
+    }
+
+    [Fact]
+    public void CX36_06_알려진_비트_수가_눈금의_바닥이고_넘으면_올린다()
+    {
+        Write(100, 100, i => i == 5 ? 3000 : 1000);
+        Assert.Equal(16383, Fits.Analyze(_file, knownBits: 14)!.White);  // 어두워도 내리지 않는다
+        Assert.Equal(4095, Fits.Analyze(_file)!.White);                  // 모르면 사진 값을 담는 표준 눈금 (그대로)
+        Write(100, 100, i => i == 5 ? 30000 : 1000);
+        Assert.Equal(65535, Fits.Analyze(_file, knownBits: 14)!.White);  // 설정보다 큰 값이 있으면 올린다
+    }
+
+    [Fact]
+    public void CX36_06_눈금보다_한참_낮은_곳에_몰린_최댓값은_포화로_보지_않는다()
+    {
+        Write(100, 100, i => i < 3 ? 3000 : 2024, "Fujifilm X-T5");
+        var px = Fits.Analyze(_file)!;
+        Assert.Equal(16383, px.White);
+        Assert.Equal(0, px.SaturatedPercent);
+    }
+
+    [Fact]
     public void 플랫_밝기는_바닥을_빼고_바닥에서_포화_사이로()
     {
         Assert.Equal(0.5, CameraScale.Fraction(1024 + (16383 - 1024) / 2.0, 16383, 1024), 6);

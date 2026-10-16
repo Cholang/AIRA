@@ -2,9 +2,13 @@ namespace Astro.Server.Prepare.Tasks.Center;
 
 /// <summary>
 /// 원하는 구도 (⑤ 센터링 뒤 — 사용자가 사진 위의 틀을 돌려 정함). 각도는 모두 "화면에서 시계 방향 +", 그 사진 기준.
-/// BaseAngleDeg = 그 사진의 카메라 방향(솔빙), TurnDeg = 그 사진에서 틀을 돌린 만큼. 대상이 바뀌면 쓰지 않는다(TargetId)
+/// BaseAngleDeg = 그 사진의 카메라 방향(솔빙), TurnDeg = 그 사진에서 틀을 돌린 만큼.
+/// 정한 계획에만 쓴다(PlanKey = 계획 확정 시각) — 다른 대상을 골랐다가 같은 대상으로 돌아와도 새 계획이라 쓰지 않는다 (CX-36-07)
 /// </summary>
-public sealed record FramingGoal(string TargetId, double BaseAngleDeg, double TurnDeg);
+public sealed record FramingGoal(string PlanKey, double BaseAngleDeg, double TurnDeg)
+{
+    public static string KeyOf(Flow.PrepContext ctx) => ctx.Plan.ConfirmedAt.ToString("O");
+}
 
 /// <summary>
 /// 구도 회전 (OPERATION_PROCEDURE.md ⑤, 2026-10-16 사용자 결정): 틀을 돌려 원하는 구도를 정하면 카메라를 그만큼 돌리게 안내하고,

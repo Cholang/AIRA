@@ -189,6 +189,11 @@ public interface IPrepMemory
     CalibrationResult? LastCalibration { get; set; }
     /// <summary>마지막으로 극축 정렬을 마친 시각 — 그 전에 만든 캘리브레이션은 재사용하지 않는다 (CX-PREP-CODE-06)</summary>
     DateTimeOffset? LastPolarAlignedAt { get; set; }
+    /// <summary>
+    /// 극 찾기로 RA축을 돌렸거나 돌렸을 수 있다 — 다시 극 찾기를 하기 전에 시작 위치(홈)로 (CX-36-01: 한 번의 실행보다 오래 — 준비를 중단하고 다시 시작해도).
+    /// 돌리기 전에 켜고, 홈 도착을 확인했거나 사용자가 손으로 홈에 옮겼다고 확인해야 끈다
+    /// </summary>
+    bool PolarNeedsReturn { get; set; }
     double? CameraAngle(string targetId);
     void SetCameraAngle(string targetId, double degrees);
 }
@@ -199,6 +204,7 @@ public sealed class InMemoryPrepMemory : IPrepMemory
     public (int Position, double? TemperatureC)? LastFocus { get; set; }
     public CalibrationResult? LastCalibration { get; set; }
     public DateTimeOffset? LastPolarAlignedAt { get; set; }
+    public bool PolarNeedsReturn { get; set; }
     public double? CameraAngle(string targetId) => _angles.TryGetValue(targetId, out var a) ? a : null;
     public void SetCameraAngle(string targetId, double degrees) => _angles[targetId] = degrees;
 }
