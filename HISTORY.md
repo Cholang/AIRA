@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — LiveView를 사진·판·모의 그림으로
+## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — PlanScreen을 대화·대상·설정으로
+
+**요청**: 분리 계획 3단계 둘째 파일.
+
+**변경** (옮기기만 — `export`·import만 바뀜): `screens/PlanScreen.tsx`(656 → 217줄: `PlanScreen`·`PlanBody`·`TARGET_ITEMS`)에서 `PlanChat.tsx`(AI 대화, 250줄) · `PlanTarget.tsx`(구도 미리보기·시간대 줄·화각 상자, 140줄) · `PlanSettings.tsx`(설정 줄과 `whyShort`, 157줄). CSS는 모두 `PlanScreen.module.css`.
+
+**확인**: 바뀐 줄은 `export`·import·파일 설명 줄뿐(옮긴 줄 466). tsc·lint(경고 38 그대로)·웹 시험 52·웹 빌드. 화면 확인은 3단계 끝에.
+
+---
+
+## 2026-10-16 · 2258a5f [Claude] 큰 파일 분리 3단계 — LiveView를 사진·판·모의 그림으로
 
 **요청**: 분리 계획 3단계(웹 컴포넌트) 첫 파일.
 
