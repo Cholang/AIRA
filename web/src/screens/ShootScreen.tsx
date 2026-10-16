@@ -8,6 +8,7 @@ import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra } from '../components/StepRail'
 import { postSkip, useTempSkip } from '../components/TempSkip'
 import type { CurrentView, PrepAction, Tone } from '../prepare'
+import { BUTTON } from '../buttonText'
 import { answerShoot, recheckShootStop, stopShoot, watchShoot, type ShootView } from '../shoot'
 import styles from './PrepareScreen.module.css'
 
@@ -142,15 +143,17 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
   let title = `${target} 촬영 중`
   let text = `계획대로 ${view.exposureSeconds}초씩 찍고 있어요. 사진마다 등급을 매겨 실패한 사진은 제외 폴더로 옮겨요. 자오선 반전·디더링·초점 다시 맞추기는 자동이에요. 자오선 반전 때는 적도의가 반대편으로 크게 도니 케이블이 걸리지 않게 해 주세요.`
   let actions: PrepAction[] = []
+  let prompt: string | null = null
   let custom: ReactNode = <ShootGauges v={view} />
   if (asking && !ended) {
     title = '촬영을 중단할까요?'
-    text = '지금 찍는 사진은 끝까지 찍고 멈춰요. 오늘 밤을 마무리하거나, 다른 대상을 고르러 대상 단계로 돌아갈 수 있어요. 장비 준비는 그대로 써요.'
+    text = '지금 찍는 사진은 끝까지 찍고 멈춰요. 장비 준비는 그대로 써요.'
     actions = [
-      { id: 'wrap', label: '끝내고 마무리하기', primary: true },
-      { id: 'retarget', label: '다른 대상으로 변경', primary: false },
+      { id: 'wrap', label: '중단 후 종료', primary: true },
+      { id: 'retarget', label: '새 대상을 찾기', primary: false },
       { id: 'continue', label: '계속 찍기', primary: false },
     ]
+    prompt = '촬영을 멈추고 플랫·다크를 찍어 오늘 밤을 마무리할까요?\n새 대상을 찾기를 누르면 계획 화면으로 돌아가 다른 대상을 고르고, 계속 찍기를 누르면 그대로 찍어요.'
   } else if (then) {
     title = '촬영을 멈추는 중이에요'
     text = then === 'wrap' ? '지금 사진까지 찍고 가이드를 멈춰요. 그다음 보정 프레임을 찍어요.' : '지금 사진까지 찍고 가이드를 멈춰요. 그다음 대상 단계(계획)로 돌아가요.'
@@ -170,30 +173,34 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
     )
   } else if (view.mode === 'Paused' && view.ask === 'unstable') {
     title = '가이드가 15분 넘게 안정되지 않아요'
-    text = '그대로 찍으면 별이 흐른 사진은 등급을 보고 제외 폴더로 옮기고, 이 대상에서는 다시 멈추지 않아요. 더 기다리면 15분 뒤에 다시 물어봐요.'
+    text = '구름이나 바람 때문일 수 있어요.'
     actions = [
       { id: 'ask-shoot', label: '그대로 찍기', primary: true },
       { id: 'ask-wait', label: '더 기다리기', primary: false },
     ]
+    prompt = '별이 흐른 사진은 등급을 보고 제외 폴더로 옮기며 그대로 찍을까요? 이 대상에서는 다시 멈추지 않아요.\n더 기다리기를 누르면 15분 뒤에 다시 물어봐요.'
   } else if (view.mode === 'Paused') {
     ;[title, text] = PAUSE[view.pause ?? 'cloud'] ?? PAUSE.cloud
   } else if (ended && !stopped) {
     // 가이딩 정지를 확인하지 못함: 다시 확인하기 전에는 다음으로 가지 않는다 (CX-SHOOT-01)
     if (!view.mountStopped) {
       title = '적도의가 멈췄는지 확인해 주세요'
-      text = '자오선 반전이 되지 않아 촬영을 멈췄는데, 적도의가 아직 움직이는지 확인하지 못했어요. 움직이는 채로 다른 이동을 명령하면 위험해요. 적도의를 확인한 뒤 다시 확인을 눌러 주세요.'
+      text = '자오선 반전이 되지 않아 촬영을 멈췄는데, 적도의가 아직 움직이는지 확인하지 못했어요. 움직이는 채로 다른 이동을 명령하면 위험해요.'
+      prompt = '적도의를 직접 본 뒤 장비 상태를 다시 읽어 볼까요?'
     } else {
       title = '가이드가 멈췄는지 확인해 주세요'
-      text = '촬영은 멈췄지만 PHD2 가이드가 멈췄는지 확인하지 못했어요. 가이드가 켜진 채로 적도의를 옮기면 위험해요. PHD2를 확인한 뒤 다시 확인을 눌러 주세요.'
+      text = '촬영은 멈췄지만 PHD2 가이드가 멈췄는지 확인하지 못했어요. 가이드가 켜진 채로 적도의를 옮기면 위험해요.'
+      prompt = 'PHD2를 확인한 뒤 장비 상태를 다시 읽어 볼까요?'
     }
-    actions = [{ id: 'recheck', label: '장비 상태 다시 확인', primary: true }]
+    actions = [{ id: 'recheck', label: BUTTON.recheck, primary: true }]
   } else if (ended) {
     title = '촬영을 마쳤어요'
-    text = `${ENDED[view.ended ?? ''] ?? ''}가이드를 멈췄어요. 이제 보정 프레임(플랫·다크)을 찍고 장비를 정리해요. 아직 밤이 남았으면 다른 대상을 찍어도 돼요.`
+    text = `${ENDED[view.ended ?? ''] ?? ''}가이드를 멈췄어요. 이제 보정 프레임(플랫·다크)을 찍고 장비를 정리해요.`
     actions = [
-      { id: 'wrap', label: '플랫 찍으러 가기', primary: true },
-      { id: 'retarget', label: '다른 대상으로 변경', primary: false },
+      { id: 'wrap', label: '플랫 프레임 찍기', primary: true },
+      { id: 'retarget', label: '새 대상을 찾기', primary: false },
     ]
+    prompt = '망원경을 하늘 위쪽으로 돌려 플랫을 찍을까요? 누르면 적도의가 움직여요.\n아직 밤이 남았으면 새 대상을 찾기를 눌러 다른 대상을 골라도 돼요.'
     custom = (
       <div className={styles.metricPlain}>
         <strong data-tone="Ok">{view.good}장</strong>
@@ -224,7 +231,7 @@ export default function ShootScreen({ onWrap, onRetarget }: { onWrap: () => void
       <div className={styles.scrim} />
       <div className={styles.over}>
         <PrepGuide task="촬영" title={title} text={text} />
-        <PrepCenter readout={null} status={status} actions={actions} onAct={(id) => void act(id)} custom={custom} />
+        <PrepCenter readout={null} status={status} actions={actions} prompt={prompt} onAct={(id) => void act(id)} custom={custom} />
         <ShootGrades v={view} />
       </div>
       {/* [임시] 모의 실패: 다음 동작 하나를 일부러 (모의 장비일 때만) */}

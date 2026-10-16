@@ -1,3 +1,4 @@
+import { BUTTON } from '../buttonText'
 import { AlertTriangle, Check, RotateCw } from 'lucide-react'
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -253,7 +254,7 @@ export function CameraPower() {
       <ConfirmDialog
         open={asking !== null}
         message={`Wanderer Empire에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. ${PRODUCT.neun} 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
-        confirmLabel="맞췄어요"
+        confirmLabel={BUTTON.done}
         size="md"
         onConfirm={() => {
           save(asking)

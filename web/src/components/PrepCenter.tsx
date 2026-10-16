@@ -6,14 +6,16 @@ import StatusIcon, { type Status } from './StatusIcon'
 import styles from './PrepCenter.module.css'
 
 /**
- * 중앙 정보 (DESIGN.md "하늘 화면" — 가운데 아래): 측정값 → 상태 줄 → 버튼. 순서·자리 고정, 모든 작업 공통 껍데기.
+ * 중앙 정보 (DESIGN.md "하늘 화면" — 가운데 아래): 측정값 → 상태 줄 → 버튼 레이아웃 영역. 순서·자리 고정, 모든 작업 공통 껍데기.
  * 작업마다 다른 건 측정값 칸 안의 그림뿐 (① 등급·화살표, 나머지는 큰 숫자 + 설명).
- * 주 버튼은 가운데 고정, 보조 버튼은 그 오른쪽에 같은 높이로 — 보조 버튼 수와 관계없이 주 버튼이 움직이지 않는다.
+ * 버튼 레이아웃 영역 (2026-10-17 사용자 결정, 시안 mockups/aira-button-layouts.html B): 55% 설명(오른쪽 정렬) | 45% 버튼(왼쪽 정렬, 주 버튼 맨 앞).
+ * 높이는 설명 3줄 자리로 고정, 설명과 버튼은 아래 맞춤 — 버튼 수·설명 줄 수와 관계없이 주 버튼이 움직이지 않는다.
  */
 export default function PrepCenter({
   readout,
   status,
   actions,
+  prompt,
   onAct,
   disabled,
   custom,
@@ -23,6 +25,8 @@ export default function PrepCenter({
   custom?: ReactNode
   status: { text: string; tone: Tone } | null
   actions: PrepAction[]
+  /** 버튼 레이아웃 영역 왼쪽 설명 (줄바꿈 \n, 최대 3줄) */
+  prompt?: string | null
   onAct: (id: string) => void
   disabled?: boolean
 }) {
@@ -52,12 +56,13 @@ export default function PrepCenter({
       </p>
 
       <div className={styles.actions} data-empty={!primary} data-occludes={primary ? '' : undefined}>
-        {primary && (
-          <Button variant="primary" size="lg" surface="sky" className={styles.primary} onClick={() => onAct(primary.id)} disabled={disabled}>
-            {primary.label}
-          </Button>
-        )}
-        <div className={styles.secondary}>
+        <p className={styles.prompt}>{primary ? (prompt ?? '') : ''}</p>
+        <div className={styles.buttons}>
+          {primary && (
+            <Button variant="primary" size="lg" surface="sky" className={styles.primary} onClick={() => onAct(primary.id)} disabled={disabled}>
+              {primary.label}
+            </Button>
+          )}
           {rest.map((a) => (
             <Button key={a.id} size="lg" surface="sky" className={styles.quiet} onClick={() => onAct(a.id)} disabled={disabled}>
               {a.label}

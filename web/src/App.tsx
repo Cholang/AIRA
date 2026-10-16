@@ -1,3 +1,4 @@
+import { BUTTON } from './buttonText'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useFrame } from './frame'
 import { ScreenReady } from './screenReady'
@@ -544,7 +545,7 @@ export default function App() {
                   ? `지난번 촬영이 중단됐습니다.\n${pending.summary}\n재부팅되었거나 시간이 많이 지났으므로 새로 시작합니다.`
                   : ''
         }
-        confirmLabel={pending?.kind === 'resume' ? (pending.error ? '다시 시도' : '이어서 하기') : '확인'}
+        confirmLabel={pending?.kind === 'resume' ? (pending.error ? BUTTON.retry : '이어서 하기') : '확인'}
         cancelLabel="새로 시작하기"
         size="md"
         single={pending?.kind !== 'resume'}

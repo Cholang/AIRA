@@ -1,3 +1,4 @@
+import { BUTTON } from '../buttonText'
 import { ChevronLeft, MapPin, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ScreenReady } from '../screenReady'
@@ -99,7 +100,7 @@ export default function SiteScreen({
         <div className={styles.applyActions} data-shown={apply.state === 'failed'}>
           <Button onClick={() => setApply(null)}>돌아가기</Button>
           <Button variant="primary" onClick={() => chosen && applyChosen(chosen)}>
-            다시 시도
+            {BUTTON.retry}
           </Button>
         </div>
       </main>

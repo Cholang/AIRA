@@ -31,7 +31,7 @@ public sealed partial class PrepareRunner
             task = TempSkipTarget();
         }
         if (task is null) return "지금은 넘길 작업이 없습니다";
-        if (!success && TempSkipSuccessOnly.Contains(task.Id)) return $"{Core.Josa.Pick(task.Title, "은", "는")} 성공으로만 넘길 수 있습니다";
+        if (!success && TempSkipSuccessOnly.Contains(task.Id)) return $"{task.Title}{Core.Josa.Pick(task.Title, "은", "는")} 성공으로만 넘길 수 있습니다";
         // 정지 확인에 실패했다가 "장비 상태 다시 확인"으로 확인되면 같은 마무리를 한다 (CX-20-09)
         if (cur is { Finished: false } && cur.Task == task
             && !await StopCurrentAsync(() => { FinishTempSkip(task, success); return Task.CompletedTask; })) return "장비가 멈췄는지 확인하지 못했습니다";
@@ -53,10 +53,11 @@ public sealed partial class PrepareRunner
             cur.Ask = null;
             cur.Status = null;
             cur.Guide = new GuideView(success ? "[임시] 성공으로 넘겼습니다" : "[임시] 실패로 넘겼습니다",
-                $"{Core.Josa.Pick(task.Title, "을", "를")} 시험용 {(success ? "성공" : "실패")} 기록으로 채우고 넘깁니다.");
+                $"{Core.Josa.Reul(task.Title)} 시험용 {(success ? "성공" : "실패")} 기록으로 채우고 넘깁니다.");
             _rows[task.Id] = success ? (PrepTaskStatus.Done, "[임시] 성공으로 넘김") : (PrepTaskStatus.Skipped, "[임시] 실패로 넘김");
             var next = _tasks.FirstOrDefault(t => _rows.TryGetValue(t.Id, out var r) && r.Status is PrepTaskStatus.Pending or PrepTaskStatus.NeedsRecheck);
-            cur.Actions = next is null ? [_setup.Finish] : [new PrepAction("next", next.StartLabel, true), .. next.StartAlternatives];
+            if (next is null) cur.Show([_setup.Finish], _setup.FinishPrompt);
+            else cur.Show([new PrepAction("next", next.StartLabel, true), .. next.StartAlternatives], next.StartPrompt);
             Changed();
         }
     }

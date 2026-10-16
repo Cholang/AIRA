@@ -14,6 +14,8 @@ public interface IPrepTask
     string Title { get; }
     /// <summary>이 작업을 시작하는 버튼 이름 (앞 작업의 끝 버튼). 예: "캘리브레이션 시작"</summary>
     string StartLabel { get; }
+    /// <summary>시작 버튼을 누르면 무엇이 되는지 묻는 설명 (버튼 레이아웃 영역 첫 줄). 예: "적도의를 남쪽 하늘로 옮겨 … 시작할까요?"</summary>
+    string? StartPrompt => null;
     /// <summary>
     /// 시작 버튼 옆에 둘 다른 선택 (id는 "next:선택"). 누르면 PrepContext.StartChoice에 선택을 넣고 이 작업을 시작한다 —
     /// 예: 캘리브레이션의 "가이딩 없이 진행" (2026-10-09 사용자 제안: 움직이기 전 버튼에서 고르게)
@@ -64,6 +66,9 @@ public abstract record TaskOutcome;
 /// </summary>
 public sealed record Completed(object Result, string ResultLine, string GuideTitle, string GuideText, IReadOnlyList<PrepAction>? Extra = null) : TaskOutcome
 {
+    /// <summary>Extra 버튼을 누르면 어떻게 되는지 (버튼 레이아웃 영역 설명의 다음 줄)</summary>
+    public string? ExtraPrompt { get; init; }
+
     /// <summary>묻지 않고 다음 작업으로 넘어간다 (예: 초점 확인이 괜찮으면 결과를 잠깐 보여 주고 가이딩으로)</summary>
     public bool AutoNext { get; init; }
 }
@@ -85,6 +90,11 @@ public interface ITaskRun
     void Live(string kind, string? url = null, object? data = null);
     /// <summary>버튼을 보여 주고 사용자가 누른 버튼 id를 기다린다</summary>
     Task<string> AskAsync(IReadOnlyList<PrepAction> actions, CancellationToken ct);
+    /// <summary>
+    /// 버튼과 함께 버튼 레이아웃 영역 설명(prompt)을 보인다 — 첫 줄은 주 버튼을 누르면 무엇이 되는지 묻고, 줄을 바꿔 보조 버튼을 누르면 어떻게 되는지.
+    /// 시험용 가짜 통로는 설명을 무시해도 된다
+    /// </summary>
+    Task<string> AskAsync(string? prompt, IReadOnlyList<PrepAction> actions, CancellationToken ct) => AskAsync(actions, ct);
 }
 
 /// <summary>

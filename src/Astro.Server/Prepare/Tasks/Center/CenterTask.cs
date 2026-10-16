@@ -31,6 +31,7 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
     public string Id => "center";
     public string Title => "센터링";
     public string StartLabel => "센터링 시작";
+    public string? StartPrompt => "사진을 찍어 실제 위치를 계산하고, 대상이 가운데 오도록 적도의를 조금씩 옮길까요?";
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("shoot", "사진 촬영"), new("solve", "위치 계산"), new("correct", "중심 보정")];
 
     public bool AppliesTo(PrepContext ctx) => true;
@@ -60,13 +61,13 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                     var still = false;
                     while (!still)
                     {
-                        run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
-                        await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                        run.Status("적도의가 멈췄는지 확인하지 못했습니다", Tone.Fail);
+                        await run.AskAsync("적도의를 직접 본 뒤 장비 상태를 다시 읽어 볼까요?", [new("recheck-stop", ButtonText.Recheck, true)], ct);
                         await using (await ctx.Mount.AcquireAsync(ct))
                             still = await devices.StopAsync(ct);
                     }
-                    run.Status("적도의를 멈췄습니다. 다시 찍어 맞춥니다", Tone.Warn);
-                    await run.AskAsync([new("retry", "다시 맞추기", true)], ct);
+                    run.Status("적도의를 멈췄습니다", Tone.Warn);
+                    await run.AskAsync("다시 찍어 가운데로 맞출까요? 적도의가 조금씩 움직여요.", [new("retry", ButtonText.Retry, true)], ct);
                     continue;
                 }
                 if (!a.Solved)
@@ -75,7 +76,8 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                     if (!blind) { blind = true; run.Status("다시 실패 · 하늘 전체에서 찾는 중입니다 (전체 하늘 검색)", Tone.Warn); i--; continue; }
                     run.Guide("위치를 계산하지 못했습니다", "노출을 늘리고 하늘 전체에서 찾아도 별 배치를 찾지 못했습니다. 초점이 나갔거나 구름이 지나가는 중일 수 있습니다. 초점이나 구름을 확인해 주세요.");
                     run.Status("센터링에 실패했습니다", Tone.Fail);
-                    var c = await run.AskAsync([new("retry", "다시 시도", true), new("refocus", "초점 다시 맞추기"), new("skip", "센터링 건너뛰기")], ct);
+                    var c = await run.AskAsync("초점이나 구름을 확인한 뒤 센터링을 다시 할까요?\n초점 다시 맞추기를 누르면 자동초점부터 다시 하고, 건너뛰기를 누르면 가운데 맞추지 않고 넘어가요.",
+                        [new("retry", ButtonText.Retry, true), new("refocus", "초점 다시 맞추기"), new("skip", ButtonText.Skip)], ct);
                     if (c == "skip") return Skip(ctx, "대상이 가운데에서 벗어나 있을 수 있어요. 시험 사진에서 구도를 확인해 주세요.");
                     if (c == "refocus")
                     {
@@ -106,13 +108,13 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
                     run.Status(null);
                     // 탐색: 이 사진(센터링 사진)으로 구도를 보고 이 대상으로 확정하거나 다른 대상으로 (OPERATION_PROCEDURE.md "장비 준비 · 대상")
                     return new Completed(new CenterResult(a.ErrorArcmin, a.CameraAngleDeg, i, ctx.Now(), a.Hfr, a.Stars), $"오차 {a.ErrorArcmin:F1}′{angleText}",
-                        title, text, [new("flow:replan", "다른 대상")]);
+                        title, text, [new("flow:replan", "다른 대상")]) { ExtraPrompt = "다른 대상을 누르면 계획 화면으로 돌아가 새 대상을 골라요." };
                 }
                 run.Status("적도의를 조금 옮기는 중입니다");
             }
             run.Guide("가운데에 맞추지 못했습니다", $"{MaxAttempts}번 보정해도 목표(1′) 안에 들어오지 않았습니다. 적도의가 바람에 흔들리거나 케이블이 당기고 있을 수 있습니다.");
             run.Status($"마지막 오차 {last?.ErrorArcmin:F1}′", Tone.Fail);
-            if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "센터링 건너뛰기")], ct) == "skip")
+            if (await run.AskAsync("케이블·바람을 확인한 뒤 센터링을 다시 할까요?\n건너뛰기를 누르면 지금 위치 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("skip", ButtonText.Skip)], ct) == "skip")
                 return Skip(ctx, $"대상이 가운데에서 {last?.ErrorArcmin:F1}′쯤 벗어나 있어요. 시험 사진에서 구도를 확인해 주세요.");
         NextRound:;
         }
@@ -153,7 +155,7 @@ public sealed class CenterTask(ICenterDevices devices) : IPrepTask
     private static Completed Skip(PrepContext ctx, string why) =>
         // 탐색의 "이 대상으로 확정 / 다른 대상"은 그대로 묻는다
         new(new CenterResult(0, null, 0, ctx.Now(), Skipped: true), "건너뜀", "센터링을 건너뛰었어요",
-            why + " 이 대상으로 확정하거나 다른 대상을 고르세요.", [new("flow:replan", "다른 대상")]);
+            why, [new("flow:replan", "다른 대상")]) { ExtraPrompt = "다른 대상을 누르면 계획 화면으로 돌아가 새 대상을 골라요." };
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {

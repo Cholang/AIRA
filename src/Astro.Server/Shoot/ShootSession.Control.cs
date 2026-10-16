@@ -204,8 +204,8 @@ public sealed partial class ShootSession
             _ended = reason;
             _guideStopped = stopped;
             // 끝 이유 알림(실패)이 있으면 그대로, 없으면 가이딩 정지 결과
-            if (!_mountStill) _note = new StatusLine("적도의가 멈췄는지 확인하지 못했어요. 적도의를 확인한 뒤 \"장비 상태 다시 확인\"을 눌러 주세요", Tone.Fail);
-            else if (!stopped) _note = new StatusLine("가이드가 멈췄는지 확인하지 못했어요. PHD2를 확인한 뒤 \"장비 상태 다시 확인\"을 눌러 주세요", Tone.Fail);
+            if (!_mountStill) _note = new StatusLine("적도의가 멈췄는지 확인하지 못했어요. 적도의를 확인한 뒤 \"다시 확인\"을 눌러 주세요", Tone.Fail);
+            else if (!stopped) _note = new StatusLine("가이드가 멈췄는지 확인하지 못했어요. PHD2를 확인한 뒤 \"다시 확인\"을 눌러 주세요", Tone.Fail);
             else if (!trackingOff) _note = new StatusLine("적도의 추적을 끄지 못했어요. 켜 둔 채 두면 적도의가 계속 돌아가니 N.I.N.A.에서 추적을 꺼 주세요", Tone.Fail);
             else if (_note is not { Tone: Tone.Fail }) _note = new StatusLine(_hasGuider ? "가이드를 멈췄어요" : "촬영을 마쳤어요", Tone.Ok);
             _noteUntil = DateTimeOffset.MaxValue;
@@ -250,8 +250,8 @@ public sealed partial class ShootSession
         {
             if (_ctx is null || _mode == ShootMode.Idle) return null;
             if (_mode != ShootMode.Ended) return "아직 촬영 중입니다. \"촬영 중단\"으로 멈춘 뒤 진행해 주세요.";
-            if (!_mountStill) return "적도의가 멈췄는지 확인되지 않았습니다. 촬영 화면에서 \"장비 상태 다시 확인\"을 눌러 주세요.";
-            if (!_guideStopped) return "가이드가 멈췄는지 확인되지 않았습니다. 촬영 화면에서 \"장비 상태 다시 확인\"을 눌러 주세요.";
+            if (!_mountStill) return "적도의가 멈췄는지 확인되지 않았습니다. 촬영 화면에서 \"다시 확인\"을 눌러 주세요.";
+            if (!_guideStopped) return "가이드가 멈췄는지 확인되지 않았습니다. 촬영 화면에서 \"다시 확인\"을 눌러 주세요.";
             return null;
         }
     }

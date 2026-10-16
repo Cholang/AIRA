@@ -29,7 +29,8 @@ export interface CurrentView {
   runId: number
   subSteps: { id: string; label: string; status: PrepTaskStatus }[]
   guide: { title: string; text: string }
-  center: { readout: ReadoutView | null; status: { text: string; tone: Tone } | null; actions: PrepAction[] }
+  /** prompt = 버튼 레이아웃 영역 왼쪽 설명 (첫 줄: 주 버튼을 누르면 무엇이 되는지 묻기, 다음 줄: 보조 버튼을 누르면 어떻게 되는지) */
+  center: { readout: ReadoutView | null; status: { text: string; tone: Tone } | null; actions: PrepAction[]; prompt?: string | null }
   live: { kind: string; url: string | null; data: unknown; observedAt: string } | null
 }
 

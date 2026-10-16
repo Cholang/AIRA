@@ -22,6 +22,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
     public string Title => "초점 확인";
     /// <summary>앞 작업(센터링)의 끝 버튼 — 센터링 사진을 보고 이 대상으로 확정</summary>
     public string StartLabel => "이 대상으로 확정";
+    public string? StartPrompt => "이 구도로 확정하고 장비 준비 때 맞춘 초점이 아직 맞는지 볼까요?";
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("compare", "초점 때와 비교"), new("refocus", "다시 맞추기")];
 
     /// <summary>포커서가 있고 장비 준비에서 자동초점으로 맞췄을 때 (손 초점이면 비교할 기준이 없다)</summary>
@@ -71,7 +72,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
                 : $"기온은 거의 그대로인데 센터링 사진의 별이 {ev.GrowthPercent}% 커졌어요. 포커서가 밀렸거나 장비를 건드렸을 수 있어요.";
         run.Guide("초점을 다시 맞출까요?", why + " 자동초점은 2분쯤 걸려요.");
         run.Status(ev.TemperatureBad ? "기온 변화가 커요" : "별 크기가 커졌어요", Tone.Warn);
-        var c = await run.AskAsync([new("refocus", "다시 맞추기", true), new("keep", "그대로 진행")], ct);
+        var c = await run.AskAsync("대상 근처 별로 자동초점을 다시 할까요?\n이대로 진행을 누르면 장비 준비 때 맞춘 초점 그대로 넘어가요.", [new("refocus", "초점 다시 맞추기", true), new("keep", ButtonText.Proceed)], ct);
         if (c == "keep")
             return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 진행",
                 "그대로 진행합니다", "초점을 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
@@ -142,9 +143,9 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
     /// <summary>다시 맞추다 안 됨: 다시 시도면 true, 그대로 진행이면 false</summary>
     private static async Task<bool> AskAfterProblemAsync(ITaskRun run, string problem, CancellationToken ct)
     {
-        run.Guide("초점을 다시 맞추지 못했습니다", "구름이 지나가거나 바람에 흔들렸을 수 있습니다. 다시 해 보거나, 장비 준비 때 맞춘 초점으로 진행하세요.");
+        run.Guide("초점을 다시 맞추지 못했습니다", "구름이 지나가거나 바람에 흔들렸을 수 있습니다.");
         run.Status(problem, Tone.Fail);
-        return await run.AskAsync([new("retry", "다시 자동초점", true), new("keep", "그대로 진행")], ct) == "retry";
+        return await run.AskAsync("자동초점을 다시 할까요?\n이대로 진행을 누르면 장비 준비 때 맞춘 초점 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("keep", ButtonText.Proceed)], ct) == "retry";
     }
 
     private static Completed Kept(PrepContext ctx, Evidence ev) =>

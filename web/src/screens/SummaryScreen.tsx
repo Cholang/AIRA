@@ -80,6 +80,7 @@ export default function SummaryScreen() {
             { id: 'quit', label: `${PRODUCT.name} 종료`, primary: true },
             { id: 'folder', label: '폴더 열기', primary: false },
           ]}
+          prompt={`${PRODUCT.reul} 끌까요?\n폴더 열기를 누르면 오늘 밤 사진이 담긴 폴더를 열어요.`}
           onAct={(id) => (id === 'quit' ? closeApp() : void openFolder())}
           custom={
             s && (

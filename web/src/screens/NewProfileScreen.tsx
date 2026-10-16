@@ -1,3 +1,4 @@
+import { BUTTON } from '../buttonText'
 import { Activity, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Button from '../components/Button'
@@ -171,7 +172,7 @@ export default function NewProfileScreen({
           </Button>
           {onCancel && (
             <button type="button" className={styles.back} onClick={onCancel}>
-              프로필 목록으로 돌아가기
+              {BUTTON.back}
             </button>
           )}
           {/* 프로필 삭제: 편집 때만, 맨 아래 작은 글자 버튼 (주 버튼과 떨어뜨려 실수로 누르지 않게) → 확인 창 */}

@@ -41,14 +41,16 @@ public sealed partial class PrepareRunner
         }
         public void Live(string kind, string? url = null, object? data = null) => r.Update(runId, c => c.Live = new LiveView(kind, url, data, DateTimeOffset.Now));
 
-        public async Task<string> AskAsync(IReadOnlyList<PrepAction> actions, CancellationToken ct)
+        public Task<string> AskAsync(IReadOnlyList<PrepAction> actions, CancellationToken ct) => AskAsync(null, actions, ct);
+
+        public async Task<string> AskAsync(string? prompt, IReadOnlyList<PrepAction> actions, CancellationToken ct)
         {
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (!r.Update(runId, c =>
                 {
                     c.Ask?.TrySetCanceled();
                     c.Ask = tcs;
-                    c.Actions = actions;
+                    c.Show(actions, prompt);
                     r._rows[c.Task.Id] = (PrepTaskStatus.Waiting, null);
                 }))
                 throw new OperationCanceledException();

@@ -77,6 +77,9 @@ public static class Josa
     /// <summary>"M31로" / "NGC 7000으로" — 받침이 없거나 ㄹ이면 "로" (웹 product.ts withRo와 같은 규칙)</summary>
     public static string Ro(string word) => word + (HasFinalConsonant(word) && !EndsWithRieul(word) ? "으로" : "로");
 
+    /// <summary>"극축 정렬을" / "센터링을" / "초점을"</summary>
+    public static string Reul(string word) => word + Pick(word, "을", "를");
+
     /// <summary>받침이 ㄹ인가: 한글은 종성, 영문 L·R(엘·알), 숫자 1·7·8(일·칠·팔)</summary>
     public static bool EndsWithRieul(string word)
     {

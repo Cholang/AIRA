@@ -48,7 +48,12 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
         public ReadoutView? Readout { get; set; }
         public bool ReadoutLive { get; set; }
         public StatusLine? Status { get; set; }
-        public IReadOnlyList<PrepAction> Actions { get; set; } = [];
+        /// <summary>버튼. 바꾸면 설명(Prompt)도 지운다 — 설명은 <see cref="Show"/>로 버튼과 함께만</summary>
+        public IReadOnlyList<PrepAction> Actions { get => _actions; set { _actions = value; Prompt = null; } }
+        private IReadOnlyList<PrepAction> _actions = [];
+        /// <summary>버튼 레이아웃 영역 설명</summary>
+        public string? Prompt { get; private set; }
+        public void Show(IReadOnlyList<PrepAction> actions, string? prompt) { Actions = actions; Prompt = prompt; }
         public LiveView? Live { get; set; }
         public TaskCompletionSource<string>? Ask { get; set; }
     }
@@ -102,7 +107,7 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
         {
             var subs = c.Task.SubSteps.Select((s, i) => new SubStepView(s.Id, s.Label,
                 c.Finished || i < c.SubIndex ? PrepTaskStatus.Done : i == c.SubIndex ? PrepTaskStatus.Running : PrepTaskStatus.Pending)).ToList();
-            cur = new CurrentView(c.Task.Id, c.RunId, subs, c.Guide, new CenterView(c.Readout, c.Status, c.Actions), c.Live);
+            cur = new CurrentView(c.Task.Id, c.RunId, subs, c.Guide, new CenterView(c.Readout, c.Status, c.Actions, c.Prompt), c.Live);
         }
         var skip = TempSkipTarget() is { } t ? new TempSkipView(t.Id, t.Title, !TempSkipSuccessOnly.Contains(t.Id)) : null; // [임시] 건너뛰기
         return new PrepView(_ctx is not null, rows, cur, _ready, _version, Simulated, _setup.Group, _suspended ? _handoff : null, skip);
@@ -261,7 +266,7 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
         {
             if (_cur is not { } c) return;
             c.Status = null;
-            c.Actions = [_setup.Finish];
+            c.Show([_setup.Finish], _setup.FinishPrompt);
             Changed();
         }
     }
@@ -298,7 +303,7 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
                         if (_cur != cur) return;
                         _rows[task.Id] = (PrepTaskStatus.Failed, null);
                         cur.Status = new StatusLine("다른 단계에서 쓰던 장비를 멈추지 못했습니다. 장비 상태를 확인한 뒤 다시 시도해 주세요.", Tone.Fail);
-                        cur.Actions = [new("retry", "다시 시도", true)];
+                        cur.Show([new("retry", ButtonText.Retry, true)], RetryPrompt(task));
                         Changed();
                     }
                     return;
@@ -316,7 +321,7 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
                     if (_cur != cur) return;
                     _rows[task.Id] = (PrepTaskStatus.Failed, null);
                     cur.Status = new StatusLine(e.Message, Tone.Fail);
-                    cur.Actions = [new("retry", "다시 시도", true)];
+                    cur.Show([new("retry", ButtonText.Retry, true)], RetryPrompt(task));
                     Changed();
                 }
             }
@@ -328,7 +333,7 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
                     if (_cur != cur) return;
                     _rows[task.Id] = (PrepTaskStatus.Failed, null);
                     cur.Status = new StatusLine("예상하지 못한 오류로 멈췄습니다. 다시 시도해 주세요.", Tone.Fail);
-                    cur.Actions = [new("retry", "다시 시도", true)];
+                    cur.Show([new("retry", ButtonText.Retry, true)], RetryPrompt(task));
                     Changed();
                 }
             }
@@ -374,7 +379,8 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
                 // 약속이 어긋나면 다음으로 넘기지 않는다
                 _rows[cur.Task.Id] = (PrepTaskStatus.Failed, null);
                 cur.Status = new StatusLine($"{cur.Task.Title}이 끝났지만 장비 상태가 맞지 않습니다: {check.Problem}", Tone.Fail);
-                cur.Actions = [new("endcheck", "다시 확인", true), new($"redo:{cur.Task.Id}", "이 작업 다시 하기")];
+                cur.Show([new("endcheck", ButtonText.Recheck, true), new($"redo:{cur.Task.Id}", ButtonText.Redo)],
+                    $"장비 상태를 다시 읽어 볼까요?\n{ButtonText.Redo}를 누르면 {Core.Josa.Reul(cur.Task.Title)} 처음부터 다시 해요.");
                 Changed();
                 return;
             }
@@ -402,10 +408,18 @@ public sealed partial class PrepareRunner(IEnumerable<IPrepTask> tasks, ILogger<
                 return;
             }
             var primary = next is null ? _setup.Finish : new PrepAction("next", next.StartLabel, true);
-            cur.Actions = [primary, .. next?.StartAlternatives ?? [], .. done.Extra ?? []];
+            var ask = next is null ? _setup.FinishPrompt : next.StartPrompt;
+            cur.Show([primary, .. next?.StartAlternatives ?? [], .. done.Extra ?? []], JoinPrompt(ask, done.ExtraPrompt));
             Changed();
         }
     }
+
+    /// <summary>작업이 오류로 멈췄을 때 재시도 설명</summary>
+    private static string RetryPrompt(IPrepTask task) => $"{Core.Josa.Reul(task.Title)} 처음부터 다시 할까요?";
+
+    /// <summary>설명 두 조각을 줄을 바꿔 잇는다 (없는 쪽은 빼고)</summary>
+    internal static string? JoinPrompt(string? first, string? second) =>
+        first is null ? second : second is null ? first : first + "\n" + second;
 
     private async Task AutoNextAsync(Current cur)
     {

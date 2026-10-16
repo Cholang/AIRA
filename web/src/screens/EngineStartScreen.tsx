@@ -1,3 +1,4 @@
+import { BUTTON } from '../buttonText'
 import { RotateCw } from 'lucide-react'
 import { useEffect } from 'react'
 import Button from '../components/Button'
@@ -52,7 +53,7 @@ export default function EngineStartScreen({ onContinue }: { onContinue: () => vo
         {problem?.diagnosis?.fix && <InfoTip label="해결 방법" text={problem.diagnosis.fix} />}
         <Button variant="primary" onClick={restart} disabled={state !== 'failed'}>
           <RotateCw strokeWidth={2} aria-hidden="true" />
-          다시 시도
+          {BUTTON.retry}
         </Button>
       </div>
     </main>

@@ -207,7 +207,7 @@ export default function FrameRotate({
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.buttons}>
             <Button surface="sky" size="sm" onClick={() => void check()} disabled={busy}>
-              돌렸어요 · 다시 찍기
+              다시 찍기
             </Button>
             <Button surface="sky" size="sm" variant="ghost" onClick={() => void save(0)} disabled={busy}>
               되돌리기

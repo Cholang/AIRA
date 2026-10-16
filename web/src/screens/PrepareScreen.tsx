@@ -170,7 +170,7 @@ export default function PrepareScreen({
         <>
           <div className={styles.over}>
             <PrepGuide task={task?.title ?? ''} title={cur.guide.title} text={cur.guide.text} />
-            <PrepCenter readout={cur.center.readout} status={status} actions={cur.center.actions} onAct={(id) => void act(id)} disabled={sending} />
+            <PrepCenter readout={cur.center.readout} status={status} actions={cur.center.actions} prompt={cur.center.prompt} onAct={(id) => void act(id)} disabled={sending} />
           </div>
 
           {/* 오른쪽 위: 사진을 볼 때만 */}

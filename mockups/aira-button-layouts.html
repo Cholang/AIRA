@@ -121,10 +121,14 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
 .rowA .primary { grid-column:2; }
 .rowA .side { grid-column:3; justify-self:start; display:flex; gap:8px; }
 
-/* B 사용자 안: 55% 설명(오른쪽 정렬) | 45% 버튼(왼쪽 정렬, 주 버튼 맨 앞) — 둘이 가운데 선에서 만난다 */
-.rowB { width:100%; min-height:64px; height:64px; display:grid; grid-template-columns:55fr 45fr; align-items:center; column-gap:28px; padding:0 var(--gutter); }
+/* B 버튼 레이아웃 영역: 55% 설명(오른쪽 정렬) | 45% 버튼(왼쪽 정렬, 주 버튼 맨 앞).
+   높이는 설명 3줄 자리로 고정, 설명과 버튼은 아래 맞춤(마지막 줄 글자 아래와 버튼 아랫변이 한 선).
+   상태 줄과의 간격은 지금(16px)의 1.5배 = 24px */
+.rowB { width:100%; height:calc(3 * 18px * 1.6); margin-top:8px; display:grid; grid-template-columns:55fr 45fr; align-items:end; column-gap:28px; padding:0 var(--gutter); }
 .rowB p { margin:0; font-size:18px; line-height:1.6; white-space:pre-line; text-align:right; }
-.rowB .btns { justify-self:start; }
+.rowB .btns { justify-self:start; display:flex; gap:10px; }
+.app[data-area="on"] .rowB { outline:1px dashed var(--accent); outline-offset:0; }
+.app[data-area="on"] .rowB p, .app[data-area="on"] .rowB .btns { outline:1px dotted var(--sky-muted); }
 .rowB p b { color:var(--accent); font-weight:700; }
 .rowB .btns { display:flex; gap:10px; }
 .rowB .btn.primary { min-width:200px; }
@@ -156,6 +160,8 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
     <span class="lbl">테마</span>
     <button class="ctl" data-theme="dark" aria-pressed="true">기본</button>
     <button class="ctl" data-theme="night" aria-pressed="false">다크(촬영)</button>
+    <span class="lbl">버튼 레이아웃 영역</span>
+    <button class="ctl" id="area" aria-pressed="false">테두리 보기</button>
   </div>
 
   <section class="variant">
@@ -170,7 +176,7 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
   </section>
 
   <section class="variant">
-    <h2>B · 55% 설명 | 45% 버튼<small>사용자 안 — 설명은 오른쪽 정렬, 버튼은 왼쪽 정렬(주 버튼이 맨 앞), 둘이 가운데 선에서 만난다</small></h2>
+    <h2>B · 버튼 레이아웃 영역 55% 설명 | 45% 버튼<small>사용자 안 — 설명 3줄 자리 고정, 설명·버튼 아래 맞춤, 상태 줄과 간격 24px(지금의 1.5배)</small></h2>
     <ul class="notes">
       <li data-k="+">설명 끝과 버튼이 바로 붙어 읽고 바로 누른다</li>
       <li data-k="−">주 버튼 자리가 가운데에서 오른쪽(55% 선)으로 옮겨진다 — 지금 손이 외운 자리와 다름</li>
@@ -212,7 +218,7 @@ const S = {
     aMore: ' 다 돌렸으면 <em>재시도</em>를 누르면 그 위치에서 자동초점을 다시 하고, 손으로 정확히 맞췄으면 <em>이대로 진행</em>을 누르세요.',
     metric: ['별 0개', 'Fail', '훑은 범위 0 ~ 12000'], status: ['자동초점 실패 — 별을 찾지 못함', 'Fail'],
     buttons: [['재시도', '지금 포커서 위치에서 자동초점을 다시 해요'], ['이대로 진행', '손으로 맞춘 초점 그대로 넘어가요']],
-    b: '지금 포커서 위치에서 자동초점을 다시 할까요?\n<b>이대로 진행</b>을 누르면 손으로 맞춘 초점 그대로 넘어가요.',
+    b: '지금 포커서 위치에서 자동초점을 다시 할까요?\n이대로 진행을 누르면 손으로 맞춘 초점 그대로 넘어가요.',
   },
   3: {
     task: '초점', title: '포커서 0점을 잡지 못했어요',
@@ -220,7 +226,7 @@ const S = {
     aMore: ' <em>재시도</em>로 다시 해 보거나, N.I.N.A. 포커서 톱니바퀴에서 Set Zero를 직접 누른 뒤 <em>완료</em>를 누르세요. <em>0점 없이 진행</em>하면 다음 밤에 노브를 손으로 맞춰야 해요.',
     metric: ['0점 없음', 'Fail', '포커서 위치 4310'], status: ['포커서가 답하지 않음', 'Fail'],
     buttons: [['재시도', '아이라가 0점을 다시 잡아 봐요'], ['완료', 'N.I.N.A.에서 Set Zero를 눌렀어요'], ['0점 없이 진행', '다음 밤엔 노브를 손으로 맞춰요']],
-    b: '포커서 0점을 다시 잡아 볼까요?\nSet Zero를 직접 눌렀다면 <b>완료</b>, 0점 없이 하려면 <b>0점 없이 진행</b>을 눌러 주세요.',
+    b: '포커서 0점을 다시 잡아 볼까요?\nSet Zero를 직접 눌렀다면 완료, 0점 없이 하려면 0점 없이 진행을 눌러 주세요.',
   },
 };
 
@@ -234,6 +240,7 @@ function render(n, theme) {
   document.querySelectorAll('.app').forEach((app) => {
     const v = app.dataset.v;
     app.dataset.theme = theme;
+    app.dataset.area = area ? 'on' : 'off';
     const guideText = v === 'A' ? s.situation + s.aMore : s.situation;
     const [primary, ...side] = s.buttons;
     let row;
@@ -267,7 +274,12 @@ function render(n, theme) {
   });
 }
 
-let n = 2, theme = 'dark';
+let n = 2, theme = 'dark', area = false;
+document.getElementById('area').addEventListener('click', (e) => {
+  area = !area;
+  e.currentTarget.setAttribute('aria-pressed', area);
+  render(n, theme);
+});
 document.querySelectorAll('.ctl[data-n]').forEach((b) => b.addEventListener('click', () => {
   n = +b.dataset.n;
   document.querySelectorAll('.ctl[data-n]').forEach((x) => x.setAttribute('aria-pressed', x === b));

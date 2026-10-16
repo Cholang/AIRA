@@ -33,6 +33,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
     public string Id => "test";
     public string Title => "시험 사진";
     public string StartLabel => "시험 사진 찍기";
+    public string? StartPrompt => "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인할까요? 이 사진은 촬영 사진에 넣지 않아요.";
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("expose", "시험 노출"), new("download", "사진 받기"), new("check", "사진 검사"), new("result", "결과 확인")];
 
     public bool AppliesTo(PrepContext ctx) => true;
@@ -53,9 +54,9 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             {
                 // 노출이 실패하면 내려받기·검사로 가지 않는다 (CX-PREP-CODE-05)
                 run.ClearReadout();
-                run.Guide("시험 사진을 찍지 못했습니다", "카메라가 노출하지 못했습니다. 카메라 전원·USB 연결과 카메라의 PC 연결 방식(테더링)을 확인한 뒤 다시 찍어 주세요.");
+                run.Guide("시험 사진을 찍지 못했습니다", "카메라가 노출하지 못했습니다. 카메라 전원·USB 연결과 카메라의 PC 연결 방식(테더링)을 확인해 주세요.");
                 run.Status("카메라가 노출하지 못했습니다", Tone.Fail);
-                if (await run.AskAsync([new("retry", "다시 찍기", true), SkipAction], ct) == "skip") return Skipped(ctx);
+                if (await run.AskAsync("시험 사진을 다시 찍을까요?\n건너뛰기를 누르면 시험 사진 없이 촬영으로 가요.", [new("retry", ButtonText.Retry, true), SkipAction], ct) == "skip") return Skipped(ctx);
                 continue;
             }
 
@@ -70,9 +71,9 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             }
             if (stats is null)
             {
-                run.Guide("사진을 받지 못했습니다", "두 번 시도했지만 카메라에서 사진을 내려받지 못했습니다. 카메라 USB 연결과 전원, 카메라 화질 설정이 RAW인지 확인한 뒤 다시 찍어 주세요 (JPEG면 사진을 쓸 수 없습니다).");
+                run.Guide("사진을 받지 못했습니다", "두 번 시도했지만 카메라에서 사진을 내려받지 못했습니다. 카메라 USB 연결과 전원, 카메라 화질 설정이 RAW인지 확인해 주세요 (JPEG면 사진을 쓸 수 없습니다).");
                 run.Status("시험 사진을 찍지 못했습니다", Tone.Fail);
-                if (await run.AskAsync([new("retry", "다시 찍기", true), SkipAction], ct) == "skip") return Skipped(ctx);
+                if (await run.AskAsync("시험 사진을 다시 찍을까요?\n건너뛰기를 누르면 시험 사진 없이 촬영으로 가요.", [new("retry", ButtonText.Retry, true), SkipAction], ct) == "skip") return Skipped(ctx);
                 continue;
             }
 
@@ -103,16 +104,18 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             run.SubStep(3);
             if (verdict.SuggestExposure is { } shorter)
             {
-                run.Guide("배경이 밝아요", $"달빛 때문에 하늘 배경이 밝습니다. 노출을 줄이면 배경이 덜 하얗게 뜨고 별도 덜 포화됩니다. 노출 {ctx.ExposureSeconds}초 → {shorter}초로 바꿀까요? (계획에 반영)");
+                run.Guide("배경이 밝아요", $"달빛 때문에 하늘 배경이 밝습니다. 노출을 줄이면 배경이 덜 하얗게 뜨고 별도 덜 포화됩니다. ");
                 run.Status("배경 밝기 높음", Tone.Warn);
-                var c = await run.AskAsync([new("shorter", $"{shorter}초로 바꾸고 다시 찍기", true), new("keep", "그대로 진행")], ct);
+                var c = await run.AskAsync($"노출을 {ctx.ExposureSeconds}초에서 {shorter}초로 줄여 다시 찍을까요? 계획의 노출도 바뀌어요.\n이대로 진행을 누르면 계획한 노출로 촬영해요.",
+                    [new("shorter", $"{shorter}초로 다시 찍기", true), new("keep", ButtonText.Proceed)], ct);
                 if (c == "shorter") { ctx.ExposureSeconds = shorter; continue; }
             }
             else if (verdict.Problem is { } problem)
             {
                 run.Guide(problem.Title, problem.Text);
                 run.Status(problem.Status, Tone.Warn);
-                var c = await run.AskAsync([new("retry", "다시 찍기", true), new("keep", "그대로 진행"), new(problem.RedoAction, problem.RedoLabel)], ct);
+                var c = await run.AskAsync($"시험 사진을 다시 찍어 볼까요?\n이대로 진행을 누르면 지금 상태로 촬영하고, {problem.RedoLabel}를 누르면 그 단계부터 다시 해요.",
+                    [new("retry", ButtonText.Retry, true), new("keep", ButtonText.Proceed), new(problem.RedoAction, problem.RedoLabel)], ct);
                 if (c == "retry") continue;
                 if (c == problem.RedoAction)
                 {
@@ -131,12 +134,13 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             };
             return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", "좋아요, 촬영을 시작해도 돼요",
                 $"{looks} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다." + (stats.Tiles ? " 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요." : ""),
-                [new("redo:test", "다시 찍기"), new("redo:center", "다시 센터링")]);
+                [new("redo:test", ButtonText.Redo), new("redo:center", "센터링 다시 하기")])
+            { ExtraPrompt = "다시 하기를 누르면 시험 사진을 다시 찍고, 센터링 다시 하기를 누르면 구도부터 다시 맞춰요." };
         }
     }
 
     /// <summary>시험 사진 건너뛰기 (2026-10-08 사용자 결정 — 구름이 몰려오거나 구도를 이미 확인한 경우)</summary>
-    private static readonly PrepAction SkipAction = new("skip", "시험 사진 건너뛰기");
+    private static readonly PrepAction SkipAction = new("skip", ButtonText.Skip);
 
     private static Completed Skipped(PrepContext ctx) =>
         new(new TestShotResult(ctx.ExposureSeconds, null, null, null, null, ctx.Now(), Skipped: true), "건너뜀", "시험 사진을 건너뛰었어요",
@@ -190,7 +194,7 @@ public static class TestShotRules
         if (focusHfr is { } fh && s.Hfr > fh * HfrGrowthLimit)
             return new Verdict(caption, Tone.Warn, null, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"), field);
         if (trailed)
-            return new Verdict(caption, Tone.Warn, null, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 재기"), field);
+            return new Verdict(caption, Tone.Warn, null, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 하기"), field);
         return new Verdict(caption, Tone.Ok, null, null, field);
     }
 }

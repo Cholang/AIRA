@@ -56,6 +56,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     public string Id => "polar";
     public string Title => "극축 정렬";
     public string StartLabel => "극축 정렬 시작";
+    public string? StartPrompt => "가이드 카메라를 SharpCap으로 넘겨 극축 정렬을 시작할까요? 극을 찾을 때 적도의가 RA축으로 크게 돌아요.";
     public IReadOnlyList<SubStep> SubSteps { get; } =
         [new("handover", "넘겨받기"), new("find", "극 찾기"), new("align", "정렬"), new("giveback", "돌려주기")];
 
@@ -95,14 +96,15 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             var unconfirmed = back == PolarReturn.StopUnconfirmed;
             while (unconfirmed)
             {
-                run.Status("홈으로 가다 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 장비 상태 다시 확인을 눌러 주세요", Tone.Fail);
-                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                run.Status("홈으로 가다 멈췄는지 확인하지 못했습니다", Tone.Fail);
+                await run.AskAsync("적도의를 직접 본 뒤 장비 상태를 다시 읽어 볼까요?", [new("recheck-stop", ButtonText.Recheck, true)], ct);
                 await using (await run.Context.Mount.AcquireAsync(ct))
                     unconfirmed = !await devices.MountStillAsync(ct);
             }
             // 멈춘 것은 확인됨: 자동 홈을 다시 시도하거나, 손으로 홈에 옮겼으면 그대로 극 찾기로 (CX-36-09 — 실패하는 홈 명령만 되풀이하지 않게)
-            run.Status("홈으로 되돌리지 못했습니다. 적도의를 홈 근처(망원경이 북극성 쪽, 균형추가 아래)로 옮긴 뒤 눌러 주세요", Tone.Fail);
-            var c = await run.AskAsync([new("manual-home", "손으로 홈에 옮겼어요", true), new("retry", "다시 홈으로 보내기"), new("skip", "극축 정렬 건너뛰기")], ct);
+            run.Status("홈으로 되돌리지 못했습니다", Tone.Fail);
+            var c = await run.AskAsync("적도의를 홈 근처(망원경이 북극성 쪽, 균형추가 아래)로 손으로 옮겼으면 완료를 눌러 극 찾기를 할까요?\n재시도를 누르면 적도의가 다시 홈으로 움직이고, 건너뛰기를 누르면 극축 정렬 없이 넘어가요.",
+                [new("manual-home", ButtonText.Done, true), new("retry", ButtonText.Retry), new("skip", ButtonText.Skip)], ct);
             if (c == "skip") return false;
             if (c == "manual-home") { run.Context.Memory.PolarNeedsReturn = false; return true; }
         }
@@ -120,8 +122,8 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             run.Status("가이드 카메라를 PHD2로 돌려주는 중입니다");
             if (await devices.StopAsync(ct)) break;
             // StopAsync가 false = 적도의 정지를 확인하지 못함 (카메라 돌려주기 실패는 장비 상태 확인에서 따로 보인다)
-            run.Status("적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 확인한 뒤 다시 시도해 주세요", Tone.Fail);
-            await run.AskAsync([new("retry", "다시 시도", true)], ct);
+            run.Status("적도의가 멈췄는지 확인하지 못했습니다", Tone.Fail);
+            await run.AskAsync("적도의를 직접 본 뒤 가이드 카메라를 PHD2로 다시 돌려줄까요?", [new("retry", ButtonText.Retry, true)], ct);
         }
         return new Completed(new PolarResult(null, 0, 0, "건너뜀", run.Context.Now(), Skipped: true), "건너뜀", "극축 정렬을 건너뛰었어요",
             "극축이 틀어져 있으면 가이드 보정이 잦아지고 긴 촬영에서 시야가 조금 돌 수 있어요. 다음은 캘리브레이션입니다.") { AutoNext = true };
@@ -144,23 +146,25 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             // PHD2가 카메라를 놓기 전에 묻는다 (놓은 뒤에 막히면 가이드 카메라가 아무 데도 없음)
             if (await devices.SharpCapAlreadyOpenAsync(ct))
             {
-                run.Status($"SharpCap이 이미 켜져 있습니다. {Product.Neun} 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어, 닫고 다시 켜야 합니다", Tone.Warn);
-                var pick = await run.AskAsync([new("restart-sharpcap", "SharpCap 닫고 다시 켜기", true), new("skip", "극축 정렬 건너뛰기")], ct);
+                run.Status("SharpCap이 이미 켜져 있습니다", Tone.Warn);
+                var pick = await run.AskAsync($"{Product.Neun} 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어요. 켜져 있는 SharpCap을 닫고 다시 켤까요?\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.",
+                    [new("restart-sharpcap", "SharpCap 재시작", true), new("skip", ButtonText.Skip)], ct);
                 if (pick == "skip") return false;
                 run.Status("켜져 있던 SharpCap을 닫는 중입니다");
                 var closed = await devices.CloseOpenSharpCapAsync(ct);
                 if (!closed.Ok)
                 {
                     run.Status(closed.Problem ?? "SharpCap이 닫히지 않았습니다.", Tone.Fail);
-                    if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+                    if (await run.AskAsync("SharpCap을 다시 닫아 볼까요?\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.", [new("retry", ButtonText.Retry, true), new("skip", ButtonText.Skip)], ct) == "skip") return false;
                 }
                 continue;
             }
             if (await devices.Phd2DialogOpenAsync(ct))
             {
                 // 넘겨받기를 세 번 헛되이 시도하지 않고 먼저 닫게 한다 (F03)
-                run.Status("PHD2의 장비 연결 창이 열려 있습니다. 이 창이 열려 있으면 PHD2가 가이드 카메라를 놓지 못합니다. 창을 닫은 뒤 다시 확인을 눌러 주세요", Tone.Warn);
-                if (await run.AskAsync([new("retry", "다시 확인", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+                run.Status("PHD2의 장비 연결 창이 열려 있습니다", Tone.Warn);
+                if (await run.AskAsync("이 창이 열려 있으면 PHD2가 가이드 카메라를 놓지 못해요. 창을 닫은 뒤 다시 확인할까요?\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.",
+                    [new("retry", ButtonText.Recheck, true), new("skip", ButtonText.Skip)], ct) == "skip") return false;
                 continue;
             }
             var released = DeviceResult.Fail("PHD2가 가이드 카메라를 놓지 않았습니다.");
@@ -177,7 +181,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 run.Status($"SharpCap을 실행하지 못했습니다. {started.Problem}".Trim(), Tone.Fail);
             }
             else run.Status($"{released.Problem} PHD2의 장비 연결 창에서 가이드 카메라 연결을 해제한 뒤 다시 시도해 주세요.", Tone.Fail);
-            if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+            if (await run.AskAsync("가이드 카메라를 SharpCap으로 다시 넘겨 볼까요?\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.", [new("retry", ButtonText.Retry, true), new("skip", ButtonText.Skip)], ct) == "skip") return false;
         }
     }
 
@@ -214,13 +218,13 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             while (unconfirmed)
             {
                 run.Status(found.Problem ?? "적도의가 멈췄는지 확인하지 못했습니다. 적도의 상태를 직접 확인해 주세요.", Tone.Fail);
-                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                await run.AskAsync("적도의를 직접 본 뒤 장비 상태를 다시 읽어 볼까요?", [new("recheck-stop", ButtonText.Recheck, true)], ct);
                 await using (await run.Context.Mount.AcquireAsync(ct))
                     unconfirmed = !await devices.MountStillAsync(ct);
             }
             if (found.StopUnconfirmed) found = found with { Problem = "적도의가 멈춘 것을 확인했습니다. 다시 시도하거나 극축 정렬을 건너뛸 수 있습니다." };
             run.Status(found.Problem ?? "위치를 찾지 못했습니다. 망원경이 북극에서 멀리 향해 있을 수 있습니다. 삼각대 방향과 고도 나사로 망원경을 북극 쪽으로 조금 더 가깝게 향하게 한 뒤 다시 시도해 주세요.", Tone.Fail);
-            if (await run.AskAsync([new("retry", "다시 시도", true), new("skip", "극축 정렬 건너뛰기")], ct) == "skip") return false;
+            if (await run.AskAsync("극 찾기를 다시 할까요? 적도의가 RA축으로 다시 돌아요.\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.", [new("retry", ButtonText.Retry, true), new("skip", ButtonText.Skip)], ct) == "skip") return false;
         }
     }
 
@@ -231,7 +235,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private async Task<PolarOffset> AlignAsync(ITaskRun run, CancellationToken ct)
     {
         run.SubStep(2);
-        run.Guide("정렬", "화살표 방향으로 나사를 조절해 오차를 줄이고, 원하는 만큼 맞추면 정렬 완료를 누르세요.");
+        run.Guide("정렬", "화살표 방향으로 나사를 조절해 오차를 줄여 주세요.");
         run.Status(null);
         var scale = await devices.GuidePixelScaleAsync(ct);
         PolarOffset? last = null;
@@ -250,7 +254,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         {
             while (true)
             {
-                await run.AskAsync([new("align-done", "정렬 완료", true)], ct);
+                await run.AskAsync("원하는 만큼 맞췄으면 정렬을 마칠까요? 누르면 SharpCap을 닫고 가이드 카메라를 PHD2로 돌려줘요.", [new("align-done", ButtonText.Done, true)], ct);
                 var got = last;
                 if (got is null)
                     run.Status("아직 조절량을 받지 못했습니다. SharpCap 화면에 조절 화살표가 나오면 다시 눌러 주세요", Tone.Warn);
@@ -307,7 +311,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             var back = await devices.GiveBackGuideCameraAsync(ct);
             if (back.Ok) { run.Status(null); return; }
             run.Status($"가이드 카메라를 다시 연결하지 못했습니다. {back.Problem}".Trim(), Tone.Fail);
-            await run.AskAsync([new("retry", "다시 시도", true)], ct);
+            await run.AskAsync("가이드 카메라를 PHD2에 다시 연결해 볼까요?", [new("retry", ButtonText.Retry, true)], ct);
         }
     }
 

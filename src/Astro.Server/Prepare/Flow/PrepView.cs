@@ -34,8 +34,11 @@ public sealed record ReadoutView(
 /// <summary>상태 줄: 진행·경고·실패 문구 (중앙 정보, 버튼 바로 위)</summary>
 public sealed record StatusLine(string Text, Tone Tone);
 
-/// <summary>중앙 정보: 측정값 → 상태 줄 → 버튼 (순서·자리 고정)</summary>
-public sealed record CenterView(ReadoutView? Readout, StatusLine? Status, IReadOnlyList<PrepAction> Actions);
+/// <summary>
+/// 중앙 정보: 측정값 → 상태 줄 → 버튼 레이아웃 영역 (순서·자리 고정). Prompt = 버튼 레이아웃 영역 왼쪽 설명(최대 3줄) —
+/// 첫 줄은 주 버튼을 누르면 무엇이 되는지 묻고, 다음 줄은 보조 버튼을 누르면 어떻게 되는지 (DESIGN.md "버튼 레이아웃 영역")
+/// </summary>
+public sealed record CenterView(ReadoutView? Readout, StatusLine? Status, IReadOnlyList<PrepAction> Actions, string? Prompt = null);
 
 /// <summary>하늘 화면: none | sharpcap | guide-image | sky-map | focus-curve | solved-photo | test-photo. 이미지는 Url, 그림 데이터는 Data</summary>
 public sealed record LiveView(string Kind, string? Url, object? Data, DateTimeOffset ObservedAt);

@@ -70,6 +70,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
     public string Id => "focus";
     public string Title => "초점";
     public string StartLabel => "초점 맞추기";
+    public string? StartPrompt => "이 근처 별로 자동초점을 할까요? 포커서를 조금씩 옮기며 별 크기를 재요.";
     public IReadOnlyList<SubStep> SubSteps { get; } = [new("start", "시작 위치로"), new("measure", "별 크기 측정"), new("apply", "최적 위치 적용")];
 
     public bool AppliesTo(PrepContext ctx) => true;
@@ -101,10 +102,10 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                 if (near is { } n) ctx.Memory.LastFocus = (n, temp);
                 else
                 {
-                    run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌린 뒤 \"지금 위치에서 자동초점\"을 누르세요. 덮개가 닫혀 있지 않은지도 확인해 주세요. 손으로 다 맞췄으면 \"초점을 맞췄어요\".");
+                    run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌려 주세요. 덮개가 닫혀 있지 않은지도 확인해 주세요.");
                     run.Status(null);
                     // 손으로 대략 맞춘 위치는 저장하지 않는다 — 자동초점이 성공해야 저장 (CX-32-04)
-                    if (await run.AskAsync([new("autofocus-here", "지금 위치에서 자동초점", true), new("manual-done", "초점을 맞췄어요")], ct) != "autofocus-here") return ManualDone(ctx);
+                    if (await run.AskAsync("지금 포커서 위치에서 자동초점을 다시 할까요?\n이대로 진행을 누르면 손으로 맞춘 초점 그대로 넘어가요.", [new("autofocus-here", ButtonText.Retry, true), new("manual-done", ButtonText.Proceed)], ct) != "autofocus-here") return ManualDone(ctx);
                     fromHere = true;
                     continue;
                 }
@@ -141,8 +142,8 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             // 자동초점이 멈췄는지 모르면 다시 자동초점·사진을 하지 않고 멈춤 확인부터 (CX-NIGHT-06)
             while (af.StopUnconfirmed)
             {
-                run.Status($"{af.Problem}. N.I.N.A.에서 자동초점이 멈췄는지 확인한 뒤 눌러 주세요", Tone.Fail);
-                await run.AskAsync([new("recheck-stop", "장비 상태 다시 확인", true)], ct);
+                run.Status(af.Problem ?? "자동초점이 멈췄는지 확인하지 못했습니다", Tone.Fail);
+                await run.AskAsync("N.I.N.A.에서 자동초점이 멈췄는지 본 뒤 장비 상태를 다시 읽어 볼까요?", [new("recheck-stop", ButtonText.Recheck, true)], ct);
                 if (await devices.StopAsync(ct)) af = af with { StopUnconfirmed = false };
             }
             if (af.Stalled) { if (await FocuserErrorAsync(run, true, af.Problem, ct)) continue; await devices.StopAsync(ct); return ManualDone(ctx); }
@@ -158,9 +159,9 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
                     ctx.Memory.LastFocus = (f, temp);
                     continue; // 찾은 곳에서 다시 자동초점
                 }
-                run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌린 뒤 다시 자동초점을 누르세요. 덮개가 닫혀 있지 않은지도 확인해 주세요.");
+                run.Guide("초점을 대략 손으로 맞춰 주세요", "넓게 훑어도 별을 찾지 못했습니다. 밝은 별이 점으로 보일 때까지 포커서를 손으로 돌려 주세요. 덮개가 닫혀 있지 않은지도 확인해 주세요.");
                 run.Status("자동초점에서 별을 찾지 못했습니다", Tone.Fail);
-                var c = await run.AskAsync([new("retry", "다시 자동초점", true), new("manual", "지금 초점으로 진행")], ct);
+                var c = await run.AskAsync("지금 포커서 위치에서 자동초점을 다시 할까요?\n이대로 진행을 누르면 손으로 맞춘 초점 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("manual", ButtonText.Proceed)], ct);
                 if (c == "manual") return ManualDone(ctx);
                 continue;
             }
@@ -168,7 +169,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             {
                 run.Guide("다시 하는 게 좋아요", "곡선이 고르지 않습니다. 구름이 지나가거나 바람에 흔들렸을 수 있습니다.");
                 run.Status(af.Problem ?? "초점 곡선이 고르지 않습니다", Tone.Warn);
-                var c = await run.AskAsync([new("retry", "다시 자동초점", true), new("manual", "지금 초점으로 진행")], ct);
+                var c = await run.AskAsync("자동초점을 다시 할까요?\n이대로 진행을 누르면 지금 찾은 위치로 넘어가요.", [new("retry", ButtonText.Retry, true), new("manual", ButtonText.Proceed)], ct);
                 if (c == "manual") return ManualDone(ctx);
                 continue;
             }
@@ -183,7 +184,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             run.Status(null);
             return new Completed(new FocusResult(false, af.BestPosition, af.Hfr, temp, ctx.Now()), $"좋아요 · HFR {af.Hfr:F1} · 위치 {af.BestPosition:N0}",
                 "좋아요", "곡선이 깔끔해요. 가장 좋은 위치를 이번 기온과 함께 기억했어요. 이것으로 장비 준비가 끝났고, 오늘 밤 대상을 바꿔도 그대로 씁니다.",
-                [new("redo:focus", "다시 자동초점")]);
+                [new("redo:focus", ButtonText.Redo)]) { ExtraPrompt = "다시 하기를 누르면 자동초점을 처음부터 다시 해요." };
         }
     }
 
@@ -200,15 +201,16 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             if (z.Done) { run.Status("포커서 0점을 잡았습니다", Tone.Ok); return; }
             if (z.Unsupported)
             {
-                run.Guide("포커서 0점", $"이 포커서는 {Product.Ga} 0점을 잡을 수 없습니다. 포커서 드라이버 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Set Zero를 누른 뒤 눌러 주세요.");
+                run.Guide("포커서 0점", $"이 포커서는 {Product.Ga} 0점을 잡을 수 없습니다. 포커서 드라이버 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Set Zero를 눌러 주세요.");
                 run.Status(null);
-                await run.AskAsync([new("zero-done", "0점을 잡았어요", true), new("zero-skip", "0점 없이 진행")], ct);
+                await run.AskAsync("Set Zero를 눌렀으면 완료를 눌러 초점 맞추기를 이어갈까요?\n0점 없이 진행하면 다음 밤엔 노브를 손으로 맞춰야 해요.", [new("zero-done", ButtonText.Done, true), new("zero-skip", "0점 없이 진행")], ct);
                 devices.DropZeroRequest();
                 return;
             }
-            run.Guide("포커서 0점을 잡지 못했습니다", "다시 시도하거나, Oasis 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Set Zero를 직접 누른 뒤 진행해 주세요.");
+            run.Guide("포커서 0점을 잡지 못했습니다", "포커서가 0점 명령에 답하지 않았어요. 0점이 없어도 촬영은 할 수 있어요.");
             run.Status(z.Problem ?? "포커서 0점을 잡지 못했습니다", Tone.Fail);
-            var c = await run.AskAsync([new("retry", "다시 시도", true), new("zero-done", "직접 0점을 잡았어요"), new("zero-skip", "0점 없이 진행")], ct);
+            var c = await run.AskAsync($"{Product.Ga} 포커서 0점을 다시 잡아 볼까요?\nN.I.N.A. 포커서 톱니바퀴에서 Set Zero를 직접 눌렀다면 완료, 0점 없이 하려면 0점 없이 진행을 눌러 주세요.",
+                [new("retry", ButtonText.Retry, true), new("zero-done", ButtonText.Done), new("zero-skip", "0점 없이 진행")], ct);
             if (c == "retry") continue;
             devices.DropZeroRequest();
             return;
@@ -225,17 +227,17 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
     private static async Task<bool> FocuserErrorAsync(ITaskRun run, bool stalled, string? problem, CancellationToken ct)
     {
         run.Guide("포커서가 멈췄습니다", stalled
-            ? "포커서가 끝에 닿아 멈춘 것 같습니다. 포커서 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Clear stall을 누른 뒤 다시 시도해 주세요."
-            : "포커서가 응답하지 않습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+            ? "포커서가 끝에 닿아 멈춘 것 같습니다. 포커서 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Clear stall을 눌러 주세요."
+            : "포커서가 응답하지 않습니다. 연결을 확인해 주세요.");
         run.Status(problem ?? (stalled ? "포커서 멈춤 감지" : "포커서 오류"), Tone.Fail);
-        return await run.AskAsync([new("retry", "다시 시도", true), new("manual", "지금 초점으로 진행")], ct) == "retry";
+        return await run.AskAsync("자동초점을 다시 할까요?\n이대로 진행을 누르면 지금 초점 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("manual", ButtonText.Proceed)], ct) == "retry";
     }
 
     private static async Task<TaskOutcome> ManualAsync(ITaskRun run, string text, CancellationToken ct)
     {
         run.Guide("초점을 손으로 맞춰 주세요", text);
         run.Status(null);
-        await run.AskAsync([new("manual-done", "초점을 맞췄어요", true)], ct);
+        await run.AskAsync("손으로 초점을 다 맞췄으면 완료를 눌러 다음으로 갈까요?", [new("manual-done", ButtonText.Done, true)], ct);
         return ManualDone(run.Context);
     }
 

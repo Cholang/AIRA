@@ -1,3 +1,4 @@
+import { BUTTON } from '../buttonText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Button from '../components/Button'
 import NightGraph from '../components/NightGraph'
@@ -42,7 +43,7 @@ export default function PlanScreen({ onContinue, notice = null }: { onContinue: 
     return (
       <main className={styles.problem}>
         <p>{loadError}</p>
-        <Button onClick={load}>다시 시도</Button>
+        <Button onClick={load}>{BUTTON.retry}</Button>
       </main>
     )
   if (!state) return <main className={styles.plan} aria-busy="true" />
