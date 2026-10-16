@@ -17,7 +17,8 @@
 }
 
 .apps li[data-state='closing'],
-.apps li[data-state='done'] {
+.apps li[data-state='done'],
+.apps li[data-state='pick'] {
   color: var(--text);
 }
 
@@ -73,6 +74,19 @@
 
 .apps li[data-state='failed'] .mark::before {
   border: 1.5px solid var(--fail);
+}
+
+/* 확인 창에서 고르는 체크 칸: 종료 중 표시 칸(.mark)과 같은 자리·크기 — 종료를 눌러도 줄이 움직이지 않게 */
+.pick {
+  width: 18px;
+  height: 18px;
+  margin: 0 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.apps label {
+  cursor: pointer;
 }
 
 .note {

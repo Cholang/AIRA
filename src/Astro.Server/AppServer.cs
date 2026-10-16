@@ -173,12 +173,21 @@ public static partial class AppServer
         // 아이라 종료: 닫을 프로그램 목록(아이라가 N.I.N.A.를 켰고 촬영 중이 아닐 때만) → 화면이 하나씩 닫으며 체크 (2026-10-10)
         // 준비 작업이 돌고 있으면 닫지 않는다 — 종료 화면이 먼저 /prepare/stop-for-quit로 멈춘다 (CX-20-02)
         // 작업이 아직 돌고 있으면 빈 목록이 아니라 held(이유) — 화면이 "닫을 것 없음"으로 알고 바로 꺼지지 않게 (CX-21-02)
-        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home) =>
+        // 2026-10-16 사용자: 누가 켰든 지금 떠 있는 것을 모두 보여 주고(처음엔 모두 체크) 고른 것만 닫는다. N.I.N.A.를 남기면 그 장비 연결을 먼저 끊는다.
+        // 모의 장비로 돌 때는 닫지 않는다 — 시연 중 켜 둔 실제 프로그램을 건드리지 않게
+        api.MapGet("/engine/programs", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.PrepareMode mode) =>
+            Results.Ok(new { apps = shoot.Active || mode.Simulate ? [] : programs.Targets(onlyOurs: false) }));
+        api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Prepare.PrepareMode mode) =>
             PrepareBusy(flow, home) is { } held
                 ? Results.Ok(new { apps = Array.Empty<ProgramCloser.Target>(), held })
-                : Results.Ok(new { apps = programs.LaunchedNina && !shoot.Active ? programs.Targets() : [], held = (string?)null }));
-        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, CancellationToken ct) =>
-            Results.Ok(new { closed = programs.LaunchedNina && !shoot.Active && PrepareBusy(flow, home) is null && await programs.CloseOneAsync(id, ct) }));
+                : Results.Ok(new { apps = shoot.Active || mode.Simulate ? [] : programs.Targets(onlyOurs: false), held = (string?)null }));
+        api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Prepare.PrepareMode mode, NinaApiClient nina, CancellationToken ct) =>
+        {
+            if (mode.Simulate || shoot.Active || PrepareBusy(flow, home) is not null) return Results.Ok(new { closed = false });
+            var keepNina = id != "nina" && ProgramCloser.NinaRunning;
+            if (keepNina) await ProgramCloser.DisconnectNinaAsync(nina, ct);
+            return Results.Ok(new { closed = await programs.CloseOneAsync(id, ct, onlyOurs: false, ninaDisconnected: keepNina) });
+        });
         // 아이라 종료 전: 진행 중인 준비 작업과 계속 도는 가이딩을 멈추고 확인 (CX-20-02). 촬영 중이면 그대로 — 촬영은 N.I.N.A.가 이어 간다
         // 홈 버튼으로 시작한 홈 이동도 멈추고 확인한다 (CX-21-02)
         api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Shoot.ShootSession shoot) =>

@@ -4,18 +4,11 @@ namespace Astro.Server.Engine;
 
 /// <summary>
 /// N.I.N.A.·PHD2·SharpCap·Wanderer Empire 닫기 — 마무리의 장비 정리와 아이라 종료가 함께 쓴다.
-/// 아이라 종료 때는 아이라가 켠 N.I.N.A.만 닫는다(<see cref="LaunchedNina"/>): 사용자가 먼저 켜 둔 N.I.N.A.는 그대로 둔다.
 /// 아이라가 꺼진 뒤 N.I.N.A.만 남으면 아이라가 숨기던 N.I.N.A. 알림이 그대로 뜬다 (2026-10-09 — 종료 순간의 PHD2 오류 두 개).
-/// 종료 창은 닫을 프로그램 목록(<see cref="Targets"/>)을 받아 하나씩 닫으며(<see cref="CloseOneAsync"/>) 체크한다 (2026-10-10 사용자 요청)
+/// 종료 창은 지금 떠 있는 프로그램(<see cref="Targets"/>)을 보여 주고 사용자가 고른 것을 하나씩 닫으며(<see cref="CloseOneAsync"/>) 체크한다 (2026-10-10·10-16 사용자 요청)
 /// </summary>
 public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> log)
 {
-    private volatile bool _launched;
-
-    /// <summary>이번에 아이라가 N.I.N.A.를 켰는가 (엔진 켜기). PHD2는 N.I.N.A.가 가이더를 연결하며 켠다</summary>
-    public bool LaunchedNina => _launched;
-    public void NinaLaunched() => _launched = true;
-
     /// <summary>닫을 수 있는 프로그램: 화면에 보이는 이름</summary>
     public sealed record Target(string Id, string Name);
 
@@ -36,27 +29,42 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
     private static readonly DateTime StartedAt = Process.GetCurrentProcess().StartTime;
 
     /// <summary>
-    /// 아이라 종료 때 닫을 프로그램 (차례대로): 지금 떠 있고 **아이라가 켜진 뒤에 켜진 것만** — 아이라보다 먼저 켜져 있던 PHD2·SharpCap·Empire는
-    /// 사용자가 켠 것이라 그대로 둔다 (CX-20-06, 2026-10-11 사용자 동의). 아이라가 켜진 뒤 사용자가 직접 켠 것까지 가리지는 못한다
+    /// 지금 떠 있는 프로그램 (닫는 차례대로). onlyOurs면 아이라가 켜진 뒤에 켜진 것만.
+    /// 아이라 종료는 누가 켰든 모두 보여 주고 사용자가 닫을 것을 고른다(처음엔 모두 체크 — 2026-10-16 사용자: 켜진 시각으로 "누가 켰는지" 짐작하면
+    /// "그래도 종료" 뒤 다시 켰을 때 아이라가 켠 것도 남겼다)
     /// </summary>
-    public IReadOnlyList<Target> Targets() =>
-        Order.Where(o => Running(o.Processes, onlyOurs: true)).Select(o => new Target(o.Id, o.Name)).ToList();
+    public IReadOnlyList<Target> Targets(bool onlyOurs = true) =>
+        Order.Where(o => Running(o.Processes, onlyOurs)).Select(o => new Target(o.Id, o.Name)).ToList();
+
+    /// <summary>N.I.N.A.가 떠 있나</summary>
+    public static bool NinaRunning => Running(["NINA"], onlyOurs: false);
+
+    /// <summary>
+    /// N.I.N.A.를 남기고 나머지를 닫기 전: N.I.N.A.의 장비 연결을 모두 끊는다 — 연결된 채 PHD2·파워박스(Empire)가 사라지면 N.I.N.A.가 오류 창을 띄운다
+    /// (2026-10-16 사용자 제안). 적도의는 마지막에(추적 끄기는 종료 절차가 먼저 함)
+    /// </summary>
+    public static async Task DisconnectNinaAsync(Astro.Nina.NinaApiClient nina, CancellationToken ct)
+    {
+        foreach (var d in new[] { "guider", "camera", "focuser", "filterwheel", "rotator", "flatdevice", "switch", "mount" })
+            try { await nina.RequestAsync($"equipment/{d}/disconnect", TimeSpan.FromSeconds(10), ct); }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { }
+    }
 
     /// <summary>
     /// 프로그램 하나를 닫는다 (창을 닫게 하고 15초 기다림). 다 닫혔으면 true (저장 확인 창 등으로 안 닫히면 false).
     /// N.I.N.A.가 남아 있으면 PHD2·SharpCap·Empire는 닫지 않는다 — N.I.N.A.가 연결을 잃었다는 오류 창을 띄우고, 차례 보장이 깨진다 (CX-20-02).
     /// onlyOurs면 아이라가 켜진 뒤에 켜진 것만 (아이라 종료). 마무리의 장비 정리는 모두 닫는다(Empire만 아이라가 켠 것)
     /// </summary>
-    public async Task<bool> CloseOneAsync(string id, CancellationToken ct, bool onlyOurs = true)
+    public async Task<bool> CloseOneAsync(string id, CancellationToken ct, bool onlyOurs = true, bool ninaDisconnected = false)
     {
         var entry = Order.FirstOrDefault(o => o.Id == id);
         if (entry.Id is null) return false;
         if (id == "nina") watcher.ExpectExit(); // 정상 종료 — 화면에 "N.I.N.A.가 꺼졌어요"를 띄우지 않는다 (CX-APP-R4)
-        else if (Running(["NINA"], onlyOurs: false)) return false;
+        else if (!ninaDisconnected && Running(["NINA"], onlyOurs: false)) return false; // 장비 연결을 끊은 N.I.N.A.는 남겨도 된다 (DisconnectNinaAsync)
         if (id == "empire")
         {
-            CloseEmpireStartedSince(StartedAt, entry.Processes);
-            return !Running(entry.Processes, onlyOurs: true);
+            CloseEmpireStartedSince(onlyOurs ? StartedAt : DateTime.MinValue, entry.Processes);
+            return !Running(entry.Processes, onlyOurs);
         }
         var all = true;
         foreach (var name in entry.Processes)
@@ -87,7 +95,6 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
         foreach (var id in new[] { "nina", "phd2", "sharpcap" })
             all &= await CloseOneAsync(id, ct, onlyOurs: false);
         if (all) await CloseOneAsync("empire", ct);
-        if (all) _launched = false;
         return all;
     }
 

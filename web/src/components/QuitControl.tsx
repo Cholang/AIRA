@@ -9,7 +9,9 @@ import styles from './QuitControl.module.css'
 /**
  * 아이라 종료 (2026-10-10 레일에서 분리 — 종료는 앱 전체의 일이라 레일을 숨기거나 빼도 그대로 동작해야 한다).
  * 확인 창 → 진행 중인 준비 작업을 멈추고 확인 → 적도의 추적 끄기 → 포커서를 0으로 → 장비 연결 중이면 멈추고 끊기 →
- * 아이라가 켠 프로그램(N.I.N.A.·PHD2·SharpCap·Empire)을 하나씩 닫으며 체크 → 1초 뒤 창 닫기.
+ * 고른 프로그램(N.I.N.A.·PHD2·SharpCap·Empire)을 하나씩 닫으며 체크 → 1초 뒤 창 닫기.
+ * 확인 창에는 누가 켰든 지금 떠 있는 프로그램을 모두 보여 주고 처음엔 모두 체크 — 사용자가 남길 것만 끈다 (2026-10-16 사용자).
+ * N.I.N.A.를 남기고 다른 것을 닫으면 서버가 N.I.N.A.의 장비 연결을 먼저 끊는다(연결된 채 PHD2 등이 사라지면 N.I.N.A.가 오류 창을 띄움).
  * 어느 단계든 확인하지 못하면 거기서 멈추고 안내 + "그래도 종료" — 실패를 완료로 바꾸지 않는다 (CX-20-02).
  * 레일의 "아이라 종료" 버튼과 창의 × 버튼이 같은 확인을 쓴다(`useQuit`)
  */
@@ -34,7 +36,7 @@ export function QuitButton() {
 interface ClosingApp {
   id: string
   name: string
-  /** kept = 앞 프로그램이 닫히지 않아 닫지 않고 남겨 둠 */
+  /** kept = 사용자가 체크를 끈 것, 또는 앞 프로그램이 닫히지 않아 닫지 않고 남겨 둠 */
   state: 'waiting' | 'closing' | 'done' | 'failed' | 'kept'
 }
 
@@ -73,6 +75,18 @@ export function QuitProvider({
   // forced = "그래도 종료"에서 추적을 끄지 못했다고 이미 알림 — 한 번 더 누르면 그대로 끈다
   const [closing, setClosing] = useState<{ busy: boolean; step?: Step; problem?: string; forced?: boolean } | null>(null)
   const [apps, setApps] = useState<ClosingApp[]>([])
+  // 확인 창에서 고르는 프로그램 (지금 떠 있는 것, 처음엔 모두 체크). null = 아직 목록을 받는 중
+  const [choices, setChoices] = useState<{ id: string; name: string; checked: boolean }[] | null>(null)
+
+  /** 확인 창을 열며 지금 떠 있는 프로그램을 받는다 (받지 못하면 목록 없이 — 종료 4단계가 다시 묻는다) */
+  const openQuit = () => {
+    setQuitting(true)
+    setChoices(null)
+    fetch('/api/engine/programs')
+      .then((r) => (r.ok ? (r.json() as Promise<{ apps: { id: string; name: string }[] }>) : { apps: [] }))
+      .catch(() => ({ apps: [] }))
+      .then((b) => setChoices((cur) => cur ?? b.apps.map((a) => ({ ...a, checked: true }))))
+  }
 
   const quit = async () => {
     // "그래도 종료": 확인하지 못한 것이 있어도 끈다(남은 프로그램은 그대로 — 사용자가 직접 확인). 다만 끄기 전에 가이딩 멈춤·추적 끄기를 한 번 시도하고,
@@ -111,7 +125,7 @@ export function QuitProvider({
     if (!abort) return setClosing({ busy: false, problem: '장비 연결을 끊었는지 확인하지 못했습니다. N.I.N.A.에서 장비 연결 상태를 직접 확인해 주세요.' })
     if (abort.notDisconnected.length > 0)
       return setClosing({ busy: false, problem: `${abort.notDisconnected.join(', ')} 연결을 끊었는지 확인하지 못했습니다. N.I.N.A.에서 직접 확인해 주세요.` })
-    // 4. 아이라가 켠 프로그램을 차례로 닫는다 — 남겨 두면 아이라 없이 N.I.N.A. 알림만 뜬다 (2026-10-09). 하나씩 체크하고, 다 닫히면 1초 뒤에 끈다 (2026-10-10).
+    // 4. 고른 프로그램을 차례로 닫는다(체크를 끈 것은 "남겨 둠") — 남겨 두면 아이라 없이 N.I.N.A. 알림만 뜬다 (2026-10-09). 하나씩 체크하고, 다 닫히면 1초 뒤에 끈다 (2026-10-10).
     //    하나라도 닫히지 않으면(N.I.N.A.의 저장 확인 창 등) 뒤의 프로그램은 닫지 않고 남겨 둔다 — 서버도 N.I.N.A.가 남아 있으면 나머지를 닫지 않는다
     //    목록을 받지 못한 것은 "닫을 것 없음"이 아니다 — 그대로 끄지 않고 안내 (CX-21-07). 작업이 아직 돌면 서버가 held로 이유를 준다
     const body = await fetch('/api/engine/close')
@@ -122,7 +136,10 @@ export function QuitProvider({
     if (body.held) return setClosing({ busy: false, problem: body.held + ' 멈춘 것을 확인한 뒤 다시 종료해 주세요.' })
     const list = body.apps
     if (list.length === 0) return closeApp()
-    let now: ClosingApp[] = list.map((x) => ({ ...x, state: 'waiting' }))
+    // 확인 창 목록에 없던 것(그 사이 켜짐)은 닫지 않는다 — 사용자가 고르지 않았다
+    const picked = new Set((choices ?? []).filter((c) => c.checked).map((c) => c.id))
+    if (!list.some((x) => picked.has(x.id))) return closeApp()
+    let now: ClosingApp[] = list.map((x) => ({ ...x, state: picked.has(x.id) ? 'waiting' : 'kept' }))
     const mark = (id: string, state: ClosingApp['state']) => {
       now = now.map((x) => (x.id === id ? { ...x, state } : x))
       setApps(now)
@@ -131,6 +148,7 @@ export function QuitProvider({
     setClosing({ busy: true, step: 'programs' })
     let failed = false
     for (const app of list) {
+      if (!picked.has(app.id)) continue
       if (failed) {
         mark(app.id, 'kept')
         continue
@@ -149,7 +167,7 @@ export function QuitProvider({
   // 창의 × 버튼도 같은 확인
   useEffect(() => {
     if (!confirmOnClose) return
-    onCloseRequest(() => setQuitting(true))
+    onCloseRequest(openQuit)
     return () => onCloseRequest(null)
   }, [confirmOnClose])
 
@@ -166,7 +184,7 @@ export function QuitProvider({
         : `${PRODUCT.reul} 종료합니다.`)
 
   return (
-    <QuitContext.Provider value={() => setQuitting(true)}>
+    <QuitContext.Provider value={openQuit}>
       {children}
       <ConfirmDialog
         open={quitting}
@@ -180,6 +198,23 @@ export function QuitProvider({
           setClosing(null)
         }}
       >
+        {!closing && choices && choices.length > 0 && (
+          <ul className={styles.apps} aria-label="함께 닫을 프로그램">
+            {choices.map((c) => (
+              <li key={c.id} data-state={c.checked ? 'pick' : 'kept'}>
+                <input
+                  type="checkbox"
+                  className={styles.pick}
+                  id={'quit-' + c.id}
+                  checked={c.checked}
+                  onChange={(e) => setChoices((cs) => cs && cs.map((x) => (x.id === c.id ? { ...x, checked: e.target.checked } : x)))}
+                />
+                <label htmlFor={'quit-' + c.id}>{c.name}</label>
+                <span className={styles.note}>{c.checked ? '닫음' : '남겨 둠'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {closing?.step === 'programs' && (
           <ul className={styles.apps}>
             {apps.map((a) => (

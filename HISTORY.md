@@ -8,7 +8,21 @@
 
 ---
 
-## 2026-10-16 · [Claude] 주 버튼 글이 길면 한 줄로 넓게 · 이동 기다리기를 기다리는 화면으로 바로
+## 2026-10-16 · [Claude] 종료 창: 떠 있는 프로그램을 모두 체크 목록으로, N.I.N.A.를 남기면 장비 연결부터 끊기
+
+**요청**: 아이라를 껐는데 N.I.N.A.·PHD2·Wanderer Empire가 남음. 누가 켰는지 상관없이 종료 때 지금 켜져 있는 것을 닫을지 체크하게(처음엔 모두 체크). N.I.N.A.를 남길 땐 N.I.N.A.의 전체 연결 끊기를 먼저 하고 나머지를 끄면 되지 않나.
+
+**변경**:
+- `ProgramCloser`: `Targets(onlyOurs)`(종료는 false — 누가 켰든 전부), `NinaRunning`, `DisconnectNinaAsync`(가이더 → 카메라 → 포커서 → 필터휠 → 회전기 → 플랫 → 스위치 → 적도의 disconnect, 하나 실패해도 계속), `CloseOneAsync(ninaDisconnected)`로 N.I.N.A.가 떠 있어도 닫기 허용, Empire도 전부. 쓰지 않게 된 `LaunchedNina`·`NinaLaunched`(EngineStarter 인자) 지움.
+- `AppServer`: `GET /engine/programs`(확인 창 목록), `/engine/close`의 "아이라가 켠 N.I.N.A." 조건 대신 전부, `POST /engine/close/{id}`는 N.I.N.A.를 남기면 먼저 `DisconnectNinaAsync`. 모의 장비 모드·촬영 중에는 목록 없음/닫지 않음.
+- `QuitControl`: 확인 창을 열 때 목록을 받아 체크 칸으로(종료 중 표시 칸과 같은 자리), 체크한 것만 닫고 나머지는 "남겨 둠". 그 사이 새로 켜진 것은 닫지 않음.
+- 시험 `ProgramCloserTests`(끊는 차례·하나 실패해도 계속). 문서: OPERATION_PROCEDURE "아이라 종료"·프로필 미리 켜기, DESIGN 종료 창, DECISION_HISTORY(CX-20-06을 대신함).
+
+**확인**: 서버 시험 326 통과·1 건너뜀, 솔루션 빌드 경고 0, 웹 tsc·lint(경고 38 그대로)·시험 52·빌드. 체크 목록 화면과 실제 프로그램 닫기는 직접 보지 못함(모의 모드는 목록이 비므로 — 집에서 실기로).
+
+---
+
+## 2026-10-16 · 93e9aa5 [Claude] 주 버튼 글이 길면 한 줄로 넓게 · 이동 기다리기를 기다리는 화면으로 바로
 
 **요청**(모의 장비로 끝까지 실행해 본 뒤): "캘리브레이션 시작 · 남쪽 하늘로 이동" 버튼 글이 두 줄. "기다리기"는 누르면 버튼만 보였다 사라지고 결국 할 수 있는 건 "지금 이동"뿐이라 의미가 없음.
 

@@ -12,7 +12,7 @@ namespace Astro.Server.Engine;
 /// 1단계 엔진 켜기: N.I.N.A.를 켜고, 연결 통로(Advanced API)가 응답할 때까지 기다린 뒤, 인터넷 연결을 확인한다.
 /// 결과 형식은 0단계와 같아서 화면이 같은 쉐브론·공통 영역을 쓴다.
 /// </summary>
-public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options, ProgramCloser? programs = null)
+public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options)
 {
     private static readonly CheckItem Launch = new("launch", "N.I.N.A. 켜기", null,
         $"N.I.N.A.가 꺼져 있으면 {Product.Ga} 대신 켭니다. 처음 켤 때는 1분쯤 걸릴 수 있습니다.");
@@ -45,7 +45,6 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
                 try
                 {
                     Process.Start(new ProcessStartInfo(ninaExe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(ninaExe), WindowStyle = ProcessWindowStyle.Minimized })?.Dispose();
-                    programs?.NinaLaunched();
                     _preLaunched = true;
                 }
                 catch (Exception) { /* 엔진 켜기가 다시 켜 보고 이유를 보인다 */ }
@@ -92,7 +91,6 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
                 behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), BackgroundWindows.Nina, BackgroundWindows.WandererEmpire);
                 Process.Start(new ProcessStartInfo(ninaExe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(ninaExe), WindowStyle = ProcessWindowStyle.Minimized });
                 justLaunched = true;
-                programs?.NinaLaunched(); // 아이라를 끌 때 이 N.I.N.A.(와 N.I.N.A.가 켠 PHD2)를 닫는다
             }
             catch (Exception e) { error = e.Message; }
 
