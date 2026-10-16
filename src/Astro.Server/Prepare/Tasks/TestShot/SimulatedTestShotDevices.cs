@@ -38,8 +38,12 @@ public sealed class SimulatedTestShotDevices(SimOptions sim, SimFaults faults) :
         var bright = _bright && _lastExposure > 90;
         if (!bright) _bright = false;
         var bg = bright ? 0.5 : 0.2;
-        return new ShotStats(2.3, 0.3, bg, bright ? 2.8 : 0.4, 0.6, $"시험/test_{_lastExposure}s.raf", SimHistogram(bg));
+        return new ShotStats(2.3, 0.3, bg, bright ? 2.8 : 0.4, 0.6, $"시험/test_{_lastExposure}s.raf", SimHistogram(bg), SimField);
     }
+
+    /// <summary>모의 아홉 칸: 고름 (귀퉁이가 가운데보다 조금 큼, 방향 제각각)</summary>
+    private static readonly StarField SimField = new(
+        [.. Enumerable.Range(0, 9).Select(k => new StarTile(30, k == 4 ? 2.2 : k % 2 == 0 ? 2.5 : 2.35, k == 4 ? 0.3 : 0.38))], 0.15);
 
     public async Task<bool> StopAsync(CancellationToken ct)
     {

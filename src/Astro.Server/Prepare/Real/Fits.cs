@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Astro.Server.Prepare.Real;
 
-/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램·포화 비율·배경·카메라 눈금</summary>
+/// <summary>FITS 사진 읽기: 가이드 카메라 사진(PHD2 save_image, 16비트 회색)을 하늘 화면용 PNG로, 시험 사진(N.I.N.A. 저장 FITS)의 히스토그램·포화 비율·배경·카메라 눈금, 별 모양(StarShapes)이 쓰는 화소</summary>
 public static class Fits
 {
     public static byte[]? ToPng(string path, int maxWidth = 960)
@@ -12,7 +12,7 @@ public static class Fits
         try
         {
             var bytes = File.ReadAllBytes(path);
-            var (w, h, bitpix, bzero, dataStart) = Header(bytes);
+            var (w, h, bitpix, bzero, dataStart, _) = Header(bytes);
             if (w <= 0 || h <= 0 || bitpix != 16 && bitpix != 8) return null;
             var step = Math.Max(1, (w + maxWidth - 1) / maxWidth);
             int ow = w / step, oh = h / step;
@@ -44,46 +44,77 @@ public static class Fits
     /// 바닥값(Black)은 카메라별 — 후지 14비트 원본은 1024(2026-10-15 X-T5 원본 FITS로 확인), 모르는 카메라는 0 [임시].
     /// 포화 = 포화 값 바로 아래(바닥~포화의 1%)까지의 화소 비율, 넘친 곳이 없으면 0. 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
     /// </summary>
-    public static Pixels? Analyze(string path, int bins = 256)
+    public static Pixels? Analyze(string path, int bins = 256) => Open(path) is { } img ? Analyze(img, bins) : null;
+
+    public static Pixels? Analyze(Image img, int bins = 256)
+    {
+        var n = (long)img.Width * img.Height;
+        var step = (int)Math.Max(1, n / 2_000_000);
+        if (step % 2 == 0) step++; // 컬러 센서(RGGB)에서 한 색만 고르지 않게 홀수 간격
+        var each = new int[65536];
+        long seen = 0;
+        for (long i = 0; i < n; i += step, seen++) each[img.At(i)]++;
+        if (seen == 0) return null;
+        var max = Array.FindLastIndex(each, c => c > 0);
+        var clipped = max > 0 && each[max] >= 3; // 같은 최댓값에 여러 점 = 센서가 넘친 자리
+        var white = clipped ? max : max <= 4095 ? 4095 : max <= 16383 ? 16383 : 65535;
+        var black = BlackLevel(img.Instrument, white);
+
+        var counts = new int[bins];
+        long below = 0, saturated = 0;
+        var median = -1;
+        var satFrom = white - (white - black) / 100;
+        for (var v = 0; v <= max; v++)
+        {
+            if (each[v] == 0) continue;
+            counts[Math.Clamp((int)((long)(v - black) * bins / (white - black + 1)), 0, bins - 1)] += each[v];
+            below += each[v];
+            if (median < 0 && below * 2 >= seen) median = v;
+            if (clipped && v >= satFrom) saturated += each[v];
+        }
+        return new Pixels(counts, saturated * 100.0 / seen, CameraScale.Fraction(median, white, black), white, black);
+    }
+
+    /// <summary>
+    /// 읽은 사진 한 장 (16·8비트 회색 — 컬러 센서는 색 무늬 그대로). 화소는 파일 순서의 (x, y), BottomUp이면 첫 줄이 화면 아래(ROWORDER, Siril 변환본).
+    /// N.I.N.A.는 TOP-DOWN으로 쓰고, 표시가 없으면 첫 줄을 위로 본다 (ToPng와 같게)
+    /// </summary>
+    public sealed class Image
+    {
+        private readonly byte[] _bytes;
+        private readonly int _bitpix, _data;
+        private readonly double _bzero;
+
+        internal Image(byte[] bytes, int width, int height, int bitpix, double bzero, int data, bool bottomUp, string instrument)
+        {
+            (_bytes, Width, Height, _bitpix, _bzero, _data, BottomUp, Instrument) = (bytes, width, height, bitpix, bzero, data, bottomUp, instrument);
+        }
+
+        public int Width { get; }
+        public int Height { get; }
+        public bool BottomUp { get; }
+        /// <summary>머리글의 카메라 이름 (INSTRUME). 없으면 빈 문자열</summary>
+        public string Instrument { get; }
+
+        public int At(int x, int y) => At((long)y * Width + x);
+
+        public int At(long i) => _bitpix == 16
+            ? (int)Math.Clamp(BinaryPrimitives.ReadInt16BigEndian(_bytes.AsSpan(_data + (int)(i * 2), 2)) + _bzero, 0, 65535)
+            : _bytes[_data + i] * 257;
+    }
+
+    /// <summary>사진 읽기. FITS가 아니거나 16·8비트가 아니거나 화소가 모자라면(덜 저장됨) null</summary>
+    public static Image? Open(string path)
     {
         try
         {
             var bytes = File.ReadAllBytes(path);
-            var (w, h, bitpix, bzero, dataStart) = Header(bytes);
+            var (w, h, bitpix, bzero, dataStart, bottomUp) = Header(bytes);
             if (w <= 0 || h <= 0 || bitpix != 16 && bitpix != 8) return null;
-            var n = (long)w * h;
-            var step = (int)Math.Max(1, n / 2_000_000);
-            if (step % 2 == 0) step++; // 컬러 센서(RGGB)에서 한 색만 고르지 않게 홀수 간격
-            var each = new int[65536];
-            long seen = 0;
-            for (long i = 0; i < n; i += step, seen++)
-            {
-                var v = bitpix == 16
-                    ? (int)Math.Clamp(BinaryPrimitives.ReadInt16BigEndian(bytes.AsSpan(dataStart + (int)(i * 2), 2)) + bzero, 0, 65535)
-                    : bytes[dataStart + i] * 257;
-                each[v]++;
-            }
-            if (seen == 0) return null;
-            var max = Array.FindLastIndex(each, c => c > 0);
-            var clipped = max > 0 && each[max] >= 3; // 같은 최댓값에 여러 점 = 센서가 넘친 자리
-            var white = clipped ? max : max <= 4095 ? 4095 : max <= 16383 ? 16383 : 65535;
-            var black = BlackLevel(Instrument(bytes), white);
-
-            var counts = new int[bins];
-            long below = 0, saturated = 0;
-            var median = -1;
-            var satFrom = white - (white - black) / 100;
-            for (var v = 0; v <= max; v++)
-            {
-                if (each[v] == 0) continue;
-                counts[Math.Clamp((int)((long)(v - black) * bins / (white - black + 1)), 0, bins - 1)] += each[v];
-                below += each[v];
-                if (median < 0 && below * 2 >= seen) median = v;
-                if (clipped && v >= satFrom) saturated += each[v];
-            }
-            return new Pixels(counts, saturated * 100.0 / seen, CameraScale.Fraction(median, white, black), white, black);
+            if (dataStart + (long)w * h * (bitpix / 8) > bytes.Length) return null;
+            return new Image(bytes, w, h, bitpix, bzero, dataStart, bottomUp, Instrument(bytes));
         }
-        catch (Exception e) when (e is IOException or ArgumentOutOfRangeException or UnauthorizedAccessException)
+        catch (Exception e) when (e is IOException or ArgumentOutOfRangeException or UnauthorizedAccessException or FormatException)
         {
             return null;
         }
@@ -106,10 +137,11 @@ public static class Fits
         return "";
     }
 
-    private static (int W, int H, int Bitpix, double Bzero, int DataStart) Header(byte[] b)
+    private static (int W, int H, int Bitpix, double Bzero, int DataStart, bool BottomUp) Header(byte[] b)
     {
         int w = 0, h = 0, bitpix = 0;
         double bzero = 0;
+        var bottomUp = false;
         for (var block = 0; block * 2880 < b.Length; block++)
         {
             for (var card = 0; card < 36; card++)
@@ -124,10 +156,11 @@ public static class Fits
                     case "NAXIS1": w = int.Parse(value, CultureInfo.InvariantCulture); break;
                     case "NAXIS2": h = int.Parse(value, CultureInfo.InvariantCulture); break;
                     case "BZERO": bzero = double.Parse(value, CultureInfo.InvariantCulture); break;
-                    case "END": return (w, h, bitpix, bzero, (block + 1) * 2880);
+                    case "ROWORDER": bottomUp = value.Trim('\'').Trim() == "BOTTOM-UP"; break;
+                    case "END": return (w, h, bitpix, bzero, (block + 1) * 2880, bottomUp);
                 }
             }
         }
-        return (0, 0, 0, 0, 0);
+        return (0, 0, 0, 0, 0, false);
     }
 }

@@ -379,6 +379,12 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         return double.IsFinite(b) && b > 0 ? (int)b : null;
     }
 
+    /// <summary>N.I.N.A. 프로필의 ASTAP 위치 (플레이트 솔빙 설정 — 시험 사진의 별 찾기도 같은 ASTAP). 모르면 null</summary>
+    public async Task<string?> AstapPathAsync(CancellationToken ct) =>
+        await nina.GetActiveProfileAsync(ct) is { ValueKind: JsonValueKind.Object } p && p.TryGetProperty("PlateSolveSettings", out var ps)
+            && ps.ValueKind == JsonValueKind.Object && ps.TryGetProperty("ASTAPLocation", out var a) && a.ValueKind == JsonValueKind.String
+            ? a.GetString() : null;
+
     // ── 가이딩 (N.I.N.A. 명령 — 시퀀스의 디더링·반전이 상태를 알도록, OPERATION_PROCEDURE.md ⑥) ─────────
 
     /// <summary>가이딩 시작. 별이 없어도 2분쯤 뒤 성공으로 답하므로 결과는 PHD2 상태로 확인할 것</summary>
