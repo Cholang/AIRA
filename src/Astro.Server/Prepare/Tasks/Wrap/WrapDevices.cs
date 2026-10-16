@@ -107,12 +107,8 @@ public sealed class RealWrapDevices(NinaRig rig, Engine.NinaWatcher watcher, ILo
         try
         {
             if (await rig.LastSavedAsync(ct) is not { } s || s.Date < started || !Path.IsPathRooted(s.File)) { log.LogWarning("다크플랫 파일을 찾지 못해 DARK 폴더에 둠"); return; }
-            // …\날짜\DARK\파일 → …\날짜\DARKFLAT\파일 (이름 규칙이 종류 폴더가 아니면 같은 폴더 아래 DARKFLAT)
-            var dir = Path.GetDirectoryName(s.File) ?? "";
-            var to = string.Equals(Path.GetFileName(dir), "DARK", StringComparison.OrdinalIgnoreCase)
-                ? Path.Combine(Path.GetDirectoryName(dir) ?? dir, "DARKFLAT") : Path.Combine(dir, "DARKFLAT");
-            Directory.CreateDirectory(to);
-            File.Move(s.File, Path.Combine(to, Path.GetFileName(s.File)), overwrite: false);
+            // …\날짜\DARK\파일 → …\날짜\DARKFLAT\파일 (이름 규칙이 종류 폴더가 아니면 같은 폴더 아래 DARKFLAT) — 시험 사진과 같은 옮기기 (Gemini A-14)
+            ImageFolders.Move(s.File, "DARK", "DARKFLAT");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log.LogWarning(e, "다크플랫을 DARKFLAT 폴더로 옮기지 못해 DARK 폴더에 둠"); }
     }

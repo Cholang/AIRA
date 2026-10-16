@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 1단계(서버) — 독립된 타입·클래스를 새 파일로
+## 2026-10-16 · [Claude] 다크플랫 옮기기를 ImageFolders.Move로 (Gemini A-14)
+
+**요청**: 분리 계획의 1단계 끝 작은 정리.
+
+**변경**: `RealWrapDevices.MoveToDarkFlatAsync`의 폴더 계산·옮기기 6줄을 `ImageFolders.Move(file, "DARK", "DARKFLAT")`로 — 같은 계산이라 동작 차이 없음(DARK 폴더면 옆, 아니면 아래, 같은 이름이면 덮지 않음).
+
+**확인**: 솔루션 빌드(경고 2개 그대로), 서버 시험 316 통과·1 건너뜀. 실제 다크플랫 저장은 실기 미확인(전과 같음).
+
+---
+
+## 2026-10-16 · 6877fca [Claude] 큰 파일 분리 1단계(서버) — 독립된 타입·클래스를 새 파일로
 
 **요청**: Codex 리뷰를 반영했으니 `docs/implementation/SPLIT_PLAN.md`대로 큰 파일 분리 시작.
 
