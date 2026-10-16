@@ -72,6 +72,23 @@ public class TempSkipTests
     }
 
     [Fact]
+    public async Task 멈춘_것을_사용자가_직접_확인하면_건너뛰기가_이어진다()
+    {
+        // 2026-10-16 실행: 적도의가 끊겨 있어 "다시 확인"이 끝내 통과하지 않았다 — 직접 보고 풀 수 있게
+        var (runner, tasks, _, ctx) = Make();
+        tasks["polar"].Hang = true;
+        tasks["polar"].StopConfirms = false;
+        runner.Start(ctx);
+        await runner.Until(v => v.Row("polar") == PrepTaskStatus.Running, "극축 정렬 중");
+        Assert.Equal("장비가 멈췄는지 확인하지 못했습니다", await runner.TempSkipAsync(true));
+        var v = await runner.Until(x => x.Has("device-confirm"), "멈춘 것을 확인했어요");
+        Assert.True(v.Has("device-check"));
+        Assert.Null(runner.Act("device-confirm"));
+        await runner.Until(x => x.Row("polar") == PrepTaskStatus.Done, "건너뜀(성공)");
+        Assert.NotNull(ctx.Results.Get<PolarResult>());
+    }
+
+    [Fact]
     public async Task 초점_확인은_성공으로만_넘긴다()
     {
         var (runner, tasks, _, ctx) = Make("focuscheck");

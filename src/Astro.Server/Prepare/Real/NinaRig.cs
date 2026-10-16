@@ -23,13 +23,22 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     /// <summary>Pier = ASCOM SideOfPier ("pierEast" · "pierWest" · "pierUnknown")</summary>
     public sealed record MountState(bool Connected, bool Slewing, bool Tracking, bool AtHome, double RaDeg, double DecDeg, double SiderealHours, Site Site, string Pier = "pierUnknown");
 
+    /// <summary>
+    /// 이번 실행에서 적도의가 연결된 것을 한 번이라도 봤나 — 못 봤으면 아이라가 적도의를 움직였을 리 없다(명령은 연결된 적도의에만 간다).
+    /// 정지 확인이 "연결 안 됨"을 멈춤으로 볼 수 있는 근거 (2026-10-16: 장비 없이 [임시] 건너뛰기가 정지 확인에서 막혔다)
+    /// </summary>
+    private volatile bool _mountSeenConnected;
+
     public async Task<MountState?> MountAsync(CancellationToken ct)
     {
         var r = await nina.RequestAsync("equipment/mount/info", Short, ct);
         if (!r.Ok || r.Response is not { ValueKind: JsonValueKind.Object } m) return null;
-        var c = m.GetProperty("Coordinates");
-        return new MountState(Bool(m, "Connected"), Bool(m, "Slewing"), Bool(m, "TrackingEnabled"), Bool(m, "AtHome"),
-            Num(c, "RADegrees"), Num(c, "Dec"), Num(m, "SiderealTime"), new Site(Num(m, "SiteLatitude"), Num(m, "SiteLongitude")),
+        // 적도의가 연결되어 있지 않으면 N.I.N.A.가 좌표 칸을 주지 않는다 — 없으면 NaN(모름). 전에는 예외로 정지 확인이 통째로 실패했다 (2026-10-16 실행)
+        var hasC = m.TryGetProperty("Coordinates", out var c) && c.ValueKind == JsonValueKind.Object;
+        var connected = Bool(m, "Connected");
+        if (connected) _mountSeenConnected = true;
+        return new MountState(connected, Bool(m, "Slewing"), Bool(m, "TrackingEnabled"), Bool(m, "AtHome"),
+            hasC ? Num(c, "RADegrees") : double.NaN, hasC ? Num(c, "Dec") : double.NaN, Num(m, "SiderealTime"), new Site(Num(m, "SiteLatitude"), Num(m, "SiteLongitude")),
             m.TryGetProperty("SideOfPier", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "pierUnknown" : "pierUnknown");
     }
 
@@ -47,6 +56,9 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         {
             var m = await MountAsync(ct);
             if (m is null) return false;
+            // N.I.N.A.가 연결 안 됨이라고 분명히 답함: 이번 실행에서 연결된 적이 없으면 아이라가 움직인 적도 없다 → 멈춤.
+            // 연결돼 있다가 끊겼으면 움직이는 중에 끊겼을 수 있다(OnStep은 하던 이동을 계속한다) → 모름 (사용자가 직접 보고 확인)
+            if (!m.Connected) return !_mountSeenConnected;
             // 같은 갱신을 다시 읽었으면 비교하지 않는다 (N.I.N.A.는 약 2초마다 갱신 — 같은 값끼리 "멈춤"으로 보던 것, 2026-10-14 자체 리뷰)
             if (last is { } l && MountTiming.SameSnapshot(l.SiderealHours, m.SiderealHours)) { await Task.Delay(MountTiming.PollInterval, ct); continue; }
             if (!m.Slewing && last is { } prev && MountTiming.Unmoved(prev, m, MountTiming.StillToleranceDeg)) return true;

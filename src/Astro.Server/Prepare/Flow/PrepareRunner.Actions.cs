@@ -28,7 +28,7 @@ public sealed partial class PrepareRunner
             // 새 작업이 시작되면(또는 다음이 없으면 끝 버튼) 버튼이 다시 채워진다
             // 다시 시도·다시 하기·장비 상태 다시 확인도 받는 즉시 지운다 — 정지 확인을 기다리는 동안 한 번 더(또는 다른 화면에서) 눌러
             // 같은 작업이 두 번 시작되던 것 (Codex CX-30-03). 실패하면 각 흐름이 버튼을 다시 놓는다
-            if (actionId is "next" or "restart" or "retry" or "device-check" || actionId.StartsWith("next:", StringComparison.Ordinal) || actionId.StartsWith("redo:", StringComparison.Ordinal))
+            if (actionId is "next" or "restart" or "retry" or "device-check" or "device-confirm" || actionId.StartsWith("next:", StringComparison.Ordinal) || actionId.StartsWith("redo:", StringComparison.Ordinal))
             {
                 cur.Actions = [];
                 Changed();
@@ -52,6 +52,7 @@ public sealed partial class PrepareRunner
                 if (_pendingFinish is { } done) _ = FinishAsync(cur, done);
                 break;
             case "device-check": _ = RecheckStopAsync(); break;
+            case "device-confirm": _ = ConfirmStopByUserAsync(); break;
             default:
                 if (actionId.StartsWith("next:", StringComparison.Ordinal))
                 {

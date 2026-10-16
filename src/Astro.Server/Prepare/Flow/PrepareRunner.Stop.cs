@@ -168,8 +168,9 @@ public sealed partial class PrepareRunner
             _stopUnconfirmed = (task, then);
             if (_cur is not { } c) return;
             c.Ask = null;
-            c.Status = new StatusLine($"{task.Title}을 멈췄지만 장비가 멈췄는지 확인하지 못했습니다. 장비 상태를 확인해 주세요.", Tone.Fail);
-            c.Actions = [new("device-check", "장비 상태 다시 확인", true)];
+            c.Status = new StatusLine($"{task.Title}을 멈췄지만 장비가 멈췄는지 확인하지 못했습니다. 장비를 직접 보고 멈춰 있으면 \"멈춘 것을 확인했어요\"를 눌러 주세요.", Tone.Fail);
+            // 적도의 홈의 "적도의 확인 필요"와 같은 방식: 다시 확인하거나, 사용자가 직접 보고 푼다 (2026-10-16 — 적도의가 끊겨 있으면 다시 확인이 끝내 통과하지 않아 갇혔다)
+            c.Actions = [new("device-check", "장비 상태 다시 확인", true), new("device-confirm", "멈춘 것을 확인했어요")];
             _rows[task.Id] = (PrepTaskStatus.Failed, null);
             _ready = false;
             Changed();
@@ -185,6 +186,36 @@ public sealed partial class PrepareRunner
             log.LogWarning(e, "정지 확인 실패: {Task}", task.Id);
             return false;
         }
+    }
+
+    /// <summary>
+    /// 사용자가 장비가 멈춘 것을 직접 확인함: 정지 확인을 풀고 하려던 일을 이어서. 앞 실행이 아직 끝나지 않았으면(취소를 받지 않음) 풀지 않는다 —
+    /// 그 실행이 장비를 계속 쓸 수 있다
+    /// </summary>
+    private async Task ConfirmStopByUserAsync()
+    {
+        (IPrepTask Task, Func<Task> Then)? pending;
+        lock (_gate) pending = _stopUnconfirmed;
+        if (pending is not { } p) return;
+        if (!_runTask.IsCompleted)
+        {
+            ShowStopUnconfirmed(p.Task, p.Then);
+            lock (_gate)
+                if (_cur is { } c) { c.Status = new StatusLine($"{p.Task.Title}이 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.", Tone.Fail); Changed(); }
+            return;
+        }
+        log.LogWarning("정지를 사용자가 직접 확인함: {Task}", p.Task.Id);
+        lock (_gate)
+        {
+            _stopUnconfirmed = null;
+            if (_cur is { } c)
+            {
+                c.Status = new StatusLine("직접 확인한 대로 이어서 합니다", Tone.Warn);
+                c.Actions = [];
+                Changed();
+            }
+        }
+        await p.Then();
     }
 
     private async Task RecheckStopAsync()
