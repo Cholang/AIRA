@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — PlanAssistant의 AI 대화를 partial로
+## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — AppServer의 영역별 엔드포인트를 partial로
+
+**요청**: 분리 계획 2단계 다섯째 파일.
+
+**변경** (옮기기만): `AppServer.cs`(654 → 287줄: 서비스 등록과 `Build`)에서 `AppServer.Endpoints.cs`(이미 메서드로 나뉘어 있던 `MapShoot`·`MapPrepare`·`MapSettings`·`MapPlan`·`MapSession`·`MapProfiles`와 도우미·요청 레코드, 381줄), `static partial class`. **계획과 다름**: 서비스 등록을 `AddAiraServices`로, `Build` 안의 엔드포인트를 메서드로 묶는 것은 코드 모양을 바꾸는 일이라 하지 않음(4단계 몫). URL·등록 순서는 그대로.
+
+**확인**: 바뀐 줄은 새 파일 머리와 `partial`뿐(옮긴 줄 367). 솔루션 빌드(경고 2개 그대로), 서버 시험 316 통과·1 건너뜀. 시험 서버(5211, 장비 흉내)를 띄워 `/`·프로필·촬영·준비·설정·이어서 하기 조회 응답 확인 후 끔.
+
+---
+
+## 2026-10-16 · a2a0bda [Claude] 큰 파일 분리 2단계 — PlanAssistant의 AI 대화를 partial로
 
 **요청**: 분리 계획 2단계 넷째 파일.
 
