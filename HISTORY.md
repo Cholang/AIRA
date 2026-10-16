@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — ShootSession을 partial 셋으로
+## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — PrepareRunner를 partial 다섯으로
+
+**요청**: 분리 계획 2단계 둘째 파일.
+
+**변경** (옮기기만): `Prepare/Flow/PrepareRunner.cs`(995 → 473줄: 필드·상태 읽기·시작·실행 고리·끝·오래된 값 표시)에서 `PrepareRunner.Stop.cs`(준비 중단·종료 전 멈춤·다른 묶음에 넘기기·정지 확인, 214줄) · `.Actions.cs`(버튼·다시 하기·다시 시도, 108줄) · `.TempSkip.cs`([임시] 건너뛰기 — 지울 때 이 파일째, 114줄) · `.RunHandle.cs`(작업이 화면을 갱신하는 손잡이, 68줄). 흩어진 필드 `_pendingFinish`는 필드 묶음으로.
+
+**확인**: 바뀐 줄은 새 파일 머리와 본 파일의 `partial`뿐(옮긴 줄 478). 솔루션 빌드(경고 2개 그대로), 서버 시험 316 통과·1 건너뜀.
+
+---
+
+## 2026-10-16 · 43ab528 [Claude] 큰 파일 분리 2단계 — ShootSession을 partial 셋으로
 
 **요청**: 분리 계획 2단계(서버 partial) 첫 파일.
 
