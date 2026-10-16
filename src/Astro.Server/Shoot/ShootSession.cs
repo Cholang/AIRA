@@ -9,7 +9,7 @@ namespace Astro.Server.Shoot;
 /// 끝: 계획 장수(쓸 사진 기준) · 대상이 계획의 끝 고도(기본 30°) 아래 · 계획 끝 시각(새벽) — 또는 사용자의 "촬영 중단"(지금 사진까지 찍고).
 /// 끝나면 가이딩을 멈춘다. 그 뒤(마무리 / 다른 대상)는 화면이 고른다.
 /// </summary>
-public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareMode mode, ILogger<ShootSession> log)
+public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareMode mode, ILogger<ShootSession> log, Camera.CameraProfiles? cameras = null)
 {
     public const int DitherEvery = 3;
     public const double FlipAfterDeg = 1.25;        // 자오선 지나 5분 뒤 반전
@@ -58,6 +58,8 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
     private readonly List<string> _notMoved = [];
     // 디더링 안정화 실패 (2026-10-06 사용자 결정): 연속 3번이면 멈추고 안정되면 자동 재개, 15분 넘게 안 되면 "그대로 찍을까요?"
     private int _ditherFails;
+    // 장 사이 쉬는 시간 재기 — 끝날 때 카메라 내부 프로필에 남긴다 (2026-10-17)
+    private readonly FrameGap _gap = new();
     private string? _ask, _answer;
     private bool _unstableAccepted;
     private DateTimeOffset _lowHfdWarned, _dewWarned;
@@ -179,6 +181,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                 // 자오선 반전 (항상 자동, 한 번)
                 if (!_flipped && devices.HourAngleDeg(ctx) > FlipAfterDeg)
                 {
+                    _gap.Spoil();
                     Set(() => { _mode = ShootMode.Flip; _flipStep = 0; });
                     FlipOutcome flip;
                     await using (await ctx.Mount.AcquireAsync(ct)) flip = await devices.FlipAsync(ctx, s => Set(() => _flipStep = s), ct);
@@ -204,6 +207,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                 var tempDrift = temp is { } tn && _lastFocusTemp is { } tf && Math.Abs(tn - tf) >= RefocusTempC;
                 if (tempDrift || recent > _focusHfr * RefocusHfrFactor)
                 {
+                    _gap.Spoil();
                     var why = tempDrift ? $"초점을 맞춘 뒤 기온이 {Math.Abs(temp!.Value - _lastFocusTemp!.Value):F1}°C 바뀌었어요" : "최근 사진의 별이 커졌어요";
                     var points = new List<object>();
                     Set(() => { _mode = ShootMode.Focus; _focusPoints = []; _note = new StatusLine(why, Tone.Warn); _noteUntil = DateTimeOffset.MaxValue; });
@@ -226,6 +230,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                 var before = await CheckGuideAsync(ct);
                 if (before.IsLost())
                 {
+                    _gap.Spoil();
                     if (!await HandleLossAsync(ctx, before, ct)) return;
                     continue;
                 }
@@ -233,6 +238,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                 // 제외 사진이 이어져 멈춘 동안: 3분마다 한 장만 찍어 확인, 30분 넘으면 끝
                 if (_framesPausedSince is { } fp)
                 {
+                    _gap.Spoil();
                     var retry = mode.Simulate ? TimeSpan.FromMilliseconds(300) : FramesRetry;
                     var giveUp = mode.Simulate ? TimeSpan.FromSeconds(3) : FramesGiveUp;
                     if (DateTimeOffset.Now - fp > giveUp)
@@ -257,9 +263,11 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
 
                 // 한 장 (찍는 동안에도 가이드 별을 지켜봄 — 오래 잃으면 이 장을 멈추고 버림)
                 Set(() => { _mode = _stopRequested ? ShootMode.Finishing : ShootMode.Shoot; _elapsed = 0; });
+                _gap.Begin(DateTimeOffset.Now, ctx.ExposureSeconds);
                 var (shot, lost) = await ExposeWatchedAsync(ctx, ct);
                 if (lost != GuideLoss.None)
                 {
+                    _gap.Spoil();
                     // 노출을 멈추지 못해 사진이 저장됐으면 제외 폴더로 옮기고 F로 센다 (CX-SHOOT-09)
                     if (shot.Ok && shot.File is { } bad) ExcludeFrame(bad, "가이드 별을 잃은 동안 찍혔어요");
                     if (!await HandleLossAsync(ctx, lost, ct)) return;
@@ -267,6 +275,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                 }
                 if (!shot.Ok || shot.Stats is not { } st)
                 {
+                    _gap.Spoil();
                     fails++;
                     Note($"사진을 받지 못했어요 · 다시 찍어요 ({shot.Problem})", Tone.Warn);
                     if (fails >= 3) { await EndAsync("error", ct); return; }
@@ -320,6 +329,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
                     _ditherFails = settled ? 0 : _ditherFails + 1;
                     if (!settled && _ditherFails >= UnstableAfter && !_unstableAccepted)
                     {
+                        _gap.Spoil();
                         if (!await WaitUnstableAsync(ctx, ct)) return;
                     }
                     else if (!settled) Note("디더링 뒤 가이드가 다 안정되지 않았어요 · 그대로 찍고 흐른 사진은 등급으로 걸러요", Tone.Warn);

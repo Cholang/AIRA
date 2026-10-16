@@ -228,7 +228,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
 
     /// <summary>
     /// 지금 노출을 멈춘다(멈춘 것을 확인하면 true). 준비 단계의 중단·멈추기, 다시 켜 이어서 할 때 쓴다.
-    /// 후지 카메라(X-T5 등)는 중단 명령을 보내지 않고, 지금 노출이 끝나 N.I.N.A.가 사진을 받을 때까지 기다린다 — 2026-10-11 실기: N.I.N.A. 후지 플러그인의
+    /// 노출을 중단할 수 없는 카메라(카메라 내부 프로필 — 후지 X-T5 등)는 중단 명령을 보내지 않고, 지금 노출이 끝나 N.I.N.A.가 사진을 받을 때까지 기다린다 — 2026-10-11 실기: N.I.N.A. 후지 플러그인의
     /// 노출 중단은 벌브 노출만 멈춘다. 셔터 속도를 정한 일반 노출(예: 30초)에는 "Stop exposure (bulb safety) failed"로 실패하는데 N.I.N.A.는 "중단됨"으로 답하고
     /// 기다리기만 그만둔다. 카메라는 끝까지 찍고 사진을 PC로 보내려고 기다리다("이미지를 PC로 전송") 다음 사진이 꼬이고 전원도 꺼지지 않았다.
     /// 그래서 끝까지 찍게 두면 N.I.N.A.가 사진을 받아 카메라가 비워진다. 부르는 쪽의 ct가 기다리는 한도를 정한다(준비 단계 정지 확인은 15초 — 넘으면 "장비 상태 다시 확인")
@@ -238,7 +238,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         // 답이 없으면 "모름" — 끝난 것으로도, 후지가 아닌 것으로도 보지 않는다 (CX-32-03: 응답이 빠지면 정지 확인으로 처리하거나 X-T5에 중단을 보냈다)
         if (await CameraInfoAsync(ct) is not { } first) return false;
         if (!Bool(first, "IsExposing")) return true;
-        if (IsFujifilm(first))
+        if (!CameraOf(first).CanAbortExposure)
         {
             while (await CameraInfoAsync(ct) is not { } now || Bool(now, "IsExposing")) await Task.Delay(1000, ct);
             // 노출이 끝난 뒤 N.I.N.A.가 사진을 받는 시간. 받기 끝을 알리는 값이 일반 노출에는 없어 고정 (2026-10-11 실기: 끝난 뒤 변환까지 약 20초 — 받기만은 따로 재지 못함)
@@ -259,14 +259,13 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         (await nina.RequestAsync("equipment/camera/info", Short, ct)) is { Ok: true, Response: { ValueKind: JsonValueKind.Object } c }
         && c.TryGetProperty("IsExposing", out var e) && e.ValueKind is JsonValueKind.True or JsonValueKind.False ? c : null;
 
-    /// <summary>후지필름 카메라인가 (N.I.N.A. 후지 플러그인 — 일반 노출을 중단할 수 없다). 이름이 X-·GFX로 시작하거나 드라이버 정보에 Fuji</summary>
-    private static bool IsFujifilm(JsonElement c)
-    {
-        var name = Text(c, "Name") ?? "";
-        var driver = (Text(c, "DriverInfo") ?? "") + " " + (Text(c, "Description") ?? "") + " " + (Text(c, "DeviceId") ?? "");
-        return name.StartsWith("X-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("GFX", StringComparison.OrdinalIgnoreCase)
-            || driver.Contains("Fuji", StringComparison.OrdinalIgnoreCase);
-    }
+    /// <summary>연결된 카메라의 내부 프로필. 카메라 정보를 못 읽으면 모르는 카메라(Generic)</summary>
+    public async Task<Camera.CameraProfile> CameraProfileAsync(CancellationToken ct) =>
+        (await nina.RequestAsync("equipment/camera/info", Short, ct)).Response is { ValueKind: JsonValueKind.Object } c ? CameraOf(c) : Camera.CameraCatalog.Generic;
+
+    /// <summary>N.I.N.A. 카메라 정보로 고른 카메라 내부 프로필 (후지 플러그인 카메라는 일반 노출을 중단할 수 없다 — CanAbortExposure)</summary>
+    private static Camera.CameraProfile CameraOf(JsonElement c) =>
+        Camera.CameraCatalog.Match(Text(c, "Name"), (Text(c, "DriverInfo") ?? "") + " " + (Text(c, "Description") ?? "") + " " + (Text(c, "DeviceId") ?? ""));
 
     /// <summary>솔빙으로 얻은 지금 위치로 적도의를 동기화 (OPERATION_PROCEDURE.md ⑤ — 솔빙 동기화는 정상)</summary>
     public async Task<bool> SyncAsync(double raDeg, double decDeg, CancellationToken ct) =>

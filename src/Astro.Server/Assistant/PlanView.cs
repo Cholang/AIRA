@@ -15,7 +15,7 @@ public static class PlanView
         object? window = null;
         if (p.Target is { } t && s is not null && PlanTools.WindowOf(t, p, n, now) is { } w)
         {
-            var a = ShootAmount.Of(w, s.ExposureSeconds, s.TotalMinutes);
+            var a = ShootAmount.Of(w, s.ExposureSeconds, s.TotalMinutes, n.Rig.FrameOverheadSeconds);
             window = new
             {
                 start = Hm(w.Start), limit = Hm(w.Limit), end = Hm(a.End), moveAt = Hm(w.MoveAt),
@@ -23,7 +23,7 @@ public static class PlanView
                 wait = w.Wait.ToString().ToLowerInvariant(), stop = w.Stop.ToString().ToLowerInvariant(), moved = w.Moved,
                 transit = w.Transit is { } tr ? Hm(tr) : null,
                 frames = a.Frames, maxFrames = a.MaxFrames, planned = a.Planned, clipped = a.Clipped,
-                secondsPerFrame = a.SecondsPerFrame, overheadSeconds = PlanRules.FrameOverheadSeconds,
+                secondsPerFrame = a.SecondsPerFrame, overheadSeconds = n.Rig.FrameOverheadSeconds,
                 minutes = (int)Math.Round((w.Limit - w.Start).TotalMinutes),
             };
         }

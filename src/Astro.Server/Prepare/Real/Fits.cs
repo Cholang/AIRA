@@ -40,10 +40,10 @@ public static class Fits
 
     /// <summary>
     /// 한 번 읽어 함께 센다 (N.I.N.A. API는 히스토그램·포화를 주지 않고, 통계의 밝기는 N.I.N.A. "비트 수" 설정에 기대 틀릴 수 있다 — CameraScale).
-    /// 눈금(전체 범위)은 알려진 비트 수가 바닥이다 — 후지 원본은 14비트, 아니면 knownBits(N.I.N.A. 비트 수). 사진 값이 그보다 크면 그 값을 담는 표준 눈금(12·14·16비트)으로 올리고,
+    /// 눈금(전체 범위)은 알려진 비트 수가 바닥이다 — 카메라 내부 프로필의 원본 최댓값(후지 14비트), 없으면 knownBits(N.I.N.A. 비트 수). 사진 값이 그보다 크면 그 값을 담는 표준 눈금(12·14·16비트)으로 올리고,
     /// 사진이 어둡다고 내리지는 않는다 (CX-36-06: 밝은 별이 없는 14비트 사진을 12비트로 읽어 배경을 4배로, 그날 밤 플랫 목표까지 틀렸다). 알려진 것이 없으면 사진 값을 담는 표준 눈금.
     /// 포화 값(White)은 그 눈금이되, 가장 밝은 값에 여러 점이 몰려 있고 그 값이 눈금의 90% 위면 센서가 넘친 자리라 그 값.
-    /// 바닥값(Black)은 카메라별 — 후지 14비트 원본은 1024(2026-10-15 X-T5 원본 FITS로 확인), 모르는 카메라는 0 [임시].
+    /// 바닥값(Black)은 카메라 내부 프로필 — 후지 14비트 원본은 1024(2026-10-15 X-T5 원본 FITS로 확인), 모르는 카메라는 0.
     /// 포화 = 포화 값 바로 아래(바닥~포화의 1%)까지의 화소 비율, 넘친 곳이 없으면 0. 4천만 화소 사진은 약 200만 점만 골라 센다 (모양은 같고 빠름). 못 읽으면 null
     /// </summary>
     public static Pixels? Analyze(string path, int? knownBits = null, int bins = 256) => Open(path) is { } img ? Analyze(img, knownBits, bins) : null;
@@ -59,19 +59,21 @@ public static class Fits
         if (seen == 0) return null;
         var max = Array.FindLastIndex(each, c => c > 0);
         var standard = max <= 4095 ? 4095 : max <= 16383 ? 16383 : 65535;
-        int? known = IsFuji(img.Instrument) ? 16383 : knownBits is >= 8 and <= 16 ? (1 << knownBits.Value) - 1 : null;
+        var cam = Camera.CameraCatalog.Match(img.Instrument); // 카메라 내부 프로필 — 머리글의 카메라 이름으로
+        int? known = cam.RawWhite ?? (knownBits is >= 8 and <= 16 ? (1 << knownBits.Value) - 1 : null);
         var full = known is { } k && k >= max ? k : standard;
         var clipped = max > 0 && each[max] >= 3 && max >= full * 0.9; // 눈금 가까이에서 같은 최댓값에 여러 점 = 센서가 넘친 자리
         var white = clipped ? max : full;
-        // 후지 원본(14비트)인데 그 위 값이 조금(1% 미만) 있으면 별 중심이 넘친 자리 — 눈금은 16383 그대로 두고 그 위는 포화로 센다.
+        // 원본 최댓값 위 값이 조금(1% 미만) 있으면 별 중심이 넘친 자리 — 눈금은 원본 그대로 두고 그 위는 포화로 센다 (프로필의 OverRangeIsSaturation).
         // 2026-10-17 X-T5 사진(ISO 800 · 12초): 16393~65535 값 1936점(0.005%) 때문에 16비트·바닥 0으로 읽어 배경 18%를 6%로 쟀다
-        if (IsFuji(img.Instrument) && max > 16383)
+        if (cam is { OverRangeIsSaturation: true, RawWhite: { } raw } && max > raw)
         {
             long above = 0;
-            for (var v = 16384; v <= max; v++) above += each[v];
-            if (above * 100 < seen) (white, clipped) = (16383, true);
+            for (var v = raw + 1; v <= max; v++) above += each[v];
+            if (above * 100 < seen) (white, clipped) = (raw, true);
         }
-        var black = BlackLevel(img.Instrument, white);
+        // 바닥값은 원본 눈금일 때만 (후지 14비트 1024 — 빛이 거의 없는 X-T5 사진의 중앙값 1075·최솟값 942). 모르면 0 (16비트 카메라는 바닥이 작아 영향이 작다)
+        var black = cam.RawWhite is { } rw && white <= rw ? cam.BlackLevel : 0;
 
         var counts = new int[bins];
         long below = 0, saturated = 0;
@@ -132,14 +134,6 @@ public static class Fits
             return null;
         }
     }
-
-    /// <summary>바닥값(블랙 레벨). 후지 14비트 원본 = 1024 (빛이 거의 없는 X-T5 사진의 중앙값 1075·최솟값 942). 그 밖에는 모름 → 0 [임시] (16비트 카메라는 바닥이 작아 영향이 작다)</summary>
-    private static int BlackLevel(string instrument, int white) => white <= 16383 && IsFuji(instrument) ? 1024 : 0;
-
-    /// <summary>후지 카메라 (원본 14비트)</summary>
-    private static bool IsFuji(string instrument) =>
-        instrument.Contains("fuji", StringComparison.OrdinalIgnoreCase) || instrument.StartsWith("X-", StringComparison.OrdinalIgnoreCase)
-        || instrument.StartsWith("GFX", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>머리글의 카메라 이름 (INSTRUME). 없으면 빈 문자열</summary>
     private static string Instrument(byte[] b)

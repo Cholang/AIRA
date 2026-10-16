@@ -55,7 +55,7 @@ public static class NightChart
             object? window = null;
             if (w is not null)
             {
-                var amount = settings is null ? null : ShootAmount.Of(w, settings.ExposureSeconds, settings.TotalMinutes);
+                var amount = settings is null ? null : ShootAmount.Of(w, settings.ExposureSeconds, settings.TotalMinutes, n.Rig.FrameOverheadSeconds);
                 window = new
                 {
                     start = Min(w.Start), limit = Min(w.Limit), end = amount is null ? Min(w.Limit) : Min(amount.End),

@@ -4,11 +4,15 @@ using Astro.Nina;
 
 namespace Astro.Server.Sky;
 
-/// <summary>촬영 장비 요약 (N.I.N.A. 프로필에서). 화각 계산에 쓴다.</summary>
+/// <summary>
+/// 촬영 장비 요약 (N.I.N.A. 프로필에서). 화각 계산에 쓴다.
+/// FrameOverheadSeconds = 이 카메라의 장 사이 쉬는 시간 — 카메라 내부 프로필의 기본값, 써 보며 잰 값이 있으면 그것 (Camera.CameraProfiles)
+/// </summary>
 public sealed record Rig(
     string Telescope, double FocalLength, double FocalRatio,
     string Camera, double PixelSize, int SensorWidth, int SensorHeight,
-    bool HasFilterWheel, bool HasGuider, int? IsoMin = null, int? IsoMax = null)
+    bool HasFilterWheel, bool HasGuider, int? IsoMin = null, int? IsoMax = null,
+    double FrameOverheadSeconds = Assistant.PlanRules.FrameOverheadSeconds)
 {
     /// <summary>화각(도): 가로·세로</summary>
     public (double Width, double Height) FieldOfView =>
@@ -27,7 +31,7 @@ public sealed record CloudHour(DateTimeOffset Time, int Cover);
 /// 오늘 밤 정보를 모은다: 관측지·장비(N.I.N.A. 프로필), 어두운 시간·달(계산), 구름(Open-Meteo 예보).
 /// 관측지 좌표는 화면·AI에 넘기지 않는다 (계산에만 쓴다).
 /// </summary>
-public sealed class TonightService(NinaApiClient nina, IHttpClientFactory httpFactory, ILogger<TonightService> log, Engine.OpticsStore optics)
+public sealed class TonightService(NinaApiClient nina, IHttpClientFactory httpFactory, ILogger<TonightService> log, Engine.OpticsStore optics, Camera.CameraProfiles cameras)
 {
     private (DateTimeOffset At, Site Site, IReadOnlyList<CloudHour> Clouds)? _cloudCache;
 
@@ -42,6 +46,8 @@ public sealed class TonightService(NinaApiClient nina, IHttpClientFactory httpFa
         var site = new Site(Num("AstrometrySettings", "Latitude"), Num("AstrometrySettings", "Longitude"), Num("AstrometrySettings", "Elevation"));
         var camera = Str("CameraSettings", "LastDeviceName");
         var paren = camera.IndexOf(" (", StringComparison.Ordinal);
+        // 지금 카메라 → 카메라 내부 프로필 (다른 카메라를 끼우면 그 카메라의 묶음으로)
+        cameras.SetCurrent(camera);
         // 망원경은 AA의 망원경 목록이 기준 (N.I.N.A.에도 써 넣지만, 아직 안 썼을 수 있으니 여기서 직접)
         var scope = optics.Current;
         var rig = new Rig(
@@ -53,7 +59,8 @@ public sealed class TonightService(NinaApiClient nina, IHttpClientFactory httpFa
             (int)Num("FramingAssistantSettings", "CameraWidth"),
             (int)Num("FramingAssistantSettings", "CameraHeight"),
             Str("FilterWheelSettings", "Id") is { Length: > 0 } fw && fw != "No_Device",
-            Str("GuiderSettings", "GuiderName") is { Length: > 0 } g && g != "No_Guider");
+            Str("GuiderSettings", "GuiderName") is { Length: > 0 } g && g != "No_Guider",
+            FrameOverheadSeconds: cameras.FrameOverhead(camera));
         // 연결된 카메라의 ISO(gain) 범위 — 계획에서 카메라가 못 쓰는 ISO를 고르지 않게 (Codex C06). 연결 안 됐으면 모름
         if (await nina.GetInfoAsync("camera", ct) is { ValueKind: JsonValueKind.Object } cam && cam.TryGetProperty("Connected", out var on) && on.ValueKind == JsonValueKind.True
             && cam.TryGetProperty("GainMin", out var gmin) && gmin.TryGetInt32(out var lo) && cam.TryGetProperty("GainMax", out var gmax) && gmax.TryGetInt32(out var hi) && hi > lo && hi > 0)

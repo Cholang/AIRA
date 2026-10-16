@@ -22,7 +22,7 @@ public sealed partial class ShootSession
             _guide.Clear(); _hfr.Clear();
             foreach (var l in ShotGrader.Letters) _tally[l] = 0;
             _lastGrade = _ended = _folder = null; _note = null; _focusPoints = null; _photoAt = null;
-            _flipped = false; _stopRequested = false; _recordIndex = -1; _hfrRecent.Clear();
+            _flipped = false; _stopRequested = false; _recordIndex = -1; _hfrRecent.Clear(); _gap.Reset();
             _pause = null; _pausedMinutes.Clear(); _snrSamples.Clear(); _hfdSamples.Clear(); _snrBaseline = _hfdBaseline = 0;
             _mainStarsRatio = _mainMeanRatio = null; _jumps.Clear(); _hotPixels.Clear(); _lastDegrade.Clear(); _windWarned = false;
             _guideStopped = true; _mountStill = true; _hasGuider = ctx.HasGuider; _seenSteps = 0; _notMoved.Clear();
@@ -213,6 +213,12 @@ public sealed partial class ShootSession
         if (_ctx is { } c) Record(c);
         devices.EndSession();
         log.LogInformation("촬영 끝: {Reason} · 쓸 사진 {Good} · 제외 {Excluded}", reason, _good, _excluded);
+        // 장 사이 쉬는 시간: 그 밤의 중앙값을 지금 카메라에 남긴다 — 다음 계획이 그 값으로 장수·끝 시각을 센다 (모의 장비는 남기지 않음)
+        if (!mode.Simulate && _gap.Median is { } gap && cameras is not null)
+        {
+            cameras.RecordOverhead(null, gap, DateTimeOffset.Now);
+            log.LogInformation("장 사이 쉬는 시간 {Gap:F1}초 ({Count}번 잼) — 카메라 {Camera}", gap, _gap.Samples.Count, cameras.CurrentName ?? "모름");
+        }
     }
 
     private async Task<bool> TryStopGuidingAsync(CancellationToken ct)

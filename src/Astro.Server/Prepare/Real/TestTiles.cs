@@ -3,7 +3,7 @@ namespace Astro.Server.Prepare.Real;
 /// <summary>
 /// 시험 사진 9칸 확대 보기의 조각 (2026-10-16, DESIGN.md "하늘 화면"): 사진의 네 귀퉁이 · 네 변 가운데 · 한가운데에서 같은 크기의 정사각형을
 /// 원본 화소 그대로 잘라(줄이지 않음 — 별 모양이 보이게) PNG로. 칸 순서는 화면에 보이는 방향으로 왼쪽 위부터 가로로 0~8 (StarField와 같음).
-/// 컬러 센서의 색 무늬는 6×6 평균으로 지우고(X-Trans 무늬 한 주기 — 3×3은 자리에 따라 섞임이 달라 가로줄이 남았다, 베이어 2×2도 나눠떨어짐),
+/// 컬러 센서의 색 무늬는 카메라 내부 프로필의 칸 평균으로 지우고(X-Trans·모름 6×6 — 무늬 한 주기, 3×3은 자리에 따라 섞임이 달라 가로줄이 남았다. 베이어 2×2, 모노 1),
 /// 밝기는 아홉 칸 모두 사진 전체에서 정한 같은 늘이기로 — 칸끼리 견줄 수 있게. 늘이기 = 배경(중앙값)이 화면 밝기 15%쯤 오도록 (PixInsight STF와 같은 방식: 바닥을 중앙값 − 2.8 × 퍼짐에, 중간 밝기 곡선)
 /// </summary>
 public static class TestTiles
@@ -19,12 +19,13 @@ public static class TestTiles
     {
         var s = Math.Min(Side, Math.Min(img.Width, img.Height) / 3);
         if (s < 16) return null;
-        var stretch = Stretch(img);
+        var block = Camera.CameraCatalog.Match(img.Instrument).ColorBlock;
+        var stretch = Stretch(img, block);
         var tiles = new byte[9][];
         for (var k = 0; k < 9; k++)
         {
             // 이미 늘린 밝기를 그대로 — Png.FromGray16은 조각마다 다시 늘려 칸끼리 밝기가 달라지고 잡음이 커졌다
-            var gray = Crop(img, k, s, stretch);
+            var gray = Crop(img, k, s, stretch, block);
             var rgb = new byte[gray.Length * 3];
             for (var i = 0; i < gray.Length; i++) rgb[i * 3] = rgb[i * 3 + 1] = rgb[i * 3 + 2] = gray[i];
             tiles[k] = Png.Encode(s, s, rgb);
@@ -33,7 +34,7 @@ public static class TestTiles
     }
 
     /// <summary>칸 k(화면 방향 왼쪽 위부터)의 조각 s×s — 늘인 밝기 0~255, 화면에 보이는 방향</summary>
-    internal static byte[] Crop(Fits.Image img, int k, int s, (double Low, double High, double Mid) stretch)
+    internal static byte[] Crop(Fits.Image img, int k, int s, (double Low, double High, double Mid) stretch, int block = 6)
     {
         int col = k % 3, row = k / 3;
         var x0 = col == 0 ? 0 : col == 1 ? (img.Width - s) / 2 : img.Width - s;
@@ -44,21 +45,22 @@ public static class TestTiles
             var dy = y0 + y;
             var fy = img.BottomUp ? img.Height - 1 - dy : dy; // BottomUp 사진은 파일의 첫 줄이 화면 아래
             for (var x = 0; x < s; x++)
-                px[y * s + x] = (byte)Math.Round(255 * Curve(Box(img, x0 + x, fy), stretch.Low, stretch.High, stretch.Mid));
+                px[y * s + x] = (byte)Math.Round(255 * Curve(Box(img, x0 + x, fy, block), stretch.Low, stretch.High, stretch.Mid));
         }
         return px;
     }
 
-    /// <summary>6×6 평균 (가장자리는 안쪽 화소만)</summary>
-    private static double Box(Fits.Image img, int x, int y)
+    /// <summary>block×block 평균 (6이면 −2~+3, 2면 0~+1, 1이면 그 화소만. 가장자리는 안쪽 화소만)</summary>
+    private static double Box(Fits.Image img, int x, int y, int block)
     {
         double sum = 0;
         var n = 0;
-        for (var dy = -2; dy <= 3; dy++)
+        int from = -((block - 1) / 2), to = from + block - 1;
+        for (var dy = from; dy <= to; dy++)
         {
             var yy = y + dy;
             if (yy < 0 || yy >= img.Height) continue;
-            for (var dx = -2; dx <= 3; dx++)
+            for (var dx = from; dx <= to; dx++)
             {
                 var xx = x + dx;
                 if (xx < 0 || xx >= img.Width) continue;
@@ -70,17 +72,17 @@ public static class TestTiles
     }
 
     /// <summary>
-    /// 늘이기 값 — 조각과 같은 6×6 평균 값으로 잰다(평균 전 화소로 재면 뜨거운 화소가 위를 끌어올려 별이 어두워졌다):
+    /// 늘이기 값 — 조각과 같은 칸 평균 값으로 잰다(평균 전 화소로 재면 뜨거운 화소가 위를 끌어올려 별이 어두워졌다):
     /// 바닥(low) = 중앙값 − 2.8 × 퍼짐(중앙 절대 편차 × 1.4826), 위(high) = 가장 밝은 값, 중간 밝기(mid) = 배경이 TargetBackground에 오게 하는 곡선 값.
     /// 사진에서 약 30만 곳을 고르게 골라 잰다
     /// </summary>
-    internal static (double Low, double High, double Mid) Stretch(Fits.Image img)
+    internal static (double Low, double High, double Mid) Stretch(Fits.Image img, int block = 6)
     {
         var stepX = Math.Max(1, (int)Math.Sqrt((double)img.Width * img.Height / 300_000));
         var sample = new List<double>();
         for (var y = 0; y < img.Height; y += stepX)
             for (var x = 0; x < img.Width; x += stepX)
-                sample.Add(Box(img, x, y));
+                sample.Add(Box(img, x, y, block));
         sample.Sort();
         var median = sample[sample.Count / 2];
         var dev = new double[sample.Count];

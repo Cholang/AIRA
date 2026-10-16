@@ -53,7 +53,7 @@ public sealed class SimulatedWrapDevices(SimOptions sim, SimFaults faults) : IWr
 /// <summary>
 /// 마무리 실장비 (2026-10-07 — 실기 미확인). 위쪽 = 지금 항성시의 자오선·고도 약 80°(적위 = 위도 − 10°).
 /// 플랫 노출은 AA가 찾는다: 저장하지 않는 사진으로 평균 밝기를 재며 바닥~포화의 50% 근처까지 — 눈금은 그날 밤 시험 사진에서 알아낸 카메라 눈금(CameraScale),
-/// 없으면 N.I.N.A. 비트 수(사용자 설정이라 틀릴 수 있음), 그것도 없으면 14비트(X-T5).
+/// 없으면 카메라 내부 프로필의 원본 눈금(후지 14비트·바닥 1024), 그것도 모르면 N.I.N.A. 비트 수(사용자 설정이라 틀릴 수 있음, 없으면 16비트)·바닥 0.
 /// 1/250초보다 짧으면 셔터 그림자 위험으로 보고 패널을 어둡게 하자고 한다. 프로그램 닫기는 창 닫기(강제 종료 없음).
 /// </summary>
 public sealed class RealWrapDevices(NinaRig rig, Engine.NinaWatcher watcher, ILogger<RealWrapDevices> log, Engine.ProgramCloser? closer = null, CameraScale? scale = null) :IWrapDevices
@@ -71,7 +71,11 @@ public sealed class RealWrapDevices(NinaRig rig, Engine.NinaWatcher watcher, ILo
 
     public async Task<FlatExposure> FindFlatExposureAsync(int iso, Action<double, double> trying, CancellationToken ct)
     {
-        var (white, black) = scale?.Current ?? ((int)Math.Pow(2, await rig.CameraBitDepthAsync(ct) ?? 14) - 1, 0);
+        var (white, black) = scale?.Current ?? await rig.CameraProfileAsync(ct) switch
+        {
+            { RawWhite: { } raw } cam => (raw, cam.BlackLevel),
+            _ => ((int)Math.Pow(2, await rig.CameraBitDepthAsync(ct) ?? 16) - 1, 0),
+        };
         var s = 1.0;
         for (var i = 0; i < 8; i++)
         {

@@ -8,7 +8,7 @@ namespace Astro.Server.Prepare.Real;
 /// <summary>
 /// 시험 사진의 별 모양 (2026-10-16, OPERATION_PROCEDURE.md ⑦). 별은 솔빙에 쓰는 ASTAP의 `astap_cli -extract`로 찾고(위치·HFD·SNR —
 /// X-T5 원본 FITS를 그대로 읽는다, 80MB 한 장 약 1초), 별마다 길쭉함(이심률)·방향은 사진 화소의 2차 모멘트로 잰다.
-/// 모멘트 전에 3×3 평균 — 컬러 센서의 색 무늬가 모양을 흔들지 않게 (X-Trans는 3×3 안에 R·G·B가 고르게, 베이어도 거의 고르게 든다).
+/// 모멘트 전에 3×3 평균(모노 센서는 그대로 — 카메라 내부 프로필 ShapeSmoothing) — 컬러 센서의 색 무늬가 모양을 흔들지 않게 (X-Trans는 3×3 안에 R·G·B가 고르게, 베이어도 거의 고르게 든다).
 /// 일부러 늘인 가상 별(긴 축 1.2~2배)에서 이심률 오차 0.02 안, 방향 1° 안. X-T5 별자리 사진(56mm f/2.8, 1.3초): 별 99개, 가운데 칸 0.34, 귀퉁이 0.5~0.6, 방향 제각각.
 /// </summary>
 public static class StarShapes
@@ -132,6 +132,8 @@ public static class StarShapes
     private static (double Ecc, double Angle)? Shape(Fits.Image img, Star s)
     {
         var r = (int)Math.Clamp(Math.Round(2 * s.Hfd), 5, 48);
+        var k = Camera.CameraCatalog.Match(img.Instrument).ShapeSmoothing; // 컬러 1(3×3), 모노 0
+        var area = (2 * k + 1) * (2 * k + 1);
         var R = r + 6;
         int cx = (int)Math.Round(s.X - 1), cy = (int)Math.Round(s.Y - 1);
         if (cx - R - 1 < 0 || cy - R - 1 < 0 || cx + R + 1 >= img.Width || cy + R + 1 >= img.Height) return null;
@@ -142,9 +144,9 @@ public static class StarShapes
             for (var i = 0; i < n; i++)
             {
                 double sum = 0;
-                for (var dy = -1; dy <= 1; dy++)
-                    for (var dx = -1; dx <= 1; dx++) sum += img.At(cx - R + i + dx, cy - R + j + dy);
-                v[j * n + i] = sum / 9;
+                for (var dy = -k; dy <= k; dy++)
+                    for (var dx = -k; dx <= k; dx++) sum += img.At(cx - R + i + dx, cy - R + j + dy);
+                v[j * n + i] = sum / area;
                 var d2 = (i - R) * (i - R) + (j - R) * (j - R);
                 if (d2 > r * r && d2 <= R * R) ring.Add(v[j * n + i]);
             }

@@ -151,7 +151,7 @@ public sealed class PlanTools(DsoCatalog catalog, Engine.EquipmentChoices equipm
             plan.Settings = s with { Start = n.Window.DarkStart, End = n.Window.DarkStart, EstimatedFrames = 0, EndRule = EndRule.TargetLowOrDawn };
             return;
         }
-        var amount = ShootAmount.Of(w, s.ExposureSeconds, s.TotalMinutes);
+        var amount = ShootAmount.Of(w, s.ExposureSeconds, s.TotalMinutes, n.Rig.FrameOverheadSeconds);
         plan.Settings = s with
         {
             Start = w.Start, End = w.Limit, EstimatedFrames = amount.Planned, EndRule = EndRule.TargetLowOrDawn, EndAltitude = w.EndAltitude,

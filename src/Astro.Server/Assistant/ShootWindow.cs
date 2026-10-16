@@ -114,17 +114,17 @@ public sealed record ShootAmount(
     bool Clipped,
     /// <summary>다 채우는 밤의 예상 끝 (못 채우면 Limit)</summary>
     DateTimeOffset End,
-    /// <summary>한 장에 걸리는 시간(초) = 노출 + 쉬는 시간</summary>
+    /// <summary>한 장에 걸리는 시간(초) = 노출 + 쉬는 시간(카메라별 — Rig.FrameOverheadSeconds)</summary>
     double SecondsPerFrame)
 {
     /// <summary>실제로 찍을 장수 (준비·촬영 단계가 쓰는 계획 장수)</summary>
     public int Planned => Clipped ? MaxFrames : Frames;
 
-    public static ShootAmount Of(ShootWindow w, int exposureSeconds, int totalMinutes)
+    public static ShootAmount Of(ShootWindow w, int exposureSeconds, int totalMinutes, double overheadSeconds = PlanRules.FrameOverheadSeconds)
     {
         var exposure = Math.Max(PlanRules.MinExposureSeconds, exposureSeconds);
         var frames = Math.Max(1, (int)Math.Round(totalMinutes * 60.0 / exposure));
-        var per = exposure + PlanRules.FrameOverheadSeconds;
+        var per = exposure + overheadSeconds;
         // 자오선 반전 쉼은 찍는 동안 자오선을 지날 때만 더한다 (그 전에 다 찍으면 반전이 없다 — 2026-10-14 자체 리뷰)
         var plain = w.Start + TimeSpan.FromSeconds(frames * per);
         var flip = w.Transit is { } tr && tr < plain ? PlanRules.FlipPause : TimeSpan.Zero;
