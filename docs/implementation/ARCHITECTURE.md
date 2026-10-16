@@ -183,6 +183,8 @@ Astro.Desktop   WPF + WebView2: 창 껍데기
 web/            React + TypeScript 화면
 ```
 
+**큰 파일 나눔 (2026-10-16)**: 큰 서버 클래스는 `partial class`로 파일을 나누고 상태 필드는 본 파일 한곳에 둔다 — `ShootSession`(.Control·.GuideWatch), `PrepareRunner`(.Stop·.Actions·.TempSkip·.RunHandle), `EquipmentConnector`(.Hub·.Devices), `PlanAssistant`(.Chat), `AppServer`(.Endpoints). 독립된 타입은 제 파일로(`ShootModels`·`RunnerSetup`·`EquipmentSimulation`·`ChatModelFactory`·`PlanView`·`NinaLogRules`·`NinaWindowHiders`). 화면은 컴포넌트·데이터를 따로: `LiveView`(→ `LivePhoto`·`LivePanels`·`liveSimFields`·`useSlewTrack`), `PlanScreen`(→ `PlanChat`·`PlanTarget`·`PlanSettings`), `EquipmentScreen`(→ `EquipmentParts`, 계산은 `equipmentOrbits`), `RigScene`(데이터 `rigSceneData`), `App`(흐름 상수 `appFlow`). 같은 화면의 파일들은 같은 CSS 모듈을 함께 쓴다.
+
 ### 5.4 결정 과정 요약
 - Claude 처음 추천: Electron + 웹 UI (기존 Node 스크립트 재사용, UI 생산성)
 - GPT 의견: 오래 켜 두는 장비 프로그램이고 NINA 생태계와 가까우니 C#

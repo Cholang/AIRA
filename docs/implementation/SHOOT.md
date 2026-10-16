@@ -6,6 +6,7 @@
 
 - **촬영** — `src/Astro.Server/Shoot/`
   - `ShootSession`: 촬영 한 번(계획 하나)의 상태·순서. 끝 조건(계획 장수 = 쓸 사진 기준 · 대상 30° 아래 · 계획 끝 시각) → 자오선 반전(시간각 +1.25° = 자오선 5분 뒤, 한 번) → 초점 다시(기온 2°C 또는 최근 좋은 사진 3장 평균 별 크기가 초점 때의 1.3배) → 구름(PHD2가 가이딩 중이 아니면 멈추고 다시 켜 봄) → 한 장 → 등급 → F면 제외 폴더 → 쓸 사진 3장마다 디더링. 끝나면 가이딩 정지 확인. 그날 밤 결과 기록에 `NightShootResult`(대상별 쓸 사진·제외·노출·ISO·등급·폴더)
+  - 파일: `ShootSession.cs`(필드·상태 읽기·주 고리) · `.Control.cs`(시작·중단·끝·정지 확인) · `.GuideWatch.cs`(이슬·불안정·가이드 별 잃음), 모양 `ShootModels.cs`
   - `ShotGrader`: 등급 규칙(순수 함수, 테스트 고정). 기준 = 초점 때 별 크기, 처음 좋은 사진 3장의 별 수·배경(중앙값), 주 카메라 한 픽셀
   - `IShootDevices` — 모의 `SimulatedShootDevices`(한 장 ≈ 4초, 자오선 12분 전에서 시작), 실제 `RealShootDevices`
   - API `/api/shoot/start · state · watch · stop`, `/api/night/summary · open-folder`

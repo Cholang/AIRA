@@ -8,7 +8,19 @@
 
 ---
 
-## 2026-10-16 · [Claude] 빌드 경고 둘 정리 (쓰지 않는 _hubNoPower · SlewTask nullable)
+## 2026-10-16 · [Claude] 큰 파일 분리 마무리 — 계획서 지우고 구조 문서에 반영
+
+**요청**: 분리가 끝나면 계획서를 지우고 ARCHITECTURE·PREPARE·SHOOT에 구조 반영(계획서의 약속).
+
+**변경**: `docs/implementation/SPLIT_PLAN.md` 지움. ARCHITECTURE 5.3 아래 "큰 파일 나눔"(partial 규칙·나눈 파일), PREPARE 구조도(PrepareRunner partial·LiveView 파일들), SHOOT 구조(ShootSession 파일들).
+
+**확인**: 문서만. 분리 전체 결과 — 서버: ShootSession 1003→360 · PrepareRunner 995→473 · EquipmentConnector 854→525 · PlanAssistant 570→243 · AppServer 654→287 · NinaNotices 476→198. 웹: LiveView 688→120 · PlanScreen 656→217 · EquipmentScreen 864→511 · RigScene 699→약 530 · App 625→약 555. 서버 시험 316 통과·1 건너뜀, 웹 시험 52, lint 경고 38, 빌드 경고 0. 시험 서버에서 부팅 → 프로필 → 점검 → 장비 연결·장비 변경 모드를 지나가 콘솔 오류 없음 확인. 계획·준비(LiveView) 화면은 N.I.N.A. 없이 관측지 저장에서 막혀 화면으로는 못 봄(타입 검사로만).
+
+**남은 것**: 계획서와 다르게 하지 않은 것 — `RigScene`의 장비 선화(`RigArt`)는 장면 안의 상태·ref를 props로 넘겨야 해 코드 모양이 바뀌므로 4단계 몫, `AppServer`의 서비스 등록·`Build` 안 엔드포인트 묶기도 4단계 몫. 4단계(긴 함수의 블록을 메서드·훅으로)는 필요할 때만.
+
+---
+
+## 2026-10-16 · b0d33b0 [Claude] 빌드 경고 둘 정리 (쓰지 않는 _hubNoPower · SlewTask nullable)
 
 **요청**: 분리 계획의 "분리 뒤 따로 정리".
 

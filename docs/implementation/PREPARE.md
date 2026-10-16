@@ -26,6 +26,7 @@
 src/Astro.Server/Prepare/
   Flow/      PrepareFlow     — 러너 셋(장비 준비·대상·마무리) + 그날 밤 결과 + 묶음 사이 멈춤·넘김
              PrepareRunner   — 순서·끝 버튼·다시 하기 의존표·RunId·끝 상태 확인·정지 확인·SSE. 작업별 로직 없음
+                               (partial: .Stop 중단·정지 확인 · .Actions 버튼 · .TempSkip [임시] · .RunHandle 작업 손잡이, 묶음 설정은 RunnerSetup.cs)
              PrepTask.cs     — 작업 계약(IPrepTask·ITaskRun·PrepContext·MountLock·IPrepMemory)
              PrepResults.cs  — 결과 기록(작업 사이는 이것만으로)
              PrepView.cs     — 화면에 보내는 상태 모델
@@ -35,7 +36,7 @@ src/Astro.Server/Prepare/
   Sim/       모의 공통(SimOptions 속도·SimFaults 실패 걸기)
   PrepareSetup.cs — 등록(Equipment:Simulate면 모의, 아니면 Real), PrepareStarter(묶음 시작·이어서 하기)
   MountHome.cs · FocuserPark.cs — 적도의 홈 버튼, 끝낼 때 포커서 0
-web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveView·WindowView·StepRail · prepare.ts
+web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveView(+ LivePhoto·LivePanels·liveSimFields·useSlewTrack)·WindowView·StepRail · prepare.ts
 ```
 
 ### 1.1 묶음과 작업 (`PrepareFlow`, `RunnerSetup`)
