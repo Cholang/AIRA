@@ -200,7 +200,7 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
             run.SubStep(1);
             using var moving = CancellationTokenSource.CreateLinkedTokenSource(ct);
             using var asking = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            Task<string?> stop;
+            Task<string> stop;
             Task<SlewMove> slew;
             var stopPressed = false;
             var stopped = false;

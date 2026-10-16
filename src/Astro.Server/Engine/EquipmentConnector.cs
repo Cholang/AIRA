@@ -61,8 +61,6 @@ public sealed partial class EquipmentConnector(NinaApiClient nina, IOptions<Equi
     private DateTime _switchedOnAt = DateTime.MinValue;
     private TimeSpan JustSwitchedWait => TimeSpan.FromSeconds(10) - (DateTime.UtcNow - _switchedOnAt) is var left && left > TimeSpan.Zero ? left : TimeSpan.Zero;
 
-    /// <summary>이번 연결에서 허브 입력 전압이 0이었나 (배선을 고치는 증거에 씀)</summary>
-    private bool _hubNoPower;
     /// <summary>장비 하나 연결 + 걸린 시간을 logs\connect-날짜.log에 (2026-10-10 — 오래 걸리는 이유를 보려고)</summary>
     private ConnectTimingLog? _timing;
     /// <summary>연결에 성공하면 배울 것 (장비, 증거)</summary>
@@ -439,7 +437,6 @@ public sealed partial class EquipmentConnector(NinaApiClient nina, IOptions<Equi
             // 허브 입력 전압이 곧 장비 전원 (사용자 배선: 외부 전원 → 적도의 → 새들 → 허브). 전압 칸을 모르면 그냥 진행
             if (connected && kind == Hub && await HubInputVoltsAsync(ct) is { } volts && volts < NoPowerVolts)
             {
-                _hubNoPower = true;
                 // 안내는 배선을 믿고 (적도의 먼저면 적도의 전원부터)
                 var w = Wiring;
                 var fix = w.SourceOf(Hub) == Profiles.PowerWiring.Mount

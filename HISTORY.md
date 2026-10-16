@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — EquipmentScreen의 부품을 따로
+## 2026-10-16 · [Claude] 빌드 경고 둘 정리 (쓰지 않는 _hubNoPower · SlewTask nullable)
+
+**요청**: 분리 계획의 "분리 뒤 따로 정리".
+
+**변경**: `EquipmentConnector._hubNoPower`(넣기만 하고 읽는 곳 없음 — CS0414) 필드와 대입 한 줄 지움. `SlewTask.MoveAsync`의 `Task<string?> stop` → `Task<string>`(`AskAsync`가 돌려주는 형 — CS8619).
+
+**확인**: 솔루션 빌드 경고 0·오류 0, 서버 시험 316 통과·1 건너뜀.
+
+---
+
+## 2026-10-16 · 5569b15 [Claude] 큰 파일 분리 3단계 — EquipmentScreen의 부품을 따로
 
 **요청**: 분리 계획 3단계 셋째 파일.
 
