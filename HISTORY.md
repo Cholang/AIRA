@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — PrepareRunner를 partial 다섯으로
+## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — EquipmentConnector를 partial 셋으로
+
+**요청**: 분리 계획 2단계 셋째 파일.
+
+**변경** (옮기기만): `Engine/EquipmentConnector.cs`(854 → 525줄: 슬롯·실행·연결 `ConnectOneAsync`·결과 만들기)에서 `EquipmentConnector.Hub.cs`(허브 실패 때 PC에 보이는지·배선 학습·허브 전압·출력 켜기·목록 기다리기, 153줄) · `.Devices.cs`(PHD2 점검·프로필 장비 읽기·이름 줄이기·PHD2 카메라 다시 가리키기, 122줄). 흩어진 필드 `_timing`·`_learnOnPass`(설명 줄과 함께)는 필드 자리로.
+
+**확인**: 바뀐 줄은 새 파일 머리와 본 파일의 `partial`뿐(옮긴 줄 255). 솔루션 빌드(경고 2개 그대로 — `_hubNoPower`는 분리 뒤 따로), 서버 시험 316 통과·1 건너뜀.
+
+---
+
+## 2026-10-16 · f816928 [Claude] 큰 파일 분리 2단계 — PrepareRunner를 partial 다섯으로
 
 **요청**: 분리 계획 2단계 둘째 파일.
 
