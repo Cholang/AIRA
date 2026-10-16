@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 1단계(웹) — 장면 데이터·앱 흐름 상수·궤도 계산을 새 파일로
+## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — ShootSession을 partial 셋으로
+
+**요청**: 분리 계획 2단계(서버 partial) 첫 파일.
+
+**변경** (옮기기만): `Shoot/ShootSession.cs`(1003 → 360줄: 필드·상태 읽기·주 고리 `RunAsync`·`EndReason`)에서 `ShootSession.Control.cs`(시작·중단·`[임시]` 건너뛰기·답·끝·정지 확인·기록, 274줄)·`ShootSession.GuideWatch.cs`(이슬·디더링 불안정·가이드 별 잃음·제외 사진·가이드 값 읽기, 358줄). 흩어져 있던 필드 넷(`_flipped`·`_lastFocusTemp`·`_hfrRecent`·`_recordIndex`)은 필드 묶음으로(선언 자리만).
+
+**확인**: 바뀐 줄은 새 파일 머리(using·namespace·partial 선언·괄호)와 본 파일의 `partial`뿐. 솔루션 빌드(경고 2개 그대로), 서버 시험 316 통과·1 건너뜀.
+
+---
+
+## 2026-10-16 · 5edddf8 [Claude] 큰 파일 분리 1단계(웹) — 장면 데이터·앱 흐름 상수·궤도 계산을 새 파일로
 
 **요청**: 분리 계획 1단계(웹).
 
