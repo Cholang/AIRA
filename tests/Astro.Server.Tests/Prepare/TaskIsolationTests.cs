@@ -343,8 +343,8 @@ public class TaskIsolationTests
         faults.Arm("test.bright");
         var ctx = Harness.Context();
         var (done, _) = await RunAlone(new TestShotTask(new SimulatedTestShotDevices(Fast, faults)), ctx);
-        Assert.Equal(90, ctx.ExposureSeconds);
-        Assert.Equal(90, Assert.IsType<TestShotResult>(done.Result).ExposureSeconds);
+        Assert.Equal(30, ctx.ExposureSeconds); // 노출 맞추기: 배경 4배 → 120초를 30초로 (묻지 않음)
+        Assert.Equal(30, Assert.IsType<TestShotResult>(done.Result).ExposureSeconds);
     }
 
     [Fact]

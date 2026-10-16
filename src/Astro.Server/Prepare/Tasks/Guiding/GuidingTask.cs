@@ -121,7 +121,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
             run.Status(null);
             var c = await run.AskAsync($"한 장 노출을 {UnguidedExposure}초로 줄일까요?\n계획대로 찍으면 별이 흐를 수 있어요. 시험 사진에서 별 모양을 확인할 수 있어요.",
                 [new("shorter", $"{UnguidedExposure}초로 줄이기", true), new("keep", $"계획대로 {ctx.ExposureSeconds}초")], ct);
-            if (c == "shorter") ctx.ExposureSeconds = UnguidedExposure;
+            if (c == "shorter") ctx.ChangeExposure(UnguidedExposure);
         }
         return new Completed(new GuidingResult(0, 0, 0, "건너뜀", ctx.Now(), Skipped: true), $"건너뜀 · 가이드 없이 {ctx.ExposureSeconds}초",
             "가이드 없이 진행합니다", "오늘 밤은 가이드 없이 찍어요. 디더링도 하지 않아요. 다음은 시험 사진입니다.") { AutoNext = true };

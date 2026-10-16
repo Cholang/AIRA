@@ -25,8 +25,8 @@ public sealed record ShotStats(double Hfr, double? Eccentricity, double Backgrou
 public sealed record TestShotEndState(bool CameraExposing, bool Guiding, bool FileSaved);
 
 /// <summary>
-/// ⑦ 시험 사진 (OPERATION_PROCEDURE.md ⑦): 계획 노출로 한 장 → AA가 규칙으로 바로 검사 → "좋아요" 또는 문제 + 할 일.
-/// 노출을 바꿔야 하면 묻고(계획에 반영) 다시 찍기. 첫 장으로 쓰지 않는다. 끝 버튼은 러너의 "촬영 시작".
+/// ⑦ 시험 사진 (OPERATION_PROCEDURE.md ⑦): 계획 노출로 한 장 → 노출 맞추기(배경이 알맞지 않으면 묻지 않고 노출을 바꿔 한 장 더, 많아야 3장 — <see cref="ExposureMatch"/>)
+/// → 마지막 사진을 규칙으로 바로 검사 → "좋아요" 또는 문제 + 할 일. 첫 장으로 쓰지 않는다. 끝 버튼은 러너의 "촬영 시작".
 /// </summary>
 public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
 {
@@ -41,10 +41,13 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
     public async Task<TaskOutcome> RunAsync(ITaskRun run, CancellationToken ct)
     {
         var ctx = run.Context;
+        var shots = 0;
+        string? matched = null; // 노출 맞추기로 바꾼 내용 (끝 안내에)
         while (true)
         {
             run.SubStep(0);
-            run.Guide("시험 노출", "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인합니다. 이 사진은 촬영 사진에 넣지 않습니다.");
+            if (matched is null)
+                run.Guide("시험 노출", "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인합니다. 이 사진은 촬영 사진에 넣지 않습니다.");
             run.Live("none");
             run.Status($"노출 중입니다 · {ctx.ExposureSeconds}초 · ISO {ctx.Plan.Iso}");
             var since = ctx.Now();
@@ -83,7 +86,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 stats.Histogram is { } hist ? new { histogram = hist, background = stats.Background, tiles = stats.Tiles } : stats.Tiles ? new { tiles = true } : null);
             // 대상 단계에서 초점을 다시 맞췄으면 그 값과 비교한다
             var focusHfr = ctx.Results.Get<FocusCheckResult>() is { Refocused: true, Hfr: { } rh } ? rh : ctx.Results.Get<FocusResult>()?.Hfr;
-            var verdict = TestShotRules.Judge(stats, focusHfr, ctx.ExposureSeconds);
+            var verdict = TestShotRules.Judge(stats, focusHfr);
             var values = new Dictionary<string, double>
             {
                 ["hfr"] = stats.Hfr, ["background"] = stats.Background,
@@ -101,16 +104,20 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             if (focusHfr is { } fh) values["focusHfr"] = fh;
             run.Readout("test-shot", $"HFR {stats.Hfr:F1}", verdict.Caption, verdict.Tone, values);
 
-            run.SubStep(3);
-            if (verdict.SuggestExposure is { } shorter)
+            // 노출 맞추기: 배경이 알맞지 않으면 묻지 않고 바꿔 한 장 더 (적도의가 움직이지 않는 일 — 2026-10-15 합의). 많아야 3장
+            if (++shots < ExposureMatch.MaxShots && ExposureMatch.Next(stats.Background, stats.SaturatedPercent, ctx.ExposureSeconds, ctx.HasGuider) is { } next)
             {
-                run.Guide("배경이 밝아요", $"달빛 때문에 하늘 배경이 밝습니다. 노출을 줄이면 배경이 덜 하얗게 뜨고 별도 덜 포화됩니다. ");
-                run.Status("배경 밝기 높음", Tone.Warn);
-                var c = await run.AskAsync($"노출을 {ctx.ExposureSeconds}초에서 {shorter}초로 줄여 다시 찍을까요? 계획의 노출도 바뀌어요.\n이대로 진행을 누르면 계획한 노출로 촬영해요.",
-                    [new("shorter", $"{shorter}초로 다시 찍기", true), new("keep", ButtonText.Proceed)], ct);
-                if (c == "shorter") { ctx.ExposureSeconds = shorter; continue; }
+                var why = stats.SaturatedPercent > ExposureMatch.SaturatedLimit && next < ctx.ExposureSeconds ? "밝은 별이 많이 포화돼"
+                    : stats.Background > ExposureMatch.High ? "하늘 배경이 밝아" : "하늘 배경이 어두워";
+                matched = $"{why} 노출을 {ctx.ExposureSeconds}초에서 {next}초로 바꿨어요";
+                run.Guide("노출을 맞추고 있어요", $"{matched}. 확인용으로 한 장 더 찍습니다. 계획의 노출과 장수도 바뀌어요.");
+                run.Status($"배경 {stats.Background * 100:F0}% · 목표 {ExposureMatch.Target * 100:F0}% 안팎 · 노출 {next}초로", Tone.Busy);
+                ctx.ChangeExposure(next);
+                continue;
             }
-            else if (verdict.Problem is { } problem)
+
+            run.SubStep(3);
+            if (verdict.Problem is { } problem)
             {
                 run.Guide(problem.Title, problem.Text);
                 run.Status(problem.Status, Tone.Warn);
@@ -124,6 +131,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 }
             }
             run.Status(null);
+            var exposureNote = matched is null ? "" : $" {matched}(계획에 반영).";
             var result = new TestShotResult(ctx.ExposureSeconds, stats.Hfr, stats.Eccentricity, stats.SaturatedPercent, stats.FilePath, ctx.Now());
             // 아홉 칸이 고르지 않으면 알려만 준다 — 조절 순서(가이드 멈춤 → 조절 → 초점·센터링 확인)는 [계획]
             var looks = verdict.Field?.Kind switch
@@ -133,7 +141,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 _ => "초점·별 모양·배경·가이드 모두 괜찮습니다.",
             };
             return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", "좋아요, 촬영을 시작해도 돼요",
-                $"{looks} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다." + (stats.Tiles ? " 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요." : ""),
+                $"{looks}{exposureNote} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다." + (stats.Tiles ? " 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요." : ""),
                 [new("redo:test", ButtonText.Redo), new("redo:center", "센터링 다시 하기")])
             { ExtraPrompt = "다시 하기를 누르면 시험 사진을 다시 찍고, 센터링 다시 하기를 누르면 구도부터 다시 맞춰요." };
         }
@@ -165,17 +173,16 @@ public static class TestShotRules
     public const double HfrGrowthLimit = 1.25;   // 초점 때보다 25% 넘게 커지면 초점이 밀렸다고 본다
     public const double EccentricityLimit = 0.6; // 가운데 별이 이보다 길쭉하고 (긴 축 약 1.25배)
     public const double AlignedLimit = 0.5;      // [임시] 그 방향이 이만큼 한쪽으로 모였으면 가이드·추적 문제 (잡음·광학으로 길쭉한 별은 방향이 제각각)
-    public const double BackgroundLimit = 0.35;  // 배경이 이보다 밝으면 노출을 줄이자고 한다
     public const double SaturatedLimit = 1.0;    // [임시] 포화 화소가 이 %를 넘으면 노출을 줄이자고 한다 (밝은 별 꼭대기는 늘 조금 넘침 — 실제 사진으로 다듬기)
 
     public sealed record Problem(string Title, string Text, string Status, string RedoAction, string RedoLabel);
     /// <summary>Field = 아홉 칸 판정 (재지 못했으면 null)</summary>
-    public sealed record Verdict(string Caption, Tone Tone, int? SuggestExposure, Problem? Problem, StarFieldRules.Verdict? Field = null);
+    public sealed record Verdict(string Caption, Tone Tone, Problem? Problem, StarFieldRules.Verdict? Field = null);
 
     /// <summary>별이 흘렀나: 가운데 별이 길쭉하고 그 방향이 한쪽으로 모임. 방향을 모르면(모의) 길쭉함만으로</summary>
     public static bool Trailed(ShotStats s) => s.Eccentricity > EccentricityLimit && (s.Field?.Alignment ?? 1) >= AlignedLimit;
 
-    public static Verdict Judge(ShotStats s, double? focusHfr, int exposureSeconds)
+    public static Verdict Judge(ShotStats s, double? focusHfr)
     {
         var parts = new List<string>();
         var trailed = Trailed(s);
@@ -183,18 +190,16 @@ public static class TestShotRules
         if (focusHfr is { } f) parts.Add($"초점 때 {f:F1}");
         if (s.Eccentricity is { } ecc) parts.Add(ecc <= EccentricityLimit ? "별 둥긂" : trailed ? "별 길쭉함" : "별 모양 제각각"); // 재지 못했으면 말하지 않는다
         if (field is not null) parts.Add(field.Caption);
-        parts.Add(s.Background <= BackgroundLimit ? "배경 적당" : "배경 밝음");
+        parts.Add(s.Background < ExposureMatch.Low ? "배경 어두움" : s.Background <= ExposureMatch.High ? "배경 알맞음" : "배경 밝음");
         parts.Add($"포화 {s.SaturatedPercent:F1}%");
         parts.Add($"가이드 {s.GuidingRms:F1}″");
         parts.Add("\"시험\" 폴더에 보관함");
         var caption = string.Join(" · ", parts);
 
-        if ((s.Background > BackgroundLimit || s.SaturatedPercent > SaturatedLimit) && exposureSeconds > 30)
-            return new Verdict(caption, Tone.Warn, (int)Math.Round(exposureSeconds * 0.75 / 10) * 10, null, field);
         if (focusHfr is { } fh && s.Hfr > fh * HfrGrowthLimit)
-            return new Verdict(caption, Tone.Warn, null, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"), field);
+            return new Verdict(caption, Tone.Warn, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"), field);
         if (trailed)
-            return new Verdict(caption, Tone.Warn, null, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 하기"), field);
-        return new Verdict(caption, Tone.Ok, null, null, field);
+            return new Verdict(caption, Tone.Warn, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 하기"), field);
+        return new Verdict(caption, Tone.Ok, null, field);
     }
 }

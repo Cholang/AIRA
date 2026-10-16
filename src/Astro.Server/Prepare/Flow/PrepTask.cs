@@ -122,8 +122,24 @@ public sealed class PrepContext(
     public IPrepMemory Memory { get; } = memory;
     public Func<DateTimeOffset> Now { get; } = clock;
 
-    /// <summary>⑦에서 노출을 바꾸면 계획 값 대신 이 값 (계획에 반영)</summary>
-    public int ExposureSeconds { get; set; } = plan?.ExposureSeconds ?? DefaultExposureSeconds;
+    /// <summary>한 장 노출. 가이드 없이 줄이거나 ⑦ 노출 맞추기가 바꾸면 계획 값 대신 이 값 — 바꿀 때는 <see cref="ChangeExposure"/>로 (계획에 반영)</summary>
+    public int ExposureSeconds { get; private set; } = plan?.ExposureSeconds ?? DefaultExposureSeconds;
+
+    /// <summary>
+    /// 노출을 바꾸고 계획에 반영한다 — 총 노출 시간이 같도록 장수도 다시 (2026-10-15 합의 "바꾼 노출은 계획에 반영(장수 다시)").
+    /// 촬영은 계획의 장수·끝 시각·끝 고도 중 먼저 오는 것에서 끝난다
+    /// </summary>
+    public void ChangeExposure(int seconds)
+    {
+        if (seconds <= 0 || seconds == ExposureSeconds) return;
+        if (plan is { } p)
+            plan = p with
+            {
+                ExposureSeconds = seconds,
+                EstimatedFrames = Math.Max(1, (int)Math.Round((double)p.EstimatedFrames * ExposureSeconds / seconds)),
+            };
+        ExposureSeconds = seconds;
+    }
     /// <summary>센터링 실패·시험 사진이 "초점 다시 맞추기"를 고르면 켠다 — 초점 확인이 비교 없이 바로 다시 맞춘다 (한 번 쓰고 끈다)</summary>
     public bool RefocusRequested { get; set; }
     /// <summary>앞 작업의 끝에서 시작 버튼 대신 고른 다른 선택 (StartAlternatives의 "next:" 뒤). 작업이 시작하며 읽고 지운다</summary>

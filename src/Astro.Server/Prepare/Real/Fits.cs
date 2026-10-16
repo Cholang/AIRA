@@ -63,6 +63,14 @@ public static class Fits
         var full = known is { } k && k >= max ? k : standard;
         var clipped = max > 0 && each[max] >= 3 && max >= full * 0.9; // 눈금 가까이에서 같은 최댓값에 여러 점 = 센서가 넘친 자리
         var white = clipped ? max : full;
+        // 후지 원본(14비트)인데 그 위 값이 조금(1% 미만) 있으면 별 중심이 넘친 자리 — 눈금은 16383 그대로 두고 그 위는 포화로 센다.
+        // 2026-10-17 X-T5 사진(ISO 800 · 12초): 16393~65535 값 1936점(0.005%) 때문에 16비트·바닥 0으로 읽어 배경 18%를 6%로 쟀다
+        if (IsFuji(img.Instrument) && max > 16383)
+        {
+            long above = 0;
+            for (var v = 16384; v <= max; v++) above += each[v];
+            if (above * 100 < seen) (white, clipped) = (16383, true);
+        }
         var black = BlackLevel(img.Instrument, white);
 
         var counts = new int[bins];

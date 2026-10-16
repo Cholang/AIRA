@@ -2,7 +2,10 @@ using Astro.Server.Prepare.Sim;
 
 namespace Astro.Server.Prepare.Tasks.TestShot;
 
-/// <summary>⑦ 모의 장비. "test.expose" = 노출 실패, "test.download" = 두 번 다 못 받음, "test.bright" = 달빛으로 배경이 밝음(노출을 줄이면 괜찮아짐)</summary>
+/// <summary>
+/// ⑦ 모의 장비. "test.expose" = 노출 실패, "test.download" = 두 번 다 못 받음, "test.bright" = 달빛으로 배경이 4배 밝음(노출 맞추기가 줄임).
+/// 배경은 노출에 비례 — 보통 하늘은 120초에 노출 맞추기 목표(7%)
+/// </summary>
 public sealed class SimulatedTestShotDevices(SimOptions sim, SimFaults faults) : ITestShotDevices
 {
     private bool _exposing, _saved, _failDownload, _bright;
@@ -35,10 +38,9 @@ public sealed class SimulatedTestShotDevices(SimOptions sim, SimFaults faults) :
             return null;
         }
         _saved = true;
-        var bright = _bright && _lastExposure > 90;
-        if (!bright) _bright = false;
-        var bg = bright ? 0.5 : 0.2;
-        return new ShotStats(2.3, 0.3, bg, bright ? 2.8 : 0.4, 0.6, $"시험/test_{_lastExposure}s.raf", SimHistogram(bg), SimField, Tiles: true);
+        var bg = Math.Min(0.9, ExposureMatch.Target * _lastExposure / 120.0 * (_bright ? 4 : 1));
+        var saturated = _bright && _lastExposure > 90 ? 2.8 : 0.4;
+        return new ShotStats(2.3, 0.3, bg, saturated, 0.6, $"시험/test_{_lastExposure}s.raf", SimHistogram(bg), SimField, Tiles: true);
     }
 
     /// <summary>모의 아홉 칸: 고름 (귀퉁이가 가운데보다 조금 큼, 방향 제각각)</summary>

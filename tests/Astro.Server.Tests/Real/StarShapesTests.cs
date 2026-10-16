@@ -86,8 +86,8 @@ public class StarShapesTests : IDisposable
         var field = new StarField([.. Enumerable.Range(0, 9).Select(_ => new StarTile(6, 6.0, 0.7))], Alignment: 0.2);
         var s = new ShotStats(3, 0.7, 0.2, 0, 0.5, "", null, field);
         Assert.False(TestShotRules.Trailed(s));
-        Assert.Contains("별 모양 제각각", TestShotRules.Judge(s, 2.9, 120).Caption);
-        Assert.Null(TestShotRules.Judge(s, 2.9, 120).Problem);
+        Assert.Contains("별 모양 제각각", TestShotRules.Judge(s, 2.9).Caption);
+        Assert.Null(TestShotRules.Judge(s, 2.9).Problem);
         // 방향을 모르면(모의 장비) 길쭉함만으로
         Assert.True(TestShotRules.Trailed(s with { Field = null }));
     }
@@ -138,7 +138,7 @@ public class StarShapesTests : IDisposable
     public void 기울어짐은_검사_글에만_나오고_촬영을_막지_않는다()
     {
         var s = new ShotStats(3, 0.3, 0.2, 0, 0.5, "", null, Field(3.0, 3, 4.2, 3, 2.9, 3, 3.1, 3, 3.0));
-        var v = TestShotRules.Judge(s, 2.9, 120);
+        var v = TestShotRules.Judge(s, 2.9);
         Assert.Contains("기울어짐 의심(오른쪽 위 별이 큼)", v.Caption);
         Assert.Null(v.Problem);
         Assert.Equal(StarFieldRules.Kind.Tilted, v.Field!.Kind);

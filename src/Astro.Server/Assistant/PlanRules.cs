@@ -25,8 +25,11 @@ public static class PlanRules
     /// <summary>시작점은 끝나기 이만큼 전까지만 옮길 수 있다</summary>
     public static readonly TimeSpan EndMargin = TimeSpan.FromMinutes(10);
 
-    /// <summary>사진 한 장마다 내려받기·저장·디더링으로 쉬는 시간 (2026-10-08 실기 X-T5: 약 38초)</summary>
-    public const double FrameOverheadSeconds = 40;
+    /// <summary>
+    /// 사진 한 장마다 내려받기·저장·디더링으로 쉬는 시간. X-T5 · N.I.N.A. 연속 촬영 실측 6~10초(2026-05-08 사진 번호와 시각, 디더링 포함 구간 10초) —
+    /// 전의 40초(2026-10-08)는 저장 폴더가 OneDrive 안이라 느렸던 때의 값. 아이라로 찍을 때의 값은 촬영 중에 재서 바꾼다
+    /// </summary>
+    public const double FrameOverheadSeconds = 10;
 
     /// <summary>자오선 반전으로 멈추는 시간</summary>
     public static readonly TimeSpan FlipPause = TimeSpan.FromMinutes(5);
