@@ -188,3 +188,26 @@ export function solarLayout(w: number, h: number): SolarGeo | null {
 
   return { cx, cy, sunD, planets, belt, scope: { x: scope.x, y: scope.y } }
 }
+
+/**
+ * 진행 호: 항성 테두리 중 화면 안에 보이는 부분 전체 — 위 가장자리에서 왼쪽 가장자리까지 (항성 가운데가 화면 안쪽으로 조금 들어와 있어서
+ * 보이는 테두리는 오른쪽 끝·아래 끝보다 조금 더 돈다. 2026-10-11 사용자: 호가 양 끝에 닿지 않고 중간에서 시작해 중간에서 끝남).
+ * 끝은 가장자리 4px 바깥까지 — 둥근 끝이 화면 안에 보이지 않게
+ */
+export function sunArcPath(geo: SolarGeo) {
+  const r = geo.sunD / 2 + 1
+  const clamp = (v: number) => Math.min(1, Math.max(-1, v))
+  const a0 = Math.asin(clamp(-(geo.cy + 4) / r)) // 위 가장자리(y = -4)와 만나는 곳
+  const a1 = Math.acos(clamp(-(geo.cx + 4) / r)) // 왼쪽 가장자리(x = -4)와 만나는 곳
+  return `M ${geo.cx + r * Math.cos(a0)} ${geo.cy + r * Math.sin(a0)} A ${r} ${r} 0 0 1 ${geo.cx + r * Math.cos(a1)} ${geo.cy + r * Math.sin(a1)}`
+}
+
+/** 궤도: 행성 자리에서 시작해 한 바퀴 (그려질 때 행성에서 출발하는 것처럼) */
+export function orbitPath(geo: SolarGeo, p: Planet) {
+  const th = (p.a * Math.PI) / 180
+  const sx = geo.cx + p.r * Math.cos(th)
+  const sy = geo.cy + p.r * Math.sin(th)
+  const ox = geo.cx - p.r * Math.cos(th)
+  const oy = geo.cy - p.r * Math.sin(th)
+  return `M ${sx} ${sy} A ${p.r} ${p.r} 0 1 1 ${ox} ${oy} A ${p.r} ${p.r} 0 1 1 ${sx} ${sy}`
+}

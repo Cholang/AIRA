@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 다크플랫 옮기기를 ImageFolders.Move로 (Gemini A-14)
+## 2026-10-16 · [Claude] 큰 파일 분리 1단계(웹) — 장면 데이터·앱 흐름 상수·궤도 계산을 새 파일로
+
+**요청**: 분리 계획 1단계(웹).
+
+**변경** (옮기기만 — 옮긴 것에 `export`, 쓰는 쪽 import만 바뀜): `RigScene.tsx` → `components/rigSceneData.ts`(점검 항목·하늘·별자리·땅·잔디·구체 회전·부팅·유성 상수, 안에서만 쓰는 것은 내보내지 않음). `App.tsx` → `appFlow.ts`(Phase·STAGE_OF·SCENE_OF·CORNER_SUN·NOTICE_HIDE·WATCHED·SITE_*·LABEL_OF·페이드 시간). `BOOT_PROMPT_MS`는 App이 `rigSceneData`에서 읽음. `EquipmentScreen.tsx`의 `orbitPath`·`sunArcPath` → 이미 있던 `screens/equipmentOrbits.ts`.
+
+**확인**: 바뀐 줄을 세어 옮긴 줄 말고는 `export`·import 줄뿐임을 확인. tsc·lint(경고 38 그대로)·웹 시험 52·웹 빌드. 시험 서버 화면 확인은 3단계(컴포넌트 분리) 뒤에 한꺼번에.
+
+---
+
+## 2026-10-16 · 4d57178 [Claude] 다크플랫 옮기기를 ImageFolders.Move로 (Gemini A-14)
 
 **요청**: 분리 계획의 1단계 끝 작은 정리.
 
