@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 using Astro.Server.Shoot;
 
@@ -64,7 +65,7 @@ public sealed class FlatTask(IWrapDevices devices) : IPrepTask
         {
             run.SubStep(0);
             run.Guide("망원경을 위로 보내고 있어요", "플랫 패널을 씌우기 쉽게 망원경을 하늘 위쪽으로 돌려요. 초점과 카메라 방향은 촬영 때 그대로 둬요.");
-            run.Readout("count", $"{Count}장", "플랫 · 밝기에 맞춰 노출은 AA가 정해요", Tone.None);
+            run.Readout("count", $"{Count}장", $"플랫 · 밝기에 맞춰 노출은 {Product.Ga} 정해요", Tone.None);
             run.Status("적도의가 움직이는 중입니다");
             bool up;
             await using (await ctx.Mount.AcquireAsync(ct)) up = await devices.PointUpAsync(ct);

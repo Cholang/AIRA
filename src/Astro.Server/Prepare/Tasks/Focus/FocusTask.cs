@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 
 namespace Astro.Server.Prepare.Tasks.Focus;
@@ -199,7 +200,7 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
             if (z.Done) { run.Status("포커서 0점을 잡았습니다", Tone.Ok); return; }
             if (z.Unsupported)
             {
-                run.Guide("포커서 0점", "이 포커서는 AA가 0점을 잡을 수 없습니다. 포커서 드라이버 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Set Zero를 누른 뒤 눌러 주세요.");
+                run.Guide("포커서 0점", $"이 포커서는 {Product.Ga} 0점을 잡을 수 없습니다. 포커서 드라이버 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Set Zero를 누른 뒤 눌러 주세요.");
                 run.Status(null);
                 await run.AskAsync([new("zero-done", "0점을 잡았어요", true), new("zero-skip", "0점 없이 진행")], ct);
                 devices.DropZeroRequest();

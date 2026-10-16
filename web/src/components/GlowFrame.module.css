@@ -19,7 +19,7 @@
   inset: calc(-1 * var(--glow-width));
   padding: var(--glow-width);
   border-radius: calc(var(--glow-radius) + var(--glow-width));
-  background: color-mix(in srgb, var(--text, #fff) 9%, transparent);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
   overflow: hidden;
   pointer-events: none;
   container-type: size; /* 아래 판 크기를 링 크기로 재려고 */
@@ -51,13 +51,13 @@
   width: var(--d);
   height: var(--d);
   margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
-  /* 선 위의 빛은 흰빛을 섞어 더 밝게 */
+  /* 선 위의 빛은 밝은 빛(--glow-hi — 촬영 테마는 순수 빨강)을 섞어 더 밝게 */
   background: conic-gradient(
     transparent 0deg,
-    color-mix(in srgb, var(--glow-color) 70%, #fff) 10deg,
+    color-mix(in srgb, var(--glow-color) 70%, var(--glow-hi)) 10deg,
     transparent 20deg,
     transparent 180deg,
-    color-mix(in srgb, var(--glow-color) 70%, #fff) 190deg,
+    color-mix(in srgb, var(--glow-color) 70%, var(--glow-hi)) 190deg,
     transparent 200deg
   );
   animation: glow-turn var(--glow-period) linear infinite;

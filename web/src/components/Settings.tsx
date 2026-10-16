@@ -180,6 +180,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 /** 프로그램 하나: 지금 쓰는 경로(직접 지정 · 자동으로 찾음 · 찾지 못함) + 찾아보기 · 자동으로 */
 function PathRow({ title, chosen, auto, onPick, onAuto }: { title: string; chosen: string | null; auto: string | null; onPick: () => void; onAuto: () => void }) {
   const using = chosen ?? auto
+  // 촬영(적색) 테마에서는 Windows 파일 선택 창(밝은 흰 창)을 열지 않는다 — 눈의 암적응이 깨진다 (DESIGN.md 6-2)
+  const night = document.documentElement.dataset.theme === 'night'
   return (
     <div className={styles.field}>
       <span className={styles.label}>{title}</span>
@@ -188,7 +190,13 @@ function PathRow({ title, chosen, auto, onPick, onAuto }: { title: string; chose
       </p>
       <small className={styles.muted}>{chosen ? '직접 지정한 경로' : auto ? '자동으로 찾은 경로' : ''}</small>
       <div className={styles.row}>
-        <Button size="sm" onClick={onPick} disabled={!inDesktop()}>
+        <Button
+          size="sm"
+          onClick={() => !night && onPick()}
+          disabled={!inDesktop()}
+          aria-disabled={night || undefined}
+          title={night ? 'Windows 파일 선택 창은 밝은 흰 창이라 촬영 테마에서는 열지 않습니다. 기본 테마로 바꾼 뒤 골라 주세요' : undefined}
+        >
           찾아보기
         </Button>
         {chosen && (

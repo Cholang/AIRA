@@ -1,3 +1,4 @@
+using Astro.Core;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -747,7 +748,7 @@ public sealed class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOpt
                 { Present: > 1 } => new Phd2Check.Problem("같은 종류의 카메라가 여러 대 꽂혀 있어 가이드 카메라를 고르지 못했습니다",
                     "PHD2의 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 고른 뒤 연결하고, 창을 닫은 다음 다시 연결을 눌러 주세요."),
                 { Moved: true } => new Phd2Check.Problem("가이드 카메라가 전과 다른 USB 자리에 꽂혀 있습니다",
-                    "아이라가 PHD2에 새 자리를 알려 주었지만 연결되지 않았습니다. 가이드 카메라를 전에 쓰던 USB 자리에 다시 꽂거나, PHD2의 장비 연결 창에서 카메라를 다시 고른 뒤 다시 연결을 눌러 주세요."),
+                    $"{Product.Ga} PHD2에 새 자리를 알려 주었지만 연결되지 않았습니다. 가이드 카메라를 전에 쓰던 USB 자리에 다시 꽂거나, PHD2의 장비 연결 창에서 카메라를 다시 고른 뒤 다시 연결을 눌러 주세요."),
                 _ => new Phd2Check.Problem("PHD2가 기억해 둔 가이드 카메라를 찾지 못했습니다",
                     "가이드 카메라를 다른 USB 자리에 꽂으면 PHD2가 카메라를 다시 골라야 합니다(PHD2의 동작). PHD2의 장비 연결 창에서 카메라 줄 옆 선택 버튼으로 가이드 카메라를 고른 뒤 연결하고, 창을 닫은 다음 다시 연결을 눌러 주세요."),
             };

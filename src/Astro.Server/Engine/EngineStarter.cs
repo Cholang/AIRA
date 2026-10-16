@@ -68,7 +68,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
             yield return running > 1
                 ? Launch.Warn($"N.I.N.A.가 {running}개 켜져 있습니다", new Diagnosis(
                     ["N.I.N.A.를 두 번 켰습니다", "다른 프로필로 하나를 더 열었습니다"],
-                    "쓰지 않는 N.I.N.A.를 닫고 하나만 남겨 주세요. 아이라는 연결 통로(Advanced API)에 응답하는 N.I.N.A.를 씁니다."))
+                    $"쓰지 않는 N.I.N.A.를 닫고 하나만 남겨 주세요. {Product.Neun} 연결 통로(Advanced API)에 응답하는 N.I.N.A.를 씁니다."))
                 : Launch.Pass(_preLaunched ? $"{Product.Ga} 켜질 때 함께 켰습니다" : "이미 켜져 있습니다");
         }
         else

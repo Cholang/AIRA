@@ -21,6 +21,8 @@
   --text: #ebe8e3;
   --muted: #a3a09a;
   --accent: #a9a6f7;
+  /* 빛 테두리(GlowFrame) 선 위의 가장 밝은 빛 — 기본은 흰빛을 섞고, 촬영 테마는 순수 빨강(흰빛을 섞으면 초록·파랑이 생김) */
+  --glow-hi: #ffffff;
   --on-accent: #17153a;
   --pass: #72bf8e;
   --fail: #f07a52;
@@ -100,6 +102,7 @@
   --text: #b80000;
   --muted: #720000;
   --accent: #d00000;
+  --glow-hi: #d00000;
   --on-accent: #000000;
   --pass: #b80000;
   --fail: #b80000;

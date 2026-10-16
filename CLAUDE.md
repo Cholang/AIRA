@@ -34,12 +34,12 @@
 ## 문서 위치
 
 - 저장소 맨 위에는 README.md · CLAUDE.md · AGENTS.md · DESIGN.md · HISTORY.md만 둔다.
-- `docs/` 구성 (파일 이름은 대문자 + 밑줄): 바로 아래에 운영 절차 `OPERATION_PROCEDURE.md` · 결정 이력 `DECISION_HISTORY.md` · 실기 확인 `FIELD_TEST_CHECKLIST.md`, 코드 구조는 `implementation/`, 외부 참고(N.I.N.A. API·사전 준비)는 `reference/`, Codex·Gemini와 주고받는 문서는 `codex/`. 대화 기록은 `conversations/`.
+- `docs/` 구성 (파일 이름은 대문자 + 밑줄): 바로 아래에 운영 절차 `OPERATION_PROCEDURE.md` · 결정 이력 `DECISION_HISTORY.md` · 실기 확인 `FIELD_TEST_CHECKLIST.md`, 코드 구조는 `implementation/`, 외부 참고(N.I.N.A. API·사전 준비)는 `reference/`, Codex와 주고받는 문서는 `codex/`, Gemini와 주고받는 문서는 `gemini/`. 대화 기록은 `conversations/`.
 - 새 문서가 필요하면 만들어도 되지만 위 위치에 맞추고, 기존 문서에 절을 더하는 것으로 충분한지 먼저 본다. 검토가 끝난 임시 문서(예: `docs/PREPARE_SCREEN_CONTENT.md`)는 내용을 DESIGN.md 등에 합치고 지운다.
 
 ## 리뷰 규칙 (Claude 구현 → GPT Codex 리뷰)
 
-- 리뷰를 부탁할 때는 요청서를 저장소에 쓴다: [docs/codex/REVIEW_REQUEST_CODEX.md](docs/codex/REVIEW_REQUEST_CODEX.md) · [REVIEW_REQUEST_GEMINI.md](docs/codex/REVIEW_REQUEST_GEMINI.md)의 "이번 요청"을 고쳐 커밋·푸시 — 사용자는 각 모델에 "요청서 읽고 리뷰해 줘"만 말한다(2026-10-16 사용자). 범위는 그 모델의 마지막 리뷰 기준 커밋부터 HEAD까지. Codex는 정확성·장비 안전, Gemini는 출력이 길어 구조 계획·화면 규칙 전수·문서 일치·성능처럼 넓게 보는 일. Gemini 답은 사용자가 가져오면 REVIEW_GEMINI.md에 `[Gemini]` 절로 넣고 항목마다 판단을 붙인다.
+- 리뷰를 부탁할 때는 요청서를 저장소에 쓴다: [docs/codex/REVIEW_REQUEST_CODEX.md](docs/codex/REVIEW_REQUEST_CODEX.md) · [docs/gemini/REVIEW_REQUEST_GEMINI.md](docs/gemini/REVIEW_REQUEST_GEMINI.md)의 "이번 요청"을 고쳐 커밋·푸시 — 사용자는 각 모델에 "요청서 읽고 리뷰해 줘"만 말한다(2026-10-16 사용자). 범위는 그 모델의 마지막 리뷰 기준 커밋부터 HEAD까지. Codex는 정확성·장비 안전, Gemini는 출력이 길어 구조 계획·화면 규칙 전수·문서 일치·성능처럼 넓게 보는 일. Gemini 답은 사용자가 가져오면 [docs/gemini/REVIEW_GEMINI.md](docs/gemini/REVIEW_GEMINI.md)에 `[Gemini]` 절로 넣고 항목마다 판단을 붙인다.
 - Codex의 리뷰 결과는 [docs/codex/REVIEW_CODEX.md](docs/codex/REVIEW_CODEX.md)에 있다. 사용자가 "리뷰 검토해 줘", "리뷰했어" 등으로 말하면 이 파일을 읽는다.
 - 리뷰 항목은 실사용 등급(AGENTS.md: 장비 안전 / 겪음 / 이론상)으로 나눠 말한다. Codex가 등급을 안 붙였으면 내가 붙인다. 장비 안전·겪음은 사용자에게 항목별로, 이론상은 묶어서 한 줄씩 — 고칠지는 내가 판단해 제안하고(쉬우면 함께, 아니면 미룸) HISTORY에 한 줄씩 남긴다 (2026-10-11 사용자 결정)
 - 리뷰를 바로 반영하지 않는다. 항목마다 내 판단(동의·반대·이미 처리됨·사용자 결정 필요)과 근거를 사용자에게 먼저 말하고, 논의해서 정한 것만 적용한다.

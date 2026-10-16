@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 
 namespace Astro.Server.Prepare.Tasks.Guiding;
@@ -50,7 +51,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
             GuideStart start;
             while (true)
             {
-                run.Status($"가이드 별을 고르는 중입니다 · 가이드 노출 {exposure:0.#}초 (AA가 정함)");
+                run.Status($"가이드 별을 고르는 중입니다 · 가이드 노출 {exposure:0.#}초 ({Product.Ga} 정함)");
                 start = await devices.StartAsync(exposure, phase =>
                 {
                     if (phase == "settle") { run.SubStep(1); run.Guide("안정화", "가이드가 안정되기를 기다립니다."); run.Status("가이드가 안정되기를 기다리는 중입니다"); }

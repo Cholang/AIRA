@@ -24,7 +24,7 @@ N.I.N.A. 위에서 동작하는 천체사진 촬영 비서. 개인용 프로토�
 - 구현(코드 구조): [docs/implementation/](docs/implementation) — [준비](docs/implementation/PREPARE.md) · [촬영](docs/implementation/SHOOT.md) · [사전 점검](docs/implementation/PRECHECK.md) · [전원 배선](docs/implementation/POWER_WIRING.md) · [앱 구조(초기 결정)](docs/implementation/ARCHITECTURE.md)
 - 참고: [N.I.N.A. API 대응표](docs/reference/NINA_API_COVERAGE.md) · [N.I.N.A. 사전 준비](docs/reference/NINA_SETUP.md) · 앱 흐름 [운영 절차](docs/OPERATION_PROCEDURE.md)
 - 대화 기록: [conversations/](conversations) — 새 세션은 가장 최근 파일의 "다음 세션에서 이어서 하려면"부터
-- Codex·Gemini 리뷰와 요청서: [docs/codex/](docs/codex) — 리뷰 결과는 [REVIEW_CODEX.md](docs/codex/REVIEW_CODEX.md)
+- Codex 리뷰와 요청서: [docs/codex/](docs/codex) — 리뷰 결과는 [REVIEW_CODEX.md](docs/codex/REVIEW_CODEX.md). Gemini는 [docs/gemini/](docs/gemini) — [REVIEW_GEMINI.md](docs/gemini/REVIEW_GEMINI.md)
 
 ## 구성
 

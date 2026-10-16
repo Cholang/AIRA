@@ -12,7 +12,7 @@
 
 - **`38e1744..HEAD`** — 마지막 Codex 리뷰(34절, `aa94dde..38e1744`) 뒤의 모든 커밋. HEAD는 이 요청서가 들어간 커밋이다. 시작할 때 `git rev-parse HEAD`를 절 첫머리에 적어 줘.
 - 코드 변경은 `src`·`web/src`·`tests` 기준 146개 파일, +8,347/−2,504줄. 문서만 바뀐 커밋(시안 `mockups/` 등)은 읽기만 하면 된다.
-- 같은 범위를 Gemini도 본다([REVIEW_REQUEST_GEMINI.md](REVIEW_REQUEST_GEMINI.md)) — Gemini는 구조·화면 규칙·문서·성능, **Codex는 정확성과 장비 안전**. 구조 제안은 결함과 이어질 때만 짧게.
+- 같은 범위를 Gemini도 본다([REVIEW_REQUEST_GEMINI.md](../gemini/REVIEW_REQUEST_GEMINI.md)) — Gemini는 구조·화면 규칙·문서·성능, **Codex는 정확성과 장비 안전**. 구조 제안은 결함과 이어질 때만 짧게.
 
 ### 결과 쓰는 곳
 

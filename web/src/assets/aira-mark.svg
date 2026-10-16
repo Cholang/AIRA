@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="262 40 348 118" data-theme="dark" aria-hidden="true"><style>
 svg{--ink:#9290f5;--accent:#c6ad80;color:var(--ink)}
 
-svg[data-theme="night"]{--ink:#a62626;--accent:#d04444}
+svg[data-theme="night"]{--ink:#a60000;--accent:#d00000}
 .ink{stroke:var(--ink);fill:none;stroke-linecap:round;stroke-linejoin:round}
 .solid{fill:var(--ink)}.accent{fill:var(--accent)}
 /* Restrained material tones; no white light in observing mode. */
 svg{--ink-hi:#b6b2ff;--ink-low:#7875cb;--gold-hi:#dfcca8;--gold-low:#a68b60;--shine:#e4e0ff;--shadow:#080912}
 
-svg[data-theme="night"]{--ink-hi:#b92e2e;--ink-low:#741616;--gold-hi:#ce4141;--gold-low:#902121;--shine:#df5555;--shadow:#000000}
+svg[data-theme="night"]{--ink-hi:#b90000;--ink-low:#740000;--gold-hi:#ce0000;--gold-low:#900000;--shine:#df0000;--shadow:#000000}
 .material .ink{stroke:url(#brand-violet-material)}
 .material .solid{fill:url(#brand-violet-material)}
 .material .accent{fill:url(#brand-gold-material)}
 svg{--constellation-hi:#d0cdff;--constellation-mid:#b0acff;--constellation-low:#9994ea}
 
-svg[data-theme="night"]{--constellation-hi:#d33b3b;--constellation-mid:#bd3030;--constellation-low:#9e2424}
+svg[data-theme="night"]{--constellation-hi:#d30000;--constellation-mid:#bd0000;--constellation-low:#9e0000}
 .material #aira-v3 .ink{stroke:url(#brand-constellation-material)}
 .material #aira-v3 .solid{fill:url(#brand-constellation-material)}
 </style><defs><path id="brand-spark" fill-rule="evenodd" d="M0-10 C1.2-10 1.1-5.8 2.9-3.1 C4.4-1.1 8-1.1 8 0 C8 1.1 4.4 1.1 2.9 3.1 C1.1 5.8 1.2 10 0 10 C-1.2 10-1.1 5.8-2.9 3.1 C-4.4 1.1-8 1.1-8 0 C-8-1.1-4.4-1.1-2.9-3.1 C-1.1-5.8-1.2-10 0-10 Z M0-3.4 Q1-1 2.7 0 Q1 1 0 3.4 Q-1 1-2.7 0 Q-1-1 0-3.4 Z"/><linearGradient id="brand-violet-material" gradientUnits="userSpaceOnUse" x1="0" y1="45" x2="90" y2="360"><stop stop-color="var(--ink-hi)"/><stop offset=".48" stop-color="var(--ink)"/><stop offset="1" stop-color="var(--ink-low)"/></linearGradient>

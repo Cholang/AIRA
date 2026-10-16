@@ -141,10 +141,6 @@
   font-weight: 600;
 }
 
-.error:empty {
-  display: none;
-}
-
 .form {
   display: grid;
   gap: 10px;

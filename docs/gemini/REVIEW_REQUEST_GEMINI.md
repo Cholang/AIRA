@@ -21,7 +21,7 @@
 
 - **기준**: `main`의 HEAD(이 요청서가 들어간 커밋). 지난 Gemini 리뷰는 6절 `38e1744`(구조·단순화)이고, 그 뒤 HISTORY 맨 위부터 `52924a8` 항목까지가 새로 바뀐 것.
 - **분량은 제한하지 않는다.** 길어도 좋으니 빠짐없이 — 다만 항목마다 **파일:줄 근거**를 달고, 중요한 것부터.
-- **역할 나눔**: 같은 범위의 정확성·장비 안전 버그는 Codex가 본다([REVIEW_REQUEST_CODEX.md](REVIEW_REQUEST_CODEX.md)). Gemini는 아래 A~E. 정확성 버그가 눈에 띄면 짧게 적기만.
+- **역할 나눔**: 같은 범위의 정확성·장비 안전 버그는 Codex가 본다([REVIEW_REQUEST_CODEX.md](../codex/REVIEW_REQUEST_CODEX.md)). Gemini는 아래 A~E. 정확성 버그가 눈에 띄면 짧게 적기만.
 
 ### A. 큰 클래스 쪼개기 실행 계획 — 가장 중요
 

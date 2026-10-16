@@ -22,7 +22,7 @@
 - **코드 구조**: `docs/implementation/`(PREPARE · SHOOT · PRECHECK · POWER_WIRING · ARCHITECTURE)
 - **왜 이렇게 됐나**: `docs/DECISION_HISTORY.md`(결정), `HISTORY.md`(커밋)
 - **실기로 아직 확인 못 한 것**: `docs/FIELD_TEST_CHECKLIST.md` — 여기 있는 항목은 결함으로 세지 않는다
-- 외부 참고: `docs/reference/`(N.I.N.A. API 대응표, N.I.N.A. 사전 준비). 리뷰·요청서: `docs/codex/`(요청서 `REVIEW_REQUEST_CODEX.md` · `REVIEW_REQUEST_GEMINI.md`, 결과 `REVIEW_CODEX.md` · `REVIEW_GEMINI.md`). 대화 기록: `conversations/`
+- 외부 참고: `docs/reference/`(N.I.N.A. API 대응표, N.I.N.A. 사전 준비). 리뷰·요청서: Codex는 `docs/codex/`(요청서 `REVIEW_REQUEST_CODEX.md`, 결과 `REVIEW_CODEX.md`), Gemini는 `docs/gemini/`(요청서 `REVIEW_REQUEST_GEMINI.md`, 결과 `REVIEW_GEMINI.md`). 대화 기록: `conversations/`
 - **문서와 코드가 다를 때**: DESIGN·OPERATION_PROCEDURE는 사용자 결정의 기준이라 코드가 다르면 결함 후보. implementation 문서는 코드 설명이라 문서 쪽이 낡았을 수 있다(그때는 "문서 갱신 필요"로).
 - **2026-10-12 전의 리뷰·기록에 나오는 옛 경로**: DESIGN_HISTORY → DECISION_HISTORY · PREPARE_IMPLEMENTATION, SHOOT_IMPLEMENTATION, PRECHECK_DESIGN, POWER_LAYOUT_PLAN, onboarding-and-architecture → implementation/(PREPARE, SHOOT, PRECHECK, POWER_WIRING, ARCHITECTURE) · api-coverage, nina-prerequisites → reference/(NINA_API_COVERAGE, NINA_SETUP) · codex/AIRA_ERROR_VERIFICATION → codex/ERROR_VERIFICATION_CODEX · nina-ai-assistant-plan(초기 기획서)은 지움. 그 전 DESIGN.md의 "3장 촬영 준비 ①~⑦"·종료 순서 같은 동작 규칙은 지금 OPERATION_PROCEDURE.md에 있다.
 - 새 문서가 필요하면 위 위치에 맞춰 만든다. 검토가 끝난 임시 문서는 내용을 기준 문서에 합치고 지운다.

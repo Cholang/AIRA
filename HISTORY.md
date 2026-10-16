@@ -8,7 +8,22 @@
 
 ---
 
-## 2026-10-16 · [Claude] 리뷰 요청서를 저장소에 (Codex · Gemini) · 도는 표시 넘침 규칙
+## 2026-10-16 · [Claude] Gemini 리뷰 7절 반영 — 적색 테마 누출 · 옛 이름 "AA" · 오류 줄 흔들림 · 계산 시험 · docs/gemini 폴더
+
+**요청**: Gemini 문서를 `docs/codex/`에서 `docs/gemini/`로(사용자가 로컬에서 옮긴 구조대로) 하고 경로를 고치기. Gemini 리뷰 7절(34항목)을 검토한 뒤 B-01·B-02·B-03·B-04·B-07 수정, E-01·E-02·E-04 시험 추가, D-01은 실기 확인 목록에, 사실이 아니거나 이미 처리된 것은 무시.
+
+**변경**:
+- 폴더: `docs/gemini/`(REVIEW_GEMINI · REVIEW_REQUEST_GEMINI), AGENTS·CLAUDE·README·두 요청서의 경로. 7절은 REVIEW_GEMINI.md에 합치고 끝에 대조 메모.
+- GM-7-B-01: `GlowFrame`의 `#fff` → `--glow-hi`(index.css, 촬영 테마 `#d00000`). B-02: `aira-mark.svg`·`aira-wordmark.svg`의 적색 팔레트를 `#xx0000`으로. B-03: `Settings` 찾아보기 — 촬영 테마에서 aria-disabled + 이유. B-04: `NewProfileScreen` 오류 줄을 주 버튼 위 빈 간격에 늘 둠(`.actions` 기준 절대 위치, 한 줄), `ScopeList` `.error:empty` 숨김 지움. B-07: "AA가 정함" 5곳·문장 속 "아이라" 4곳 → `Product.Ga/Neun/Name`, DESIGN "처음 배선으로" → "처음 설정으로".
+- E-01 `AstronomyAndNightTests` · E-02 `PlanRulesAndOpticsTests` · E-04 `sites.test.ts`·`inlineSvg.test.ts`. D-01과 적색 테마 확인 항목은 FIELD_TEST_CHECKLIST.
+
+**확인**: 서버 시험 295(새 25) · 웹 시험 52(새 11) · tsc · 웹/데스크톱 빌드. 시험 서버에서 새 프로필 오류를 넣어 주 버튼이 안 움직이고 위아래 4px 떨어짐, 촬영 테마에서 찾아보기 막힘. 로고·빛 테두리가 순수 빨강인지 화면 캡처 확인은 미확인(체크리스트).
+
+**남은 것**: 반영 안 함 — A 분리 계획(줄 수는 맞지만 함수 이름 상당수가 실제와 달라 실행 계획으로 못 씀, 주말 분리는 실제 코드로 다시 나눔), B-05·C-01~04·D-02~04·E-03(사실 아님·이미 처리됨). 미룸 — A-14(동작 같은 정리), B-06(`DiagnosisCard` 삭제·툴팁 통일), D-05.
+
+---
+
+## 2026-10-16 · 2a0428f [Claude] 리뷰 요청서를 저장소에 (Codex · Gemini) · 도는 표시 넘침 규칙
 
 **요청**: 종료 창 버그에서 나온 규칙("돌거나 커지는 표시는 칸 안에서만, 칸은 넘침을 자른다")을 DESIGN에. Codex·Gemini 리뷰 요청서를 각각 써서 함께 커밋 — 요청 글을 복사해 붙여 넣지 않고 모델이 저장소에서 바로 읽게. Gemini는 최근 업그레이드로 출력이 훨씬 길어졌으니 그걸 감안해서.
 

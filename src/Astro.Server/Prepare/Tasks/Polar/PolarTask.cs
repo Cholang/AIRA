@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 
 namespace Astro.Server.Prepare.Tasks.Polar;
@@ -140,7 +141,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             // PHD2가 카메라를 놓기 전에 묻는다 (놓은 뒤에 막히면 가이드 카메라가 아무 데도 없음)
             if (await devices.SharpCapAlreadyOpenAsync(ct))
             {
-                run.Status("SharpCap이 이미 켜져 있습니다. 아이라는 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어, 닫고 다시 켜야 합니다", Tone.Warn);
+                run.Status($"SharpCap이 이미 켜져 있습니다. {Product.Neun} 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어, 닫고 다시 켜야 합니다", Tone.Warn);
                 var pick = await run.AskAsync([new("restart-sharpcap", "SharpCap 닫고 다시 켜기", true), new("skip", "극축 정렬 건너뛰기")], ct);
                 if (pick == "skip") return false;
                 run.Status("켜져 있던 SharpCap을 닫는 중입니다");
@@ -198,7 +199,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
                 {
                     "rotate" => $"적경축을 돌리는 중입니다 ({p.RotationDeg:F0}°)",
                     // 별 개수는 모의만 (SharpCap은 알려 주지 않음)
-                    _ => (p.Stars > 0 ? $"별을 찾는 중입니다 · 별 {p.Stars}개" : "별을 찾는 중입니다") + $" · 노출 {p.ExposureSeconds:0.##}초 ({(p.UserSet ? "직접 정함" : "AA가 정함")})",
+                    _ => (p.Stars > 0 ? $"별을 찾는 중입니다 · 별 {p.Stars}개" : "별을 찾는 중입니다") + $" · 노출 {p.ExposureSeconds:0.##}초 ({(p.UserSet ? "직접 정함" : $"{Product.Ga} 정함")})",
                 });
             }, ct);
             if (found.Ok) return true;

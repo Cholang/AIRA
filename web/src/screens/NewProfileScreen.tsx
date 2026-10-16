@@ -161,13 +161,11 @@ export default function NewProfileScreen({
           </span>
         </button>
 
-        {error && (
+        <div className={styles.actions}>
+          {/* 오류 줄: 늘 있고 주 버튼 바로 위 빈 간격에 겹쳐 놓는다 — 나타나도 아래 버튼이 밀리지 않게 (DESIGN.md 레이아웃 안정성) */}
           <p className={styles.error} role="alert">
             {error}
           </p>
-        )}
-
-        <div className={styles.actions}>
           <Button variant="primary" type="submit" disabled={!nickname.trim() || saving}>
             {editing ? (saving ? '저장 중' : '저장') : saving ? '생성 중' : '프로필 생성'}
           </Button>

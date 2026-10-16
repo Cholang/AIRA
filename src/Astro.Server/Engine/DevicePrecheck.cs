@@ -1,3 +1,4 @@
+using Astro.Core;
 using System.Diagnostics;
 
 using System.Management;
@@ -109,8 +110,8 @@ public static class DevicePrecheck
         static bool Known(double v) => double.IsFinite(v) && v != 0;
         if (!Known(profileLat) || !Known(mountLat) || !Known(profileLon) || !Known(mountLon)) return null;
         if (Math.Abs(profileLat - mountLat) <= 0.05 && Math.Abs(profileLon - mountLon) <= 0.05) return null;
-        return new(false, $"적도의에 저장된 관측지가 다릅니다 (적도의 {mountLat:0.00}°, {mountLon:0.00}° · 아이라 {profileLat:0.00}°, {profileLon:0.00}°)",
-            "N.I.N.A.가 관측지를 맞출지 물으면 N.I.N.A.(아이라) 값을 적도의로 보내기를 골라 주세요. 다르면 대상 위치와 자오선 반전 시각이 틀어질 수 있습니다.");
+        return new(false, $"적도의에 저장된 관측지가 다릅니다 (적도의 {mountLat:0.00}°, {mountLon:0.00}° · {Product.Name} {profileLat:0.00}°, {profileLon:0.00}°)",
+            $"N.I.N.A.가 관측지를 맞출지 물으면 N.I.N.A.({Product.Name}) 값을 적도의로 보내기를 골라 주세요. 다르면 대상 위치와 자오선 반전 시각이 틀어질 수 있습니다.");
     }
 
     /// <summary>실장비로 쓰는데 N.I.N.A.·PHD2 장비가 시뮬레이터 (A06) — 시험 구성일 수 있어 막지 않고 알린다</summary>
