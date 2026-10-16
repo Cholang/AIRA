@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useId, useRef, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { useFrame } from '../frame'
 import GlowFrame from './GlowFrame'
 import styles from './Modal.module.css'
@@ -80,7 +80,7 @@ export default function Modal({
       ref={ref}
       className={styles.dialog}
       data-size={size}
-      style={frame.fixed && frame.scale !== 1 ? { scale: frame.scale } : undefined}
+      style={frame.fixed && frame.scale !== 1 ? ({ scale: frame.scale, '--frame-scale': frame.scale } as CSSProperties) : undefined}
       aria-labelledby={title !== undefined ? titleId : undefined}
       onCancel={(e) => {
         e.preventDefault()

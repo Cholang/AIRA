@@ -128,11 +128,14 @@
 }
 
 .tally li {
-  position: relative;
+  color: var(--sky-muted);
+}
+
+/* 한 줄 = 등급 글자 + 장수 (공통 Tooltip이 감싼다 — 두 클래스로 Tooltip의 inline-flex를 덮음) */
+.tally .row {
   display: grid;
   grid-template-columns: 38px auto;
   align-items: baseline;
-  color: var(--sky-muted);
 }
 
 .tally b {
@@ -152,29 +155,6 @@
 .tally b:focus-visible {
   box-shadow: 0 0 0 2px var(--focus);
   border-radius: 4px;
-}
-
-/* 분류 기준 툴팁: 그 줄 오른쪽에 */
-.tally b:hover::after,
-.tally b:focus-visible::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 96px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 340px;
-  padding: 10px 14px;
-  border: 1px solid var(--sky-line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.5;
-  text-shadow: none;
-  white-space: normal;
-  word-break: keep-all;
-  z-index: 5;
 }
 
 /* 자오선 반전 단계 */

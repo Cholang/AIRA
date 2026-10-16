@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as Reac
 import { clockOf, displayName, type Chart, type ChartPick } from '../plan'
 import { withRo } from '../product'
 import { altitudeOn, layoutTags, trackPath } from './nightGraphMath'
+import Tooltip from './Tooltip'
 import styles from './NightGraph.module.css'
 
 /**
@@ -163,7 +164,7 @@ export default function NightGraph({
             <g
               key={m.at}
               className={styles.moon}
-              onMouseEnter={() => setMoonTip({ x: x(m.at), y: y(m.alt) - moonR - 6, text: `달 ${m.label} · 고도 ${Math.round(m.alt)}°` })}
+              onMouseEnter={() => setMoonTip({ x: x(m.at), y: y(m.alt) - moonR, text: `달 ${m.label} · 고도 ${Math.round(m.alt)}°` })}
               onMouseLeave={() => setMoonTip(null)}
             >
               <MoonIcon cx={x(m.at)} cy={y(m.alt)} r={moonR} k={chart.moon.illumination / 100} waxing={chart.moon.waxing} />
@@ -302,10 +303,11 @@ export default function NightGraph({
             <text key={h.at} x={x(h.at)} y={BOT + 24} textAnchor="middle">{h.label}</text>
           ))}
       </svg>
+      {/* 달 고도: 그림 속 한 점이라 감쌀 수 없어 그 자리(달 위 끝)에 빈 기준점을 두고 공통 Tooltip을 켠다 */}
       {moonTip && (
-        <div className={styles.tip} style={{ left: moonTip.x, top: moonTip.y }}>
-          {moonTip.text}
-        </div>
+        <span className={styles.moonAt} style={{ left: moonTip.x, top: moonTip.y }}>
+          <Tooltip text={moonTip.text} open />
+        </span>
       )}
     </div>
   )

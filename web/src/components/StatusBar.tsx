@@ -10,6 +10,7 @@ import { SettingsButton } from './Settings'
 import SiteMenu from './SiteMenu'
 import styles from './StatusBar.module.css'
 import ThemeSwitch from './ThemeSwitch'
+import Tooltip from './Tooltip'
 import BrandMark from './BrandMark'
 
 export interface DeviceState {
@@ -193,20 +194,21 @@ function ProfileSwitcher({ profile, profiles, onSwitch }: { profile: Profile; pr
       {open && (
         <span className={styles.others} role="menu">
           {others.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="menuitem"
-              className={styles.other}
-              aria-label={`${p.nickname}(으)로 바꾸기`}
-              onClick={() => {
-                setOpen(false)
-                onSwitch(p)
-              }}
-            >
-              <ProfileAvatar src={p.hasImage ? profileImageUrl(p) : null} size="small" />
-              <span className={styles.tip}>{p.nickname}</span>
-            </button>
+            // 가리키면 별명만 (공통 Tooltip)
+            <Tooltip key={p.id} text={p.nickname} placement="bottom">
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.other}
+                aria-label={`${p.nickname}(으)로 바꾸기`}
+                onClick={() => {
+                  setOpen(false)
+                  onSwitch(p)
+                }}
+              >
+                <ProfileAvatar src={p.hasImage ? profileImageUrl(p) : null} size="small" />
+              </button>
+            </Tooltip>
           ))}
         </span>
       )}

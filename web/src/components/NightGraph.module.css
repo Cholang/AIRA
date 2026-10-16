@@ -114,20 +114,13 @@
 .handle[data-drag='true'] .handleLabel,
 .tag[data-drag='true'] ~ .handle .handleLabel { opacity: 1; }
 
-/* 달 툴팁 (그래프 좌표에 붙는다) */
-.tip {
+/* 달 고도 툴팁의 기준점 (크기 없음 — 말풍선은 공통 Tooltip이 그 위에). flex: 빈 기준점이 글줄 높이만큼 내려앉지 않게 */
+.moonAt {
   position: absolute;
   z-index: 5;
-  transform: translate(-50%, -100%);
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 6px 18px var(--scrim-mid);
+  display: flex;
+  width: 0;
+  height: 0;
   pointer-events: none;
 }
 

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { DiagnosisData } from './components/DiagnosisCard'
 import type { Status } from './components/StatusIcon'
+
+/** 서버 Astro.Core.Setup.Diagnosis와 같은 모양: 원인(가능성 높은 순) · 할 일 · 안내 링크 · 원본 기록 */
+export interface DiagnosisData {
+  causes: string[]
+  fix: string
+  actionLabel?: string | null
+  actionUrl?: string | null
+  detail?: string | null
+}
 
 /** 서버 Astro.Core.Setup.CheckResult와 같은 모양. 0단계·1단계가 같이 쓴다. */
 export interface CheckItem {

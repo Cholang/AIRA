@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import { clock, dewText, guideWord, hm, type ShootView } from '../shoot'
+import Tooltip from './Tooltip'
 import styles from './ShootPanels.module.css'
 
 /**
@@ -86,10 +87,13 @@ export function ShootGrades({ v }: { v: ShootView }) {
       <ul className={styles.tally} aria-label="등급별 누적 장수">
         {GRADES.map((g) => (
           <li key={g} data-x={g === 'F'} data-now={g === v.lastGrade}>
-            <b tabIndex={0} data-tip={v.criteria[g] ?? ''} aria-label={`${g} ${v.tally[g] ?? 0}장. ${v.criteria[g] ?? ''}`}>
-              {g}
-            </b>
-            <span>{v.tally[g] ?? 0}장</span>
+            {/* 분류 기준: 그 줄 오른쪽에 (공통 Tooltip) */}
+            <Tooltip text={v.criteria[g] ?? ''} placement="right" className={styles.row}>
+              <b tabIndex={0} aria-label={`${g} ${v.tally[g] ?? 0}장. ${v.criteria[g] ?? ''}`}>
+                {g}
+              </b>
+              <span>{v.tally[g] ?? 0}장</span>
+            </Tooltip>
           </li>
         ))}
       </ul>

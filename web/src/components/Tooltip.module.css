@@ -20,6 +20,8 @@
   text-align: left;
   white-space: normal;
   word-break: keep-all;
+  /* 감싼 곳의 글자 그림자(하늘 위 글자 등)를 물려받지 않게 */
+  text-shadow: none;
   box-shadow: 0 6px 18px var(--scrim-mid);
   opacity: 0;
   pointer-events: none;
@@ -27,7 +29,8 @@
 }
 
 .anchor:hover > .tip,
-.anchor:focus-within > .tip {
+.anchor:focus-within > .tip,
+.tip[data-open='true'] {
   opacity: 1;
 }
 
@@ -45,6 +48,12 @@
   top: 50%;
   transform: translateY(-50%);
   white-space: nowrap;
+}
+
+.tip[data-placement='right'] {
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
