@@ -157,7 +157,7 @@ public class TaskIsolationTests
         var ctx = Harness.Context(plan: plan);
         var (done, run) = await RunAlone(new SlewTask(new SimulatedSlewDevices(Fast, new SimFaults())), ctx,
             actions => actions.Any(a => a.Id == "move-now") ? "move-now" : actions.First(a => a.Primary).Id);
-        Assert.Contains("wait,move-now", run.Asked);
+        Assert.Contains("move-now", run.Asked); // 기다리는 화면의 버튼은 "지금 이동" 하나 (2026-10-16)
         Assert.True(Assert.IsType<SlewResult>(done.Result).ArrivalErrorDeg <= SlewTask.ArrivalLimitDeg);
     }
 

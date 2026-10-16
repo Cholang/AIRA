@@ -210,12 +210,10 @@ public class PrepareFlowTests
         n.Sim.Faults.Arm("slew.low");
         n.Flow.StartTarget(n.Target());
         var runner = n.Flow.Target;
-        await runner.Until(v => v.Has("wait"), "낮음");
-        await runner.Press("move"); // 아직 낮은데 이동 → 막힘
-        var blocked = await runner.Until(v => v.Current?.Center.Status?.Tone == Tone.Fail, "이동 막힘");
-        Assert.Contains("떠오르지 않아", blocked.Current!.Center.Status!.Text);
-        await runner.Press("wait");
-        await runner.Press("move"); // 올라온 뒤 이동
+        // 낮은 동안은 버튼 없이 기다리기만 (2026-10-16 — "기다리기"·"이동"을 따로 묻지 않는다)
+        var low = await runner.Until(v => v.Current?.Guide.Title.Contains("아직 낮습니다") == true, "낮음");
+        Assert.False(low.Has("move"));
+        await runner.Press("move"); // 올라온 뒤 "○○로 이동"을 눌러야 움직인다
         var done = await runner.Until(v => v.Row("slew") == PrepTaskStatus.Done, "이동 끝");
         Assert.Equal(PrepTaskStatus.Done, done.Row("slew"));
     }

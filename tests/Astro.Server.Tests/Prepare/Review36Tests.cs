@@ -112,10 +112,11 @@ public class Review36Tests
     private sealed class AltitudeSlew : ISlewDevices
     {
         public double Altitude = 15.1;
+        public int Ticks;
         public List<double> SlewedAt { get; } = [];
         public double TargetAltitude(PrepContext ctx) => Altitude;
         public int? MinutesUntilUsable(PrepContext ctx) => Altitude < SlewTask.LowestAltitude ? 30 : 0;
-        public Task WaitTickAsync(CancellationToken ct) => Task.Delay(50, ct);
+        public Task WaitTickAsync(CancellationToken ct) { Interlocked.Increment(ref Ticks); return Task.Delay(50, ct); }
         public Task<SlewMove> SlewToTargetAsync(double raDeg, double decDeg, Action<double> remainingDeg, CancellationToken ct)
         {
             lock (SlewedAt) SlewedAt.Add(Altitude);
@@ -138,8 +139,9 @@ public class Review36Tests
         devices.Altitude = 14.9;
         await held.DisposeAsync();
         var deadline = DateTime.UtcNow + Harness.Timeout;
-        while (!run.Asked.Contains("wait,move") && DateTime.UtcNow < deadline) await Task.Delay(50);
-        Assert.Contains("wait,move", run.Asked); // 다시 기다리기로
+        while (Volatile.Read(ref devices.Ticks) < 3 && DateTime.UtcNow < deadline) await Task.Delay(50);
+        Assert.True(devices.Ticks >= 3); // 다시 기다리기로 (낮은 동안은 버튼 없이 기다린다)
+        Assert.False(task.IsCompleted);
         Assert.Empty(devices.SlewedAt);
         cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);

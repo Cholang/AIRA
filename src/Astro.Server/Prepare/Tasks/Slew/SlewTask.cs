@@ -114,73 +114,77 @@ public sealed class SlewTask(ISlewDevices devices) : IPrepTask
     private static int MinutesUntil(PrepContext ctx, DateTimeOffset at) => Math.Max(1, (int)Math.Ceiling((at - ctx.Now()).TotalMinutes));
     private static string Topic(string name) => Core.Josa.Pick(name, "은", "는");
 
-    /// <summary>옮길 때가 될 때까지: 너무 낮으면 기다리기만(이동은 막음), 시각만 이르면 기다리기 / 지금 이동</summary>
+    /// <summary>
+    /// 옮길 때가 될 때까지 기다린다 — 기다리는 화면으로 바로 (2026-10-16 사용자: "기다리기"를 따로 누르게 하면 할 수 있는 일은 결국 "지금 이동"뿐이고
+    /// "기다리기 끝"과 오가며 버튼만 보였다 사라졌다). 너무 낮으면 버튼 없이 기다리기만(이동은 막음), 시각만 이르면 "지금 이동" 하나.
+    /// 때가 되면 알리고 "○○로 이동"을 누른 뒤에 움직인다(큰 이동은 늘 누른 뒤에만)
+    /// </summary>
     private async Task WaitUntilMoveAsync(ITaskRun run, CancellationToken ct)
     {
         var ctx = run.Context;
-        while (TooLow(ctx) || TooEarly(ctx))
+        if (!TooLow(ctx) && !TooEarly(ctx)) return;
+        _approved = false;
+        CancellationTokenSource? asking = null;
+        Task<string>? moveNow = null;
+        bool? low = null;
+        try
         {
-            _approved = false;
-            ShowAltitude(run, ctx);
-            if (TooLow(ctx))
+            while (TooLow(ctx) || TooEarly(ctx))
             {
-                var minutes = devices.MinutesUntilUsable(ctx);
-                var when = minutes is { } m ? $"약 {m}분 뒤 {LowestAltitude:F0}° 위로 올라오면 이동합니다" : $"오늘 밤 {LowestAltitude:F0}° 위로 올라오지 않습니다";
-                run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} 아직 낮습니다", $"{when}. 계획 단계에서 알려 드린 대기입니다.");
-                run.Status($"대상이 {LowestAltitude:F0}° 아래에 있습니다", Tone.Warn);
-                var choice = await run.AskAsync([new("wait", "기다리기", true), new("move", "이동")], ct);
-                if (choice == "move")
+                ShowAltitude(run, ctx);
+                var nowLow = TooLow(ctx);
+                if (nowLow != low)
                 {
-                    run.Status($"아직 떠오르지 않아 이동할 수 없습니다{(minutes is { } mm ? $" (약 {mm}분 뒤 가능)" : "")}", Tone.Fail);
-                    await run.AskAsync([new("wait", "기다리기", true)], ct);
+                    // 기다리는 까닭이 바뀌었을 때만 안내·버튼을 바꾼다 (틱마다 다시 묻지 않는다 — 버튼이 깜빡이지 않게)
+                    low = nowLow;
+                    asking?.Cancel();
+                    asking?.Dispose();
+                    asking = null;
+                    moveNow = null;
+                    if (nowLow)
+                    {
+                        var minutes = devices.MinutesUntilUsable(ctx);
+                        var when = minutes is { } m ? $"약 {m}분 뒤 {LowestAltitude:F0}° 위로 올라오면 알려 드립니다" : $"오늘 밤 {LowestAltitude:F0}° 위로 올라오지 않습니다";
+                        run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} 아직 낮습니다", $"{when}. 그동안 장비는 그대로 둡니다.");
+                    }
+                    else
+                    {
+                        run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} {ctx.Plan.Start:HH:mm}부터 찍기로 했습니다",
+                            $"준비 시간을 생각해 {MoveAt(ctx):HH:mm}에 이동합니다. 그동안 장비는 그대로 둡니다. 먼저 옮겨도 됩니다.");
+                        asking = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        moveNow = run.AskAsync([new("move-now", "지금 이동", true)], asking.Token);
+                    }
                 }
-            }
-            else
-            {
-                var at = MoveAt(ctx);
-                run.Guide($"{ctx.TargetName}{Topic(ctx.TargetName)} {ctx.Plan.Start:HH:mm}부터 찍기로 했습니다",
-                    $"준비 시간을 생각해 {at:HH:mm}에 이동합니다. 먼저 옮겨도 됩니다.");
-                run.Status($"이동까지 약 {MinutesUntil(ctx, at)}분 남았습니다");
-                if (await run.AskAsync([new("wait", "기다리기", true), new("move-now", "지금 이동")], ct) == "move-now")
+                if (nowLow)
+                {
+                    var m = devices.MinutesUntilUsable(ctx);
+                    run.Status(m is { } mm ? $"대상이 올라오기를 기다리는 중입니다 · 약 {mm}분 남음" : "대상이 올라오기를 기다리는 중입니다");
+                    await devices.WaitTickAsync(ct);
+                    continue;
+                }
+                run.Status($"이동 시각({MoveAt(ctx):HH:mm})을 기다리는 중입니다 · 약 {MinutesUntil(ctx, MoveAt(ctx))}분 남음");
+                await Task.WhenAny(moveNow!, devices.WaitTickAsync(ct));
+                if (moveNow!.IsCompletedSuccessfully)
                 {
                     _moveNow = true;
                     _approved = true;
-                    if (TooLow(ctx)) continue; // 묻는 사이 15° 아래로 내려갔으면 다시 (2026-10-14 자체 리뷰)
-                    return;
+                    if (!TooLow(ctx)) return;
+                    _approved = false; // 누르는 사이 15° 아래로 내려갔으면 다시 기다리기 (2026-10-14 자체 리뷰)
+                    low = null;
                 }
+                ct.ThrowIfCancellationRequested();
             }
-            await WaitAsync(run, ct);
         }
-    }
-
-    private async Task WaitAsync(ITaskRun run, CancellationToken ct)
-    {
-        var ctx = run.Context;
-        run.Guide("기다리는 중입니다", "때가 되면 알려 드립니다. 그동안 장비는 그대로 둡니다.");
-        using var asking = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var endWait = run.AskAsync([new("end-wait", "기다리기 끝", true)], asking.Token);
-        while (!endWait.IsCompleted)
+        finally
         {
-            ShowAltitude(run, ctx);
-            if (!TooLow(ctx) && !TooEarly(ctx))
-            {
-                // 때가 됨: 알림(나중에 휴대폰 진동)
-                run.Status($"이동할 때가 됐어요 — {ctx.TargetName} 고도 {devices.TargetAltitude(ctx):F0}°", Tone.Ok);
-                asking.Cancel();
-                try { await endWait; } catch (OperationCanceledException) { }
-                await run.AskAsync([new("move", "이동", true)], ct);
-                _approved = true;
-                return;
-            }
-            if (TooLow(ctx))
-            {
-                var m = devices.MinutesUntilUsable(ctx);
-                run.Status(m is { } mm ? $"대상이 올라오기를 기다리는 중입니다 · 약 {mm}분 남음" : "대상이 올라오기를 기다리는 중입니다");
-            }
-            else run.Status($"이동 시각({MoveAt(ctx):HH:mm})을 기다리는 중입니다 · 약 {MinutesUntil(ctx, MoveAt(ctx))}분 남음");
-            await Task.WhenAny(endWait, devices.WaitTickAsync(ct));
+            asking?.Cancel();
+            asking?.Dispose();
         }
-        await endWait; // 사용자가 일찍 "기다리기 끝" — 바깥 반복이 다시 본다(시각만 이르면 "지금 이동"을 고를 수 있다)
+        // 때가 됨: 알리고(나중에 휴대폰 진동) 누른 뒤에 움직인다
+        run.Status($"이동할 때가 됐어요 — {ctx.TargetName} 고도 {devices.TargetAltitude(ctx):F0}°", Tone.Ok);
+        run.Guide($"{Core.Josa.Ro(ctx.TargetName)} 이동합니다", "누르면 적도의가 대상 쪽으로 크게 돕니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.");
+        await run.AskAsync([new("move", $"{Core.Josa.Ro(ctx.TargetName)} 이동", true)], ct);
+        _approved = true;
     }
 
     private void ShowAltitude(ITaskRun run, PrepContext ctx)
