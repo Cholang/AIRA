@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] Codex 36절 반영 — 극 찾기 재시작·이어서 하기 승인·잠금 뒤 고도·계획 복귀 추적, 계획 고침 순서·밝기 눈금·구도 수명·팝업 Enter
+## 2026-10-16 · [Claude] 큰 파일 분리 1단계(서버) — 독립된 타입·클래스를 새 파일로
+
+**요청**: Codex 리뷰를 반영했으니 `docs/implementation/SPLIT_PLAN.md`대로 큰 파일 분리 시작.
+
+**변경** (옮기기만): `ShootSession.cs` → `Shoot/ShootModels.cs`(TargetShots·NightShootResult·ShootView·ShootMode). `PrepareRunner.cs` → `Prepare/Flow/RunnerSetup.cs`(떠돌던 "일곱 작업" 설명은 `Single` 위로). `EquipmentConnector.cs` → `Engine/EquipmentSimulation.cs`(EquipmentOptions·EquipmentSimulation·EquipmentChoices). `PlanAssistant.cs` → `Assistant/ChatModelFactory.cs`(AssistantOptions·ChatModelFactory·DisplayMessage)·`Assistant/PlanView.cs`. `NinaNotices.cs` → `Engine/NinaLogRules.cs`·`Engine/NinaWindowHiders.cs`(NinaProcesses·창 감추기 둘). 쓰지 않게 된 using 몇 줄 지움.
+
+**확인**: 바뀐 줄을 세어 옮긴 줄 말고는 새 파일의 using·namespace 머리뿐임을 확인. 솔루션 빌드(경고 2개 그대로 — `_hubNoPower`·SlewTask nullable), 서버 시험 316 통과·1 건너뜀(분리 전과 같음).
+
+---
+
+## 2026-10-16 · 7b3bd3e [Claude] Codex 36절 반영 — 극 찾기 재시작·이어서 하기 승인·잠금 뒤 고도·계획 복귀 추적, 계획 고침 순서·밝기 눈금·구도 수명·팝업 Enter
 
 **요청**: Codex 36절 9건 모두 반영(사용자 동의, 장비 안전 4 · 겪음 4 · 이론상 1).
 
