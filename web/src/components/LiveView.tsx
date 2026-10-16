@@ -6,7 +6,7 @@ import type { PhotoBox } from './FrameRotate'
 import { simPhoto } from './simPhoto'
 import { FocusCurve, FocusPanel, GuideImage, GuidingGraph, SharpCap, SkyMap } from './LivePanels'
 import { useSlewTrack } from './useSlewTrack'
-import { FramedImage, Histogram, NineGrid, RealImage, SolvedPhoto, TestPhoto } from './LivePhoto'
+import { FramedImage, Histogram, NineGrid, RealImage, SolvedPhoto, TestPhoto, TileGrid } from './LivePhoto'
 import { starfield, VH, VW } from './liveSimFields'
 
 /**
@@ -75,6 +75,13 @@ export default function LiveView({
   // 실제 장비인데 아직 사진이 없음: 가짜 별밭·하늘 바탕을 그리지 않는다 — 앱 배경(성운)이 그대로 보이게 (2026-10-10). 위치 지도 같은 그림만 바탕 없이
   if (!simulated && !live?.url && kind === 'none') return null
   // 실제 장비: 서버가 주는 실제 이미지 (SharpCap 창 · 가이드 카메라 · 솔빙 사진 · 시험 사진)
+  // 실제 장비의 9칸 확대 보기: 서버가 잘라 둔 조각 아홉 장 (칸 위에 별 크기·길쭉함)
+  if (!simulated && kind === 'test-photo' && extras?.grid)
+    return (
+      <div className={styles.view} aria-hidden="true">
+        <TileGrid stamp={live?.observedAt ?? ''} values={readout?.values} />
+      </div>
+    )
   if (!simulated && live?.url && !extras?.grid)
     return (
       <div className={styles.view} aria-hidden="true">

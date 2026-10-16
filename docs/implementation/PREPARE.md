@@ -121,7 +121,7 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 - **센터링**: N.I.N.A.의 센터링 명령이 아니라 아이라가 사진 + 솔빙 → 거리 → 동기화 → 다시 이동을 반복(`RealCenterDevices`) — 사진의 HFR·별 수를 초점 확인에 넘기려고.
 - **초점 확인**: 괜찮으면 `AutoNext`(근거만 잠깐 보여 주고 가이딩으로).
 - **가이딩**: N.I.N.A. 가이더 명령으로 시작해야 N.I.N.A.가 가이딩 상태를 안다(디더링·반전 후 재시작). `KeepsRunning`이라 앞 작업을 다시 하거나 중단할 때 러너가 먼저 멈춘다.
-- **시험 사진**: 히스토그램·배경·포화는 N.I.N.A.가 주지 않아 저장된 FITS를 직접 읽는다(`Fits.Analyze`). 밝기는 사진에서 알아낸 카메라 눈금(포화 값·바닥값)으로 읽고 `CameraScale`에 남겨 그날 밤 플랫 노출 찾기(`RealWrapDevices`)도 쓴다 — N.I.N.A. 비트 수는 사용자 설정이라 틀릴 수 있다. 별 모양은 `StarShapes`: ASTAP `astap_cli -extract`(N.I.N.A. 프로필의 ASTAP 폴더, `NinaRig.AstapPathAsync`)로 별을 찾고 별마다 화소 2차 모멘트로 이심률·방향 → 아홉 칸 `StarField`, 판정은 `StarFieldRules`(아홉 칸)·`TestShotRules.Trailed`(가운데 칸 + 방향 모임). 읽은 뒤 같은 날짜 폴더의 "시험" 폴더로 옮긴다(`ImageFolders.Move` — SNAPSHOT 폴더면 그 옆, 아니면 그 아래).
+- **시험 사진**: 히스토그램·배경·포화는 N.I.N.A.가 주지 않아 저장된 FITS를 직접 읽는다(`Fits.Analyze`). 밝기는 사진에서 알아낸 카메라 눈금(포화 값·바닥값)으로 읽고 `CameraScale`에 남겨 그날 밤 플랫 노출 찾기(`RealWrapDevices`)도 쓴다 — N.I.N.A. 비트 수는 사용자 설정이라 틀릴 수 있다. 별 모양은 `StarShapes`: ASTAP `astap_cli -extract`(N.I.N.A. 프로필의 ASTAP 폴더, `NinaRig.AstapPathAsync`)로 별을 찾고 별마다 화소 2차 모멘트로 이심률·방향 → 아홉 칸 `StarField`, 판정은 `StarFieldRules`(아홉 칸)·`TestShotRules.Trailed`(가운데 칸 + 방향 모임). 9칸 확대 보기의 조각은 `TestTiles`(귀퉁이·변·가운데 256px, 6×6 평균, 한 가지 늘이기 → PNG)를 하늘 화면 이미지 `test-tile-0~8`로(`LiveImages`, 화면은 `/api/prepare/live/test-tile-k`), 칸 숫자는 측정값 `tile{k}Hfd·Ecc·Stars`. 읽은 뒤 같은 날짜 폴더의 "시험" 폴더로 옮긴다(`ImageFolders.Move` — SNAPSHOT 폴더면 그 옆, 아니면 그 아래).
 - **노출 멈추기**(센터링·시험 사진·마무리·이어서 하기): X-T5는 일반 노출을 중단할 수 없어 중단 명령 대신 끝나기를 기다린다(`NinaRig.AbortExposureAsync`). 노출이 정지 확인 한도(15초)보다 길면 "장비 상태 다시 확인"이 뜨고, 끝난 뒤 누르면 풀린다.
 - **마무리**: 같은 러너를 쓰는 작업 셋. 장비 정리 뒤 프로그램 닫기는 `ProgramCloser`(아이라 종료와 같은 차례).
 

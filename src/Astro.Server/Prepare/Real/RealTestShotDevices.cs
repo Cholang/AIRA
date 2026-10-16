@@ -41,10 +41,14 @@ public sealed class RealTestShotDevices(NinaRig rig, LiveImages live, ILogger<Re
         if (px is not null) scale?.Learn(px.White, px.Black);
         // 별 모양: 시험 폴더로 옮기기 전에 (ASTAP이 사진 옆에 별 목록을 쓴다)
         var shape = photo is null ? null : await StarShapesAsync(file, photo, ct);
+        // 9칸 확대 보기의 조각 — 하늘 화면 이미지 통로(test-tile-0~8)로 (사진 경로를 화면에 맡기지 않는다)
+        var tiles = photo is null ? null : await Task.Run(() => TestTiles.Make(photo), ct);
+        if (tiles is not null)
+            for (var k = 0; k < tiles.Length; k++) live.Set($"test-tile-{k}", tiles[k]);
         if (file.Length > 0 && File.Exists(file)) file = MoveToTestFolder(file);
         // 파일을 못 읽었으면 N.I.N.A. 중앙값을 아는 눈금(없으면 16비트)으로
         var background = px?.Background ?? (scale?.Current is { } c ? CameraScale.Fraction(s.Median, c.White, c.Black) : s.Median / 65535.0);
-        return new ShotStats(s.Hfr, shape?.Eccentricity, background, px?.SaturatedPercent ?? 0, rms, file, px?.Histogram, shape?.Field);
+        return new ShotStats(s.Hfr, shape?.Eccentricity, background, px?.SaturatedPercent ?? 0, rms, file, px?.Histogram, shape?.Field, Tiles: tiles is not null);
     }
 
     private async Task<StarShapes.Result?> StarShapesAsync(string file, Fits.Image photo, CancellationToken ct)

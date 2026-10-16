@@ -45,6 +45,9 @@ const FAULTS: Record<string, [string, string][]> = {
 /** 대상 묶음의 진행 표시 맨 위 작업: 계획 (계획 화면에서 끝내고 온다) */
 const PLAN_ITEM: RailItem = { id: 'plan', label: '계획', state: 'done' }
 
+/** 시험 사진에 9칸 확대 보기 조각이 있나 (서버 live.data.tiles) */
+const hasTiles = (data: unknown) => !!(data as { tiles?: boolean } | null)?.tiles
+
 export default function PrepareScreen({
   group,
   onDone,
@@ -172,8 +175,8 @@ export default function PrepareScreen({
 
           {/* 오른쪽 위: 사진을 볼 때만 */}
           <div className={styles.viewTools}>
-            {/* 9칸 확대 보기는 아직 모의 그림만 — 실장비에서는 숨긴다 (실제 사진 9칸 자르기는 저장 형식 확인 뒤, CX-APP-R5) */}
-            {liveKind === 'test-photo' && !peek && view?.simulated && (
+            {/* 9칸 확대 보기: 서버가 조각을 내놓았을 때만(실장비 = 저장된 사진을 잘라서, 모의 = 그림). 사진을 못 읽었으면 숨긴다 */}
+            {liveKind === 'test-photo' && !peek && hasTiles(cur?.live?.data) && (
               <Button surface="sky" onClick={() => setGrid((g) => !g)}>
                 {grid ? '사진 전체 보기' : '9칸 확대 보기'}
               </Button>

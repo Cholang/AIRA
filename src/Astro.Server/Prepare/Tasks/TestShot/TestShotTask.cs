@@ -18,9 +18,10 @@ public interface ITestShotDevices
 
 /// <summary>
 /// 사진 검사값. Background = 배경 밝기(0~1), Eccentricity = 별 길쭉함(가운데 칸 이심률, 0 둥긂 ~ 1), SaturatedPercent = 포화 화소 %,
-/// Histogram = 0~최대 밝기를 나눈 칸마다 픽셀 수, Field = 아홉 칸 별 크기·길쭉함 (못 재면 null)
+/// Histogram = 0~최대 밝기를 나눈 칸마다 픽셀 수, Field = 아홉 칸 별 크기·길쭉함 (못 재면 null),
+/// Tiles = 9칸 확대 보기를 쓸 수 있음 (실장비 = 저장된 사진을 잘라 하늘 화면 이미지 test-tile-0~8로, 모의 = 그림) — 없으면 화면이 버튼을 숨기고 안내도 말하지 않는다
 /// </summary>
-public sealed record ShotStats(double Hfr, double? Eccentricity, double Background, double SaturatedPercent, double GuidingRms, string FilePath, int[]? Histogram = null, StarField? Field = null);
+public sealed record ShotStats(double Hfr, double? Eccentricity, double Background, double SaturatedPercent, double GuidingRms, string FilePath, int[]? Histogram = null, StarField? Field = null, bool Tiles = false);
 public sealed record TestShotEndState(bool CameraExposing, bool Guiding, bool FileSaved);
 
 /// <summary>
@@ -78,7 +79,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             run.SubStep(2);
             // 사진 위 오른쪽에 히스토그램 (2026-10-09 사용자 요청 — 배경 산의 위치로 노출이 맞는지 본다)
             run.Live("test-photo", $"/api/prepare/live/test?f={Uri.EscapeDataString(stats.FilePath)}",
-                stats.Histogram is { } hist ? new { histogram = hist, background = stats.Background } : null);
+                stats.Histogram is { } hist ? new { histogram = hist, background = stats.Background, tiles = stats.Tiles } : stats.Tiles ? new { tiles = true } : null);
             // 대상 단계에서 초점을 다시 맞췄으면 그 값과 비교한다
             var focusHfr = ctx.Results.Get<FocusCheckResult>() is { Refocused: true, Hfr: { } rh } ? rh : ctx.Results.Get<FocusResult>()?.Hfr;
             var verdict = TestShotRules.Judge(stats, focusHfr, ctx.ExposureSeconds);
@@ -88,6 +89,14 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 ["saturatedPercent"] = stats.SaturatedPercent, ["guidingRms"] = stats.GuidingRms,
             };
             if (stats.Eccentricity is { } ecc) values["eccentricity"] = ecc;
+            // 9칸 확대 보기가 칸 위에 얹는 숫자 (칸 = 화면 방향 왼쪽 위부터 0~8)
+            if (stats.Field is { } field)
+                for (var k = 0; k < field.Tiles.Count; k++)
+                {
+                    values[$"tile{k}Stars"] = field.Tiles[k].Stars;
+                    if (field.Tiles[k].Hfd is { } th) values[$"tile{k}Hfd"] = th;
+                    if (field.Tiles[k].Eccentricity is { } te) values[$"tile{k}Ecc"] = te;
+                }
             if (focusHfr is { } fh) values["focusHfr"] = fh;
             run.Readout("test-shot", $"HFR {stats.Hfr:F1}", verdict.Caption, verdict.Tone, values);
 
@@ -121,7 +130,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 _ => "초점·별 모양·배경·가이드 모두 괜찮습니다.",
             };
             return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", "좋아요, 촬영을 시작해도 돼요",
-                $"{looks} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다. 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요.",
+                $"{looks} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다." + (stats.Tiles ? " 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요." : ""),
                 [new("redo:test", "다시 찍기"), new("redo:center", "다시 센터링")]);
         }
     }

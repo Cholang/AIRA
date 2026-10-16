@@ -145,6 +145,39 @@ public class StarShapesTests : IDisposable
     }
 
     [Fact]
+    public void 아홉_칸_조각은_귀퉁이_변_가운데에서_같은_크기로_자르고_배경은_15퍼센트쯤()
+    {
+        var img = Fits.Open(Write((_, _) => (2.5, 2.5)))!;
+        var tiles = TestTiles.Make(img)!;
+        Assert.Equal(9, tiles.Length);
+        Assert.All(tiles, t => Assert.Equal(0x89, t[0])); // PNG
+        var st = TestTiles.Stretch(img);
+        Assert.InRange(TestTiles.Curve(1000, st.Low, st.High, st.Mid), 0.1, 0.2); // 배경 1000(중앙값)이 15% 근처
+        Assert.Equal(1.0, TestTiles.Curve(st.High, st.Low, st.High, st.Mid), 6);
+        Assert.Equal(0.0, TestTiles.Curve(st.Low - 10, st.Low, st.High, st.Mid), 6);
+        // 사진 420×600의 1/3 = 140 → 조각 한 변 140, 가장 밝은 별 꼭대기가 들어 있다
+        var s = Math.Min(TestTiles.Side, Math.Min(W, H) / 3);
+        var crop = TestTiles.Crop(img, 0, s, st);
+        Assert.Equal(s * s, crop.Length);
+        Assert.True(crop.Max() > 160);
+    }
+
+    [Fact]
+    public void 아래부터_쓴_사진은_조각도_위아래를_뒤집는다()
+    {
+        // 파일 첫 줄 쪽(줄 0)의 별만 크게 → TOP-DOWN이면 위 칸, BOTTOM-UP이면 아래 칸의 조각이 밝다
+        double Big(int col, int row) => row == 0 ? 5 : 1;
+        var top = Fits.Open(Write((c, r) => (Big(c, r), Big(c, r))))!;
+        var bottom = Fits.Open(Write((c, r) => (Big(c, r), Big(c, r)), bottomUp: true))!;
+        var s = Math.Min(TestTiles.Side, Math.Min(W, H) / 3);
+        static double Mean(byte[] px) => px.Average(v => (double)v);
+        var stTop = TestTiles.Stretch(top);
+        var stBottom = TestTiles.Stretch(bottom);
+        Assert.True(Mean(TestTiles.Crop(top, 0, s, stTop)) > Mean(TestTiles.Crop(top, 6, s, stTop)));
+        Assert.True(Mean(TestTiles.Crop(bottom, 6, s, stBottom)) > Mean(TestTiles.Crop(bottom, 0, s, stBottom)));
+    }
+
+    [Fact]
     public void ASTAP_별_목록을_읽는다()
     {
         var stars = StarShapes.Parse(["x,y,hfd,snr,flux,ra[0..360],dec[0..360]", "3317.2297,40.8816,8.2368,46,12533", "bad,line", "1,2,0,5,1"]);

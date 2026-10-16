@@ -150,22 +150,7 @@ export function RealImage({
 export function FramedImage({ src, onOpen, onFit }: { src: string; onOpen?: () => void; onFit?: (box: PhotoBox | null) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
-  const [box, setBox] = useState<Box | null>(null)
-  useEffect(() => {
-    // 글자 칸 높이가 바뀌면(상태 문장 등) 자리도 바뀐다 — WindowView처럼 자주 다시 잰다
-    const measure = () => {
-      const el = ref.current
-      if (!el) return
-      const at = slotOf(el)
-      const b = el.getBoundingClientRect()
-      const s = scaleOf(el)
-      const next = at ? { x: (at.x - b.left) / s, y: (at.y - b.top) / s, w: at.w / s, h: at.h / s } : null
-      setBox((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
-    }
-    measure()
-    const t = window.setInterval(measure, 300)
-    return () => clearInterval(t)
-  }, [])
+  const box = useSlotBox(ref)
   const fit = box && natural ? fitInside(natural, box) : null
   // 사진 자리를 알린다 (구도 회전 틀) — 바뀔 때만, 사라지면 null
   const sent = useRef('')
@@ -188,6 +173,75 @@ export function FramedImage({ src, onOpen, onFit }: { src: string; onOpen?: () =
         onClick={onOpen}
       />
       {fit && <GlowFrame style={{ position: 'absolute', ...fit }} />}
+    </div>
+  )
+}
+
+/**
+ * 사진이 놓일 띠(글자·버튼 위아래를 피한 자리, WindowView slotOf)를 틀 좌표로. 글자 칸 높이가 바뀌면(상태 문장 등) 자리도 바뀐다 — 자주 다시 잰다
+ */
+function useSlotBox(ref: React.RefObject<HTMLDivElement | null>) {
+  const [box, setBox] = useState<Box | null>(null)
+  useEffect(() => {
+    const measure = () => {
+      const el = ref.current
+      if (!el) return
+      const at = slotOf(el)
+      const b = el.getBoundingClientRect()
+      const s = scaleOf(el)
+      const next = at ? { x: (at.x - b.left) / s, y: (at.y - b.top) / s, w: at.w / s, h: at.h / s } : null
+      setBox((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+    }
+    measure()
+    const t = window.setInterval(measure, 300)
+    return () => clearInterval(t)
+  }, [ref])
+  return box
+}
+
+const TILE_NAMES = ['왼쪽 위', '위', '오른쪽 위', '왼쪽', '가운데', '오른쪽', '왼쪽 아래', '아래', '오른쪽 아래']
+
+/**
+ * 실제 장비의 9칸 확대 보기 (2026-10-16): 서버가 시험 사진에서 잘라 둔 조각(네 귀퉁이 · 네 변 가운데 · 한가운데, 원본 화소 그대로)을
+ * 사진 자리(띠) 안에 3×3 정사각형으로. 칸마다 자리 이름과 그 칸 별의 크기·길쭉함(측정값 tile{k}Hfd·tile{k}Ecc·tile{k}Stars) —
+ * 귀퉁이 별이 한쪽만 크거나 길쭉하면 기울어짐, 고르게 크면 백포커스·상 굽음. 둘레에 사진 틀과 같은 빛 테두리
+ */
+export function TileGrid({ stamp, values }: { stamp: string; values: Record<string, number> | undefined }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const box = useSlotBox(ref)
+  const gap = 10
+  const cell = box ? Math.floor(Math.min((box.w - 2 * gap) / 3, (box.h - 2 * gap) / 3)) : 0
+  const size = cell * 3 + gap * 2
+  const at = box && cell >= 60 ? { left: box.x + (box.w - size) / 2, top: box.y + (box.h - size) / 2, width: size, height: size } : null
+  return (
+    <div ref={ref} className={styles.slot}>
+      {at && (
+        <>
+          <div className={styles.tiles} style={{ ...at, gridTemplateColumns: `repeat(3, ${cell}px)`, gap }}>
+            {TILE_NAMES.map((name, k) => {
+              const hfd = values?.[`tile${k}Hfd`]
+              const ecc = values?.[`tile${k}Ecc`]
+              const stars = values?.[`tile${k}Stars`]
+              return (
+                <figure key={name} className={styles.tile}>
+                  <img src={`/api/prepare/live/test-tile-${k}?t=${encodeURIComponent(stamp)}`} alt="" />
+                  <figcaption>
+                    <b>{name}</b>
+                    {hfd !== undefined && (
+                      <span>
+                        별 크기 {hfd.toFixed(1)}
+                        {ecc !== undefined ? ` · 길쭉함 ${ecc.toFixed(2)}` : ''}
+                      </span>
+                    )}
+                    {stars !== undefined && stars < 5 && <span>별 {stars}개 — 판정에 모자람</span>}
+                  </figcaption>
+                </figure>
+              )
+            })}
+          </div>
+          <GlowFrame style={{ position: 'absolute', ...at }} />
+        </>
+      )}
     </div>
   )
 }
