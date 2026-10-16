@@ -8,7 +8,7 @@
   2026-10-17 (Claude): 하늘 화면 아래 버튼 배치 시안. 버튼 단어를 표준화(재시도·이대로 진행·건너뛰기·완료 …)하면
   "누르면 무엇이 되는지"를 버튼 밖에서 설명해야 하므로, 그 설명을 어디에 둘지 세 가지를 비교한다.
   - A 지금: 설명은 왼쪽 위 안내 문장에, 버튼은 가운데 아래(주 버튼 가운데 · 보조는 오른쪽)
-  - B 사용자 안: 아래 한 줄을 65% : 35%로 — 왼쪽은 설명(오른쪽 정렬), 오른쪽은 버튼(왼쪽 정렬, 주 버튼이 맨 앞) — 설명과 버튼이 가운데 선에서 만난다
+  - B 사용자 안: 아래 한 줄을 55% : 45%로 — 왼쪽은 설명(오른쪽 정렬 — 첫 줄은 주 버튼을 누르면 무엇이 되는지 묻고, 둘째 줄은 보조 버튼을 누르면 어떻게 되는지), 오른쪽은 버튼(왼쪽 정렬, 주 버튼이 맨 앞) — 설명과 버튼이 가운데 선에서 만난다
   - C 제안: 지금 자리 그대로 + 버튼마다 바로 아래 한 줄 설명(무엇이 되는지), 왼쪽 위 안내는 상황·손으로 할 일만
   토큰은 web/src/index.css 값 그대로. 앱 틀은 1920×900(가운데 사진 자리만 줄임)
 -->
@@ -121,9 +121,9 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
 .rowA .primary { grid-column:2; }
 .rowA .side { grid-column:3; justify-self:start; display:flex; gap:8px; }
 
-/* B 사용자 안: 65% 설명(오른쪽 정렬) | 35% 버튼(왼쪽 정렬, 주 버튼 맨 앞) — 둘이 가운데 선에서 만난다 */
-.rowB { width:100%; min-height:64px; display:grid; grid-template-columns:65fr 35fr; align-items:center; column-gap:28px; padding:0 var(--gutter); }
-.rowB p { margin:0; font-size:18px; line-height:1.6; min-height:calc(2 * 1.6em); white-space:pre-line; text-align:right; display:grid; align-content:center; }
+/* B 사용자 안: 55% 설명(오른쪽 정렬) | 45% 버튼(왼쪽 정렬, 주 버튼 맨 앞) — 둘이 가운데 선에서 만난다 */
+.rowB { width:100%; min-height:64px; height:64px; display:grid; grid-template-columns:55fr 45fr; align-items:center; column-gap:28px; padding:0 var(--gutter); }
+.rowB p { margin:0; font-size:18px; line-height:1.6; white-space:pre-line; text-align:right; }
 .rowB .btns { justify-self:start; }
 .rowB p b { color:var(--accent); font-weight:700; }
 .rowB .btns { display:flex; gap:10px; }
@@ -170,12 +170,13 @@ body { margin:0; background:var(--page-bg); color:var(--page-text); font-family:
   </section>
 
   <section class="variant">
-    <h2>B · 65% 설명 | 35% 버튼<small>사용자 안 — 설명은 오른쪽 정렬, 버튼은 왼쪽 정렬(주 버튼이 맨 앞), 둘이 가운데 선에서 만난다</small></h2>
+    <h2>B · 55% 설명 | 45% 버튼<small>사용자 안 — 설명은 오른쪽 정렬, 버튼은 왼쪽 정렬(주 버튼이 맨 앞), 둘이 가운데 선에서 만난다</small></h2>
     <ul class="notes">
       <li data-k="+">설명 끝과 버튼이 바로 붙어 읽고 바로 누른다</li>
-      <li data-k="−">주 버튼 자리가 가운데에서 오른쪽(65% 선)으로 옮겨진다 — 지금 손이 외운 자리와 다름</li>
-      <li data-k="+">주 버튼 자리가 버튼 수와 상관없이 같다(65% 선 바로 오른쪽) · 적도의 홈 · 아이라 종료와도 떨어져 있다</li>
-      <li data-k="−">오른쪽 정렬 글은 줄마다 시작점이 달라 두 줄째를 읽기가 조금 힘들다 · 버튼별 설명은 "재시도" 같은 이름표가 필요</li>
+      <li data-k="−">주 버튼 자리가 가운데에서 오른쪽(55% 선)으로 옮겨진다 — 지금 손이 외운 자리와 다름</li>
+      <li data-k="+">주 버튼 자리가 버튼 수와 상관없이 같다(55% 선 바로 오른쪽) · 적도의 홈 · 아이라 종료와도 떨어져 있다</li>
+      <li data-k="−">오른쪽 정렬 글은 줄마다 시작점이 달라 두 줄째를 읽기가 조금 힘들다</li>
+      <li data-k="+">설명이 한 흐름 — 첫 줄은 주 버튼을 누르면 무엇이 되는지 묻고, 둘째 줄은 보조 버튼을 누르면 어떻게 되는지</li>
     </ul>
     <div class="frame"><div class="app" data-v="B"></div></div>
   </section>
@@ -203,7 +204,7 @@ const S = {
     aMore: ' 누르면 적도의가 남쪽 하늘로 이동한 뒤, 가이드 카메라로 별이 움직이는 방향을 재요.',
     metric: ['좋음', 'Ok', '오차 1.2′ · 목표 3′ 안'], status: ['극축 정렬을 마쳤어요', 'Ok'],
     buttons: [['캘리브레이션 시작', '남쪽 하늘로 이동한 뒤 별의 움직임을 재요']],
-    b: '누르면 적도의가 <b>남쪽 하늘로 이동</b>해요.\n도착하면 가이드 카메라로 별이 움직이는 방향을 재요.',
+    b: '적도의를 남쪽 하늘로 옮겨 가이드 캘리브레이션을 시작할까요?',
   },
   2: {
     task: '초점', title: '별을 찾지 못했어요',
@@ -211,7 +212,7 @@ const S = {
     aMore: ' 다 돌렸으면 <em>재시도</em>를 누르면 그 위치에서 자동초점을 다시 하고, 손으로 정확히 맞췄으면 <em>이대로 진행</em>을 누르세요.',
     metric: ['별 0개', 'Fail', '훑은 범위 0 ~ 12000'], status: ['자동초점 실패 — 별을 찾지 못함', 'Fail'],
     buttons: [['재시도', '지금 포커서 위치에서 자동초점을 다시 해요'], ['이대로 진행', '손으로 맞춘 초점 그대로 넘어가요']],
-    b: '<b>재시도</b> 지금 포커서 위치에서 자동초점을 다시 해요.\n<b>이대로 진행</b> 손으로 맞춘 초점 그대로 넘어가요.',
+    b: '지금 포커서 위치에서 자동초점을 다시 할까요?\n<b>이대로 진행</b>을 누르면 손으로 맞춘 초점 그대로 넘어가요.',
   },
   3: {
     task: '초점', title: '포커서 0점을 잡지 못했어요',
@@ -219,7 +220,7 @@ const S = {
     aMore: ' <em>재시도</em>로 다시 해 보거나, N.I.N.A. 포커서 톱니바퀴에서 Set Zero를 직접 누른 뒤 <em>완료</em>를 누르세요. <em>0점 없이 진행</em>하면 다음 밤에 노브를 손으로 맞춰야 해요.',
     metric: ['0점 없음', 'Fail', '포커서 위치 4310'], status: ['포커서가 답하지 않음', 'Fail'],
     buttons: [['재시도', '아이라가 0점을 다시 잡아 봐요'], ['완료', 'N.I.N.A.에서 Set Zero를 눌렀어요'], ['0점 없이 진행', '다음 밤엔 노브를 손으로 맞춰요']],
-    b: 'N.I.N.A. 포커서 톱니바퀴에서 Set Zero를 눌렀다면 <b>완료</b>를 눌러 주세요.\n<b>0점 없이 진행</b>하면 다음 밤엔 노브를 손으로 맞춰야 해요.',
+    b: '포커서 0점을 다시 잡아 볼까요?\nSet Zero를 직접 눌렀다면 <b>완료</b>, 0점 없이 하려면 <b>0점 없이 진행</b>을 눌러 주세요.',
   },
 };
 
