@@ -1,3 +1,5 @@
+import type { CheckItem } from '../checks'
+
 /**
  * 장비 연결 화면의 태양계 배치 (2026-10-11 사용자 결정, 시안 mockups/aira-equipment-orbits-top.html).
  * 위에서 내려다본 평면: 항성(자비스 원)은 왼쪽 위 구석에 1/4만 보이고, 장비는 1:1로 정해진 행성의 동심원 궤도 위에 놓인다.
@@ -210,4 +212,12 @@ export function orbitPath(geo: SolarGeo, p: Planet) {
   const ox = geo.cx - p.r * Math.cos(th)
   const oy = geo.cy - p.r * Math.sin(th)
   return `M ${sx} ${sy} A ${p.r} ${p.r} 0 1 1 ${ox} ${oy} A ${p.r} ${p.r} 0 1 1 ${sx} ${sy}`
+}
+
+/** 전원 허브: 다른 장비에 전원을 주므로, 허브가 실패하면 나머지는 보류하고 허브부터 해결한다 (서버와 같은 규칙) */
+export const HUB = 'switch'
+
+/** 누를 수 있는 행성: 연결되지 않은 장비(실패·경고) */
+export function selectable(item: CheckItem) {
+  return item.status === 'Fail' || item.status === 'Warn'
 }

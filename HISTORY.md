@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — PlanScreen을 대화·대상·설정으로
+## 2026-10-16 · [Claude] 큰 파일 분리 3단계 — EquipmentScreen의 부품을 따로
+
+**요청**: 분리 계획 3단계 셋째 파일.
+
+**변경** (옮기기만): `screens/EquipmentScreen.tsx`(864 → 511줄: 화면·태양계 그래프)에서 `EquipmentParts.tsx`(행성·편집 행성·드라이버 목록·카메라 전원·상태 글·[임시] 실패 버튼, 349줄). 두 파일이 함께 쓰는 `HUB`·`selectable`은 `equipmentOrbits.ts`로(컴포넌트 파일에서 상수·함수를 내보내면 lint 경고), `WAITING_FOR_HUB`는 부품 파일로.
+
+**확인**: 바뀐 줄은 `export`·import·파일 설명 줄뿐(옮긴 줄 332). tsc·lint(경고 38 그대로)·웹 시험 52·웹 빌드.
+
+---
+
+## 2026-10-16 · 9b04203 [Claude] 큰 파일 분리 3단계 — PlanScreen을 대화·대상·설정으로
 
 **요청**: 분리 계획 3단계 둘째 파일.
 
