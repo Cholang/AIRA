@@ -183,12 +183,20 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
     public async Task<bool> StopAsync(CancellationToken ct)
     {
         var still = await StopMountAsync(ct);
-        if (sharpCap.OursRunning || await CameraAsync(ct) is { Connected: false })
+        // 정리(SharpCap 닫기 · PHD2에 카메라 돌려주기)는 정지 확인과 별개 — 늦어지거나 실패해도 적도의 정지 결과를 바꾸지 않는다
+        // (2026-10-16 실행: PHD2가 답하지 않아 정리가 정지 확인 한도를 넘겼고, 시간 초과 예외로 정지 확인이 실패했다)
+        try
         {
-            await sharpCap.CloseAsync(ct);
-            try { await phd2.CallAsync("set_connected", new object[] { true }, ct, TimeSpan.FromSeconds(60)); }
-            catch (Phd2Exception) { /* 장비 상태 확인 필요로 남는다 — 아래 still과 별개로 사용자에게 보임 */ }
+            if (sharpCap.OursRunning || await CameraAsync(ct) is { Connected: false })
+            {
+                await sharpCap.CloseAsync(ct);
+                // 이번 실행에서 적도의가 연결된 적이 없으면(장비 전원 꺼짐) 돌려주지 않는다 — PHD2가 프로필의 적도의(ASCOM)까지 연결하려다
+                // "ASCOM driver problem during connection" 오류 창을 띄우고 확인을 누를 때까지 답하지 않았다
+                if (rig.MountSeenConnected)
+                    await phd2.CallAsync("set_connected", new object[] { true }, ct, TimeSpan.FromSeconds(60));
+            }
         }
+        catch (Exception e) when (e is Phd2Exception or OperationCanceledException) { /* 카메라가 PHD2에 없으면 다음 가이드 작업이 알린다 */ }
         return still;
     }
 

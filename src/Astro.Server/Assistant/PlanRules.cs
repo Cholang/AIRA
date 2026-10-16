@@ -41,7 +41,7 @@ public static class PlanRules
     public const int MaxPicks = 3;
 
     /// <summary>화면의 − + 버튼 한 번에 바뀌는 양 (직접 입력은 1 단위)</summary>
-    public const int ExposureStepSeconds = 10;
+    public const int ExposureStepSeconds = 1; // 2026-10-16 사용자: 노출은 1초씩
     public const int TotalStepMinutes = 10;
 
     public const int MinExposureSeconds = 1;

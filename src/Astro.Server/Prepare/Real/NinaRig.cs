@@ -28,6 +28,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     /// 정지 확인이 "연결 안 됨"을 멈춤으로 볼 수 있는 근거 (2026-10-16: 장비 없이 [임시] 건너뛰기가 정지 확인에서 막혔다)
     /// </summary>
     private volatile bool _mountSeenConnected;
+    public bool MountSeenConnected => _mountSeenConnected;
 
     public async Task<MountState?> MountAsync(CancellationToken ct)
     {
