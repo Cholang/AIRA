@@ -8,7 +8,17 @@
 
 ---
 
-## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — EquipmentConnector를 partial 셋으로
+## 2026-10-16 · [Claude] 큰 파일 분리 2단계 — PlanAssistant의 AI 대화를 partial로
+
+**요청**: 분리 계획 2단계 넷째 파일.
+
+**변경** (옮기기만): `Assistant/PlanAssistant.cs`(570 → 243줄: 필드·확정·복원·화면에서 고치기·보기·프로필·장비 반영)에서 `PlanAssistant.Chat.cs`(`SendAsync`·이벤트·할당량 시각·밤 요약·시스템 지시문, 222줄). 흩어진 필드 `_profileId`는 필드 자리로.
+
+**확인**: 바뀐 줄은 새 파일 머리와 본 파일의 `partial`뿐(옮긴 줄 208). 솔루션 빌드(경고 2개 그대로), 서버 시험 316 통과·1 건너뜀.
+
+---
+
+## 2026-10-16 · e0d546a [Claude] 큰 파일 분리 2단계 — EquipmentConnector를 partial 셋으로
 
 **요청**: 분리 계획 2단계 셋째 파일.
 
