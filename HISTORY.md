@@ -8,7 +8,19 @@
 
 ---
 
-## 2026-10-16 · [Claude] Gemini 리뷰 7절 반영 — 적색 테마 누출 · 옛 이름 "AA" · 오류 줄 흔들림 · 계산 시험 · docs/gemini 폴더
+## 2026-10-16 · [Claude] 큰 파일 분리 계획서 (docs/implementation/SPLIT_PLAN.md)
+
+**요청**: Gemini 7절의 분리 계획(A)이 실제 코드와 맞지 않으니, 실제 코드를 읽고 분리 계획서를 만들어 두기(코드는 건드리지 않음 — 분리는 Codex 리뷰 반영 뒤).
+
+**변경**: `docs/implementation/SPLIT_PLAN.md` 새로 — 400줄 넘는 14개 파일의 실제 덩어리(함수·컴포넌트 이름과 줄 범위, 기준 52fad14), 서버는 `partial class`(잠금·필드·생성자 매개변수 그대로)·필드는 본 파일 한곳에, 웹은 컴포넌트·순수 데이터만, 단계(타입·데이터 → 서버 partial → 웹 컴포넌트 → 선택: 메서드·훅 빼기), 커밋마다 확인 방법, 나누지 않는 파일(NinaRig · PlanTools · NightGraph), Gemini 계획과 다른 점(ShootSession에 반전·초점 묶음 없음, EquipmentConnector에 진단 묶음 없음, RigScene·EquipmentScreen·App 설명이 다른 내용).
+
+**확인**: 14개 파일을 읽어 함수 경계·흩어진 필드를 확인. partial 파일에서 기본 생성자 매개변수를 쓸 수 있는지는 .NET 10 시험 프로젝트로 빌드·실행해 확인. 계획의 줄 수는 어림(옮긴 뒤 실제와 다를 수 있음).
+
+**남은 것**: Codex 리뷰(토큰이 다 돼 멈춤) 받기 → 반영·커밋 → 이 계획서대로 분리. 끝나면 계획서는 지우고 ARCHITECTURE·PREPARE·SHOOT에 구조 반영.
+
+---
+
+## 2026-10-16 · 52fad14 [Claude] Gemini 리뷰 7절 반영 — 적색 테마 누출 · 옛 이름 "AA" · 오류 줄 흔들림 · 계산 시험 · docs/gemini 폴더
 
 **요청**: Gemini 문서를 `docs/codex/`에서 `docs/gemini/`로(사용자가 로컬에서 옮긴 구조대로) 하고 경로를 고치기. Gemini 리뷰 7절(34항목)을 검토한 뒤 B-01·B-02·B-03·B-04·B-07 수정, E-01·E-02·E-04 시험 추가, D-01은 실기 확인 목록에, 사실이 아니거나 이미 처리된 것은 무시.
 
