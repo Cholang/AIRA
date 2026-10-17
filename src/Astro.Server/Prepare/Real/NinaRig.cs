@@ -57,10 +57,13 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null, ILogger<
     /// <summary>움직임이 멈출 때까지 (이동 중 아님 + 서로 다른 갱신 두 번 사이에 움직이지 않음 — MountTiming). timeout까지 안 멈추면 false</summary>
     public Task<bool> WaitStillAsync(TimeSpan timeout, CancellationToken ct) => StillAsync(timeout, int.MaxValue, ct);
 
-    /// <summary>멈춘 것 확인 — 같은 판정을 12번까지 (멈춤 명령 뒤)</summary>
-    public Task<bool> ConfirmStillAsync(CancellationToken ct) => StillAsync(TimeSpan.MaxValue, 12, ct);
+    /// <summary>
+    /// 멈춘 것 확인 — 같은 판정을 12번까지 (멈춤 명령 뒤). trustNeverConnected = 이번 실행에서 연결된 적이 없는 적도의를 "움직였을 리 없음"으로 볼지.
+    /// 이전 실행이 남긴 이동이 있을 수 있는 때(이어서 하기)는 false — 연결 단절만으로 OnStep의 이동이 멈췄다는 증거는 없다 (CX-40-01)
+    /// </summary>
+    public Task<bool> ConfirmStillAsync(CancellationToken ct, bool trustNeverConnected = true) => StillAsync(TimeSpan.MaxValue, 12, ct, trustNeverConnected);
 
-    private async Task<bool> StillAsync(TimeSpan timeout, int tries, CancellationToken ct)
+    private async Task<bool> StillAsync(TimeSpan timeout, int tries, CancellationToken ct, bool trustNeverConnected = true)
     {
         var deadline = timeout == TimeSpan.MaxValue ? DateTime.MaxValue : DateTime.UtcNow + timeout;
         MountState? last = null;
@@ -70,7 +73,8 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null, ILogger<
             if (m is null) return false;
             // N.I.N.A.가 연결 안 됨이라고 분명히 답함: 이번 실행에서 연결된 적이 없으면 아이라가 움직인 적도 없다 → 멈춤.
             // 연결돼 있다가 끊겼으면 움직이는 중에 끊겼을 수 있다(OnStep은 하던 이동을 계속한다) → 모름 (사용자가 직접 보고 확인)
-            if (!m.Connected) return !_mountSeenConnected;
+            // 이어서 하기처럼 이전 실행의 이동이 남았을 수 있으면 모름 (trustNeverConnected=false, CX-40-01)
+            if (!m.Connected) return trustNeverConnected && !_mountSeenConnected;
             // 같은 갱신을 다시 읽었으면 비교하지 않는다 (N.I.N.A.는 약 2초마다 갱신 — 같은 값끼리 "멈춤"으로 보던 것, 2026-10-14 자체 리뷰)
             if (last is { } l && MountTiming.SameSnapshot(l.SiderealHours, m.SiderealHours)) { await Task.Delay(MountTiming.PollInterval, ct); continue; }
             // 홈으로 가는 중이면 좌표가 처음부터 홈 값이라 그대로여도 멈춤이 아니다 (Moving — 2026-10-17 실기)
@@ -110,13 +114,13 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null, ILogger<
         return null;
     }
 
-    /// <summary>이동 멈춤 + 멈춘 것 확인 (이동 중 아님 + 좌표가 연속 두 번 같음)</summary>
-    public async Task<bool> StopSlewAndConfirmAsync(CancellationToken ct)
+    /// <summary>이동 멈춤 + 멈춘 것 확인 (이동 중 아님 + 좌표가 연속 두 번 같음). trustNeverConnected는 <see cref="ConfirmStillAsync"/>와 같음</summary>
+    public async Task<bool> StopSlewAndConfirmAsync(CancellationToken ct, bool trustNeverConnected = true)
     {
         var stop = await nina.RequestAsync("equipment/mount/slew/stop", Short, ct);
         // N.I.N.A.가 정지 명령을 받지 못하면(멈춤·꺼짐·적도의 연결 끊김) 드라이버에 직접 — 멈춘 것을 확인하지 못해도 적도의는 실제로 멈추게 (M2)
         if (!stop.Ok && axis is not null) await axis.EmergencyStopAsync();
-        return await ConfirmStillAsync(ct);
+        return await ConfirmStillAsync(ct, trustNeverConnected);
     }
 
     /// <summary>

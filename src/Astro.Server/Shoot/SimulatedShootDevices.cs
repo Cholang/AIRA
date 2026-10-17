@@ -31,7 +31,7 @@ public sealed class SimulatedShootDevices(SimOptions sim, SimFaults faults) : IS
     private bool _mountMoving;
 
     /// <summary>모의: 한 번 다시 확인하면 멈춘 것으로</summary>
-    public async Task<bool> ConfirmMountStillAsync(CancellationToken ct) { await sim.Delay(200, ct); var was = _mountMoving; _mountMoving = false; return !was || ConfirmCalls++ > 0; }
+    public async Task<bool> ConfirmMountStillAsync(CancellationToken ct, bool afterPreviousRun = false) { await sim.Delay(200, ct); var was = _mountMoving; _mountMoving = false; return !was || ConfirmCalls++ > 0; }
     /// <summary>[테스트] 적도의 정지 확인 횟수</summary>
     public int ConfirmCalls { get; private set; }
     private int _noStars;

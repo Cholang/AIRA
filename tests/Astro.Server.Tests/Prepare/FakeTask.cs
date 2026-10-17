@@ -19,13 +19,18 @@ public sealed class FakeTask(string id, List<string> log) : IPrepTask
     /// <summary>끝난 뒤에도 장비가 도는 작업 흉내 (가이딩)</summary>
     public bool KeepsRunning { get; set; }
     public ITaskRun? LastRun { get; private set; }
+    /// <summary>true면 RunAsync가 예외로 끝난다 (통신 단절 흉내 — 화면에 "재시도")</summary>
+    public bool Throws { get; set; }
+    public int Runs { get; private set; }
 
     public bool AppliesTo(PrepContext ctx) => true;
 
     public async Task<TaskOutcome> RunAsync(ITaskRun run, CancellationToken ct)
     {
         LastRun = run;
+        Runs++;
         lock (log) log.Add($"run:{id}:{run.RunId}");
+        if (Throws) throw new InvalidOperationException("장비 응답 없음 (시험)");
         run.Guide(id, "시험");
         run.Readout("x", "1", "값", Tone.Busy, live: true);
         if (Hang)

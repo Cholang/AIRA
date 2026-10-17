@@ -105,6 +105,29 @@ public class QuitHomeTests
     }
 
     [Fact]
+    public async Task CX40_01_이어서_하기에서는_연결_안_된_적도의를_멈춘_것으로_보지_않는다()
+    {
+        // 새 실행(연결을 본 적 없음) + N.I.N.A.가 연결 안 됨이라고 답함
+        var gone = new FakeMount { Connected = false };
+        Assert.True(await new NinaRig(Api(gone)).ConfirmStillAsync(CancellationToken.None)); // 장비 없이 화면만 넘길 때는 그대로
+        Assert.False(await new NinaRig(Api(gone)).ConfirmStillAsync(CancellationToken.None, trustNeverConnected: false));
+        Assert.False(await new NinaRig(Api(gone)).StopSlewAndConfirmAsync(CancellationToken.None, trustNeverConnected: false));
+    }
+
+    [Fact]
+    public void CX40_04_노출을_바꾸면_확정_계획에도_알린다()
+    {
+        Astro.Server.Assistant.PreparationPlan? changed = null;
+        var ctx = new PrepContext(Harness.Plan(), new Astro.Core.Sky.Site(37.82, 127.14), 2.41, true, true, new PrepResults(), new MountLock(),
+            new InMemoryPrepMemory(), () => DateTimeOffset.Now) { PlanChanged = p => changed = p };
+        ctx.ChangeExposure(30); // 120초 · 100장 → 30초 · 400장 (총 노출 같게)
+        Assert.NotNull(changed);
+        Assert.Equal(30, changed!.ExposureSeconds);
+        Assert.Equal(400, changed.EstimatedFrames);
+        Assert.Equal(ctx.Plan.ConfirmedAt, changed.ConfirmedAt); // 확정 시각은 그대로 (촬영 누적 장수가 이것으로 이어짐)
+    }
+
+    [Fact]
     public async Task 종료_창은_연결돼_있고_홈이_아닐_때만_홈으로_보내기를_보인다()
     {
         Assert.True(await Home(new FakeMount()).Home.OfferForQuitAsync(CancellationToken.None));

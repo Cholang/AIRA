@@ -105,7 +105,8 @@ public sealed class PrepareStarter(PlanAssistant planner, Sky.TonightService ton
         var problems = new List<string>();
         try { if (!await shootDevices.AbortExposureAsync(ct)) problems.Add("카메라 노출"); } catch (Exception) { problems.Add("카메라 노출"); }
         try { if (!await focusDevices.StopAsync(ct)) problems.Add("자동초점·포커서"); } catch (Exception) { problems.Add("자동초점·포커서"); }
-        try { if (!await shootDevices.ConfirmMountStillAsync(ct)) problems.Add("적도의 이동"); } catch (Exception) { problems.Add("적도의 이동"); }
+        // 이전 실행이 시작한 이동일 수 있다 — 연결이 끊겨 있으면 멈춘 것으로 보지 않는다 (CX-40-01)
+        try { if (!await shootDevices.ConfirmMountStillAsync(ct, afterPreviousRun: true)) problems.Add("적도의 이동"); } catch (Exception) { problems.Add("적도의 이동"); }
         return problems.Count == 0 ? null : $"{string.Join(" · ", problems)}이 멈췄는지 확인하지 못했어요. N.I.N.A.를 확인한 뒤 다시 눌러 주세요.";
     }
 
@@ -130,7 +131,11 @@ public sealed class PrepareStarter(PlanAssistant planner, Sky.TonightService ton
                 var ctx = new PrepContext(plan, night.Site, night.Rig.PixelScale is > 0 and var px2 ? px2 : 2.0,
                     hasGuider: night.Rig.HasGuider && !equipment.IsWithout("guider"),
                     hasFocuser: !equipment.IsWithout("focuser"),
-                    flow.ResultsFor(evening), mount, memory, () => DateTimeOffset.Now) { Clouds = c => tonight.CloudsAsync(profile.Site, c) };
+                    flow.ResultsFor(evening), mount, memory, () => DateTimeOffset.Now)
+                {
+                    Clouds = c => tonight.CloudsAsync(profile.Site, c),
+                    PlanChanged = p => planner.AdjustConfirmed(p.ExposureSeconds, p.EstimatedFrames),
+                };
                 await flow.ResumeTargetAsync(ctx, done);
                 return phase == "shoot" && flow.Target.AllDone ? "shoot" : "target";
             case "wrap":
@@ -188,7 +193,8 @@ public sealed class PrepareStarter(PlanAssistant planner, Sky.TonightService ton
         var ctx = new PrepContext(plan, night.Site, night.Rig.PixelScale is > 0 and var px ? px : 2.0,
             hasGuider: night.Rig.HasGuider && !equipment.IsWithout("guider"),
             hasFocuser: !equipment.IsWithout("focuser"),
-            flow.ResultsFor(Sky.TonightService.EveningOf(DateTimeOffset.Now)), mount, memory, () => DateTimeOffset.Now);
+            flow.ResultsFor(Sky.TonightService.EveningOf(DateTimeOffset.Now)), mount, memory, () => DateTimeOffset.Now)
+        { PlanChanged = p => planner.AdjustConfirmed(p.ExposureSeconds, p.EstimatedFrames) };
         return flow.StartTarget(ctx);
     }
 }

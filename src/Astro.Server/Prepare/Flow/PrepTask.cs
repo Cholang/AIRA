@@ -139,7 +139,14 @@ public sealed class PrepContext(
                 EstimatedFrames = Math.Max(1, (int)Math.Round((double)p.EstimatedFrames * ExposureSeconds / seconds)),
             };
         ExposureSeconds = seconds;
+        if (plan is { } changed) PlanChanged?.Invoke(changed);
     }
+
+    /// <summary>
+    /// 노출을 바꿔 계획이 바뀌었을 때 (가이드 없이 줄이기·노출 맞추기) — 확정 계획(밤 기록이 저장·복원하는 계획)에도 반영하게 (CX-40-04:
+    /// 이 묶음의 계획만 바뀌어, 다시 켜 이어서 하면 바꾸기 전 노출·장수로 돌아갔다)
+    /// </summary>
+    public Action<PreparationPlan>? PlanChanged { get; init; }
     /// <summary>센터링 실패·시험 사진이 "초점 다시 맞추기"를 고르면 켠다 — 초점 확인이 비교 없이 바로 다시 맞춘다 (한 번 쓰고 끈다)</summary>
     public bool RefocusRequested { get; set; }
     /// <summary>앞 작업의 끝에서 시작 버튼 대신 고른 다른 선택 (StartAlternatives의 "next:" 뒤). 작업이 시작하며 읽고 지운다</summary>

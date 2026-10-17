@@ -89,6 +89,22 @@ public class TempSkipTests
     }
 
     [Fact]
+    public async Task CX40_05_재시도에서_멈춘_것을_직접_확인하면_다시_묻지_않고_다시_한다()
+    {
+        var (runner, tasks, _, ctx) = Make("focus");
+        tasks["focus"].Throws = true;
+        tasks["focus"].StopConfirms = false;
+        runner.Start(ctx);
+        await runner.Until(x => x.Has("retry"), "예외로 멈춤 → 재시도");
+        tasks["focus"].Throws = false;
+        Assert.Null(runner.Act("retry"));
+        await runner.Until(x => x.Has("device-confirm"), "멈춘 것을 확인했어요");
+        Assert.Null(runner.Act("device-confirm"));
+        await runner.Until(x => x.Row("focus") == PrepTaskStatus.Done, "다시 해서 끝남");
+        Assert.Equal(2, tasks["focus"].Runs);
+    }
+
+    [Fact]
     public async Task 초점_확인은_성공으로만_넘긴다()
     {
         var (runner, tasks, _, ctx) = Make("focuscheck");

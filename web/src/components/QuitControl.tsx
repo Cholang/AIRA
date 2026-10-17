@@ -89,18 +89,22 @@ export function QuitProvider({
   const [choices, setChoices] = useState<{ id: string; name: string; checked: boolean }[] | null>(null)
   // 적도의를 홈으로 보낼지 (서버가 보일 때만 — 연결돼 있고 홈이 아님). null = 보이지 않음
   const [sendHome, setSendHome] = useState<boolean | null>(null)
+  // 목록을 받지 못함 — "아무것도 안 고름"과 다르다 (CX-40-03)
+  const [listFailed, setListFailed] = useState(false)
 
   /** 확인 창을 열며 지금 떠 있는 프로그램을 받는다 (받지 못하면 목록 없이 — 종료 4단계가 다시 묻는다) */
   const openQuit = () => {
     setQuitting(true)
     setChoices(null)
     setSendHome(null)
+    setListFailed(false)
     fetch('/api/engine/programs')
-      .then((r) => (r.ok ? (r.json() as Promise<{ apps: { id: string; name: string }[]; home?: boolean }>) : { apps: [] }))
-      .catch(() => ({ apps: [] }) as { apps: { id: string; name: string }[]; home?: boolean })
+      .then((r) => (r.ok ? (r.json() as Promise<{ apps: { id: string; name: string }[]; home?: boolean }>) : null))
+      .catch(() => null)
       .then((b) => {
-        setChoices((cur) => cur ?? b.apps.map((a) => ({ ...a, checked: true })))
-        setSendHome((cur) => cur ?? (b.home ? true : null))
+        if (!b) setListFailed(true)
+        setChoices((cur) => cur ?? (b?.apps ?? []).map((a) => ({ ...a, checked: true })))
+        setSendHome((cur) => cur ?? (b?.home ? true : null))
       })
   }
 
@@ -173,6 +177,9 @@ export function QuitProvider({
     if (body.held) return setClosing({ busy: false, problem: body.held + ' 멈춘 것을 확인한 뒤 다시 종료해 주세요.' })
     const list = body.apps
     if (list.length === 0) return closeApp()
+    // 처음 목록을 받지 못해 고르지 못했다 — 아무것도 고르지 않은 것으로 보고 끄지 않는다 (CX-40-03)
+    if (listFailed)
+      return setClosing({ busy: false, step: 'programs', problem: '닫을 프로그램 목록을 처음에 받지 못해 고르지 못했습니다. 취소한 뒤 다시 종료하거나, 그래도 종료하고 N.I.N.A.·PHD2를 직접 닫아 주세요.' })
     // 확인 창 목록에 없던 것(그 사이 켜짐)은 닫지 않는다 — 사용자가 고르지 않았다. 그런 줄은 목록 끝에 "남겨 둠"으로 더한다
     const picked = new Set((choices ?? []).filter((c) => c.checked).map((c) => c.id))
     if (!list.some((x) => picked.has(x.id))) return closeApp()
@@ -182,6 +189,7 @@ export function QuitProvider({
     setApps(now)
     setClosing({ busy: true, step: 'programs' })
     let failed = false
+    let why: string | null = null
     for (const app of list) {
       if (!picked.has(app.id)) continue
       if (failed) {
@@ -189,12 +197,16 @@ export function QuitProvider({
         continue
       }
       mark(app.id, 'closing')
-      const closed = (await post<{ closed: boolean }>('/api/engine/close/' + app.id))?.closed ?? false
+      const r = await post<{ closed: boolean; problem?: string | null }>('/api/engine/close/' + app.id)
+      const closed = r?.closed ?? false
       mark(app.id, closed ? 'done' : 'failed')
-      if (!closed) failed = true
+      if (!closed) {
+        failed = true
+        why = r?.problem ?? null // N.I.N.A.의 장비 연결을 끊지 못함 등 (CX-40-02)
+      }
     }
     if (failed)
-      return setClosing({ busy: false, step: 'programs', problem: '닫지 못한 프로그램이 있습니다(저장 확인 창 등). 직접 닫아 주세요. 뒤의 프로그램은 그대로 두었습니다.' })
+      return setClosing({ busy: false, step: 'programs', problem: why ?? '닫지 못한 프로그램이 있습니다(저장 확인 창 등). 직접 닫아 주세요. 뒤의 프로그램은 그대로 두었습니다.' })
     await new Promise((r) => window.setTimeout(r, 1000))
     closeApp()
   }
@@ -227,6 +239,8 @@ export function QuitProvider({
         message={message}
         confirmLabel={closing && !closing.busy ? T('button.quitAnyway') : T('button.quitConfirm')}
         busy={closing?.busy}
+        // 고를 목록을 받기 전에는 종료를 누를 수 없다 — 받기 전에 누르면 아무것도 고르지 않은 것이 됐다 (CX-40-03)
+        confirmDisabled={!closing && choices === null}
         onConfirm={() => void quit()}
         onCancel={() => {
           setQuitting(false)

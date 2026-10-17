@@ -46,12 +46,33 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
     /// N.I.N.A.를 남기고 나머지를 닫기 전: N.I.N.A.의 장비 연결을 모두 끊는다 — 연결된 채 PHD2·파워박스(Empire)가 사라지면 N.I.N.A.가 오류 창을 띄운다
     /// (2026-10-16 사용자 제안). 적도의는 마지막에(추적 끄기는 종료 절차가 먼저 함)
     /// </summary>
-    public static async Task DisconnectNinaAsync(Astro.Nina.NinaApiClient nina, CancellationToken ct)
+    /// <returns>
+    /// 끊었는지 확인하지 못한 장비 종류 (끊은 뒤 연결 상태를 다시 읽어 "끊김"이 아니면 — 연결됨·읽지 못함). 비어 있어야 N.I.N.A.를 남기고 다른 프로그램을 닫아도 된다
+    /// (CX-40-02: 끊기 요청의 결과를 보지 않고 넘겨, 못 끊었는데도 PHD2·Empire를 닫았다). 하나가 실패해도 나머지는 끊는다
+    /// </returns>
+    public static async Task<IReadOnlyList<string>> DisconnectNinaAsync(Astro.Nina.NinaApiClient nina, CancellationToken ct)
     {
-        foreach (var d in new[] { "guider", "camera", "focuser", "filterwheel", "rotator", "flatdevice", "switch", "mount" })
+        string[] kinds = ["guider", "camera", "focuser", "filterwheel", "rotator", "flatdevice", "switch", "mount"];
+        foreach (var d in kinds)
             try { await nina.RequestAsync($"equipment/{d}/disconnect", TimeSpan.FromSeconds(10), ct); }
             catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { }
+        var left = new List<string>();
+        foreach (var d in kinds)
+        {
+            bool? connected;
+            try { connected = await nina.ConnectedStateAsync(d, ct); }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { connected = null; }
+            if (connected != false) left.Add(d);
+        }
+        return left;
     }
+
+    /// <summary>장비 종류의 화면 이름 (끊지 못한 장비 안내용)</summary>
+    public static string KindNames(IEnumerable<string> kinds) => string.Join(", ", kinds.Select(k => k switch
+    {
+        "guider" => "가이더", "camera" => "카메라", "focuser" => "포커서", "filterwheel" => "필터휠", "rotator" => "회전장치",
+        "flatdevice" => "플랫패널", "switch" => "전원 허브", "mount" => "적도의", _ => k,
+    }));
 
     /// <summary>
     /// 프로그램 하나를 닫는다 (창을 닫게 하고 15초 기다림). 다 닫혔으면 true (저장 확인 창 등으로 안 닫히면 false).

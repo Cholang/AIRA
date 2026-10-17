@@ -178,8 +178,9 @@ public static partial class AppServer
         // 2026-10-16 사용자: 누가 켰든 지금 떠 있는 것을 모두 보여 주고(처음엔 모두 체크) 고른 것만 닫는다. N.I.N.A.를 남기면 그 장비 연결을 먼저 끊는다.
         // 모의 장비로 돌 때는 아이라가 켜진 뒤에 켜진 것만(엔진 켜기가 켠 N.I.N.A.) — 시연 전에 켜 둔 실제 프로그램을 건드리지 않게
         // home = 종료 창에 "적도의를 홈으로 보내기"(처음엔 체크)를 보일지 — 적도의가 연결돼 있고 홈이 아닐 때 (2026-10-17 사용자, MountHome.OfferForQuitAsync)
-        api.MapGet("/engine/programs", async (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.PrepareMode mode, Prepare.MountHome home, CancellationToken ct) =>
-            Results.Ok(new { apps = shoot.Active ? [] : programs.Targets(onlyOurs: mode.Simulate), home = await home.OfferForQuitAsync(ct) }));
+        // 촬영 중에도 목록은 보인다 — 고르는 것일 뿐, 실제로 닫기는 촬영을 끝낸 뒤(/engine/close)라서 (CX-40-03: 촬영 중에 연 종료 창은 목록이 비어 아무것도 닫지 않았다)
+        api.MapGet("/engine/programs", async (ProgramCloser programs, Prepare.PrepareMode mode, Prepare.MountHome home, CancellationToken ct) =>
+            Results.Ok(new { apps = programs.Targets(onlyOurs: mode.Simulate), home = await home.OfferForQuitAsync(ct) }));
         api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Prepare.PrepareMode mode) =>
             PrepareBusy(flow, home) is { } held
                 ? Results.Ok(new { apps = Array.Empty<ProgramCloser.Target>(), held })
@@ -188,8 +189,10 @@ public static partial class AppServer
         {
             if (shoot.Active || PrepareBusy(flow, home) is not null) return Results.Ok(new { closed = false });
             var keepNina = id != "nina" && ProgramCloser.NinaRunning;
-            if (keepNina) await ProgramCloser.DisconnectNinaAsync(nina, ct);
-            return Results.Ok(new { closed = await programs.CloseOneAsync(id, ct, onlyOurs: mode.Simulate, ninaDisconnected: keepNina) });
+            // N.I.N.A.를 남길 때: 장비 연결을 끊은 것을 확인한 뒤에만 다른 프로그램을 닫는다 (CX-40-02)
+            if (keepNina && await ProgramCloser.DisconnectNinaAsync(nina, ct) is { Count: > 0 } left)
+                return Results.Ok(new { closed = false, problem = (string?)$"N.I.N.A.의 {ProgramCloser.KindNames(left)} 연결을 끊었는지 확인하지 못해 닫지 않았습니다. N.I.N.A.에서 장비 연결을 끊은 뒤 다시 종료해 주세요." });
+            return Results.Ok(new { closed = await programs.CloseOneAsync(id, ct, onlyOurs: mode.Simulate, ninaDisconnected: keepNina), problem = (string?)null });
         });
         // 아이라 종료 전: 진행 중인 준비 작업과 계속 도는 가이딩을 멈추고 확인 (CX-20-02). 촬영 중이면 그대로 — 촬영은 N.I.N.A.가 이어 간다
         // 홈 버튼으로 시작한 홈 이동도 멈추고 확인한다 (CX-21-02)

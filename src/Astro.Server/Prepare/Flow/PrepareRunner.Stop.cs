@@ -117,7 +117,7 @@ public sealed partial class PrepareRunner
         }
         foreach (var task in lingering)
         {
-            if (!await TryStopAsync(task))
+            if (!TakeUserConfirmed(task) && !await TryStopAsync(task))
             {
                 ShowStopUnconfirmed(task, then);
                 return false;
@@ -155,6 +155,8 @@ public sealed partial class PrepareRunner
         cts?.Cancel();
         try { await _runTask.WaitAsync(StopTimeout); } catch { /* 취소·시간 초과 — 아래에서 정지 확인 */ }
         if (!wasRunning && cur.Finished) return true; // 끝난 작업은 움직이는 장비가 없다
+        // 사용자가 방금 이 작업의 장비가 멈춘 것을 직접 확인했다 — 같은 검사를 다시 돌려 확인 화면에 가두지 않는다 (CX-40-05)
+        if (!wasRunning && TakeUserConfirmed(cur.Task)) return true;
         // 멈추라고 알린 것과 실제로 끝난 것은 다르다 — 앞 실행이 아직 정리 중이면 새 실행을 시작하지 않고 확인 필요로 (CX-30-03)
         if (await TryStopAsync(cur.Task) && _runTask.IsCompleted) return true;
         ShowStopUnconfirmed(cur.Task, then);
@@ -176,6 +178,19 @@ public sealed partial class PrepareRunner
             _rows[task.Id] = (PrepTaskStatus.Failed, null);
             _ready = false;
             Changed();
+        }
+    }
+
+    /// <summary>사용자가 직접 확인한 정지 — 그 작업의 다음 정지 확인 하나만 통과시킨다 (CX-40-05). 다른 작업·새 실행에는 쓰지 않는다</summary>
+    private IPrepTask? _userConfirmed;
+
+    private bool TakeUserConfirmed(IPrepTask task)
+    {
+        lock (_gate)
+        {
+            if (!ReferenceEquals(_userConfirmed, task)) return false;
+            _userConfirmed = null;
+            return true;
         }
     }
 
@@ -210,6 +225,7 @@ public sealed partial class PrepareRunner
         lock (_gate)
         {
             _stopUnconfirmed = null;
+            _userConfirmed = p.Task; // 이어서 할 일(재시도 등)이 같은 정지 확인을 다시 하면 이것으로 통과 (CX-40-05)
             if (_cur is { } c)
             {
                 c.Status = new StatusLine("직접 확인한 대로 이어서 합니다", Tone.Warn);
@@ -217,7 +233,8 @@ public sealed partial class PrepareRunner
                 Changed();
             }
         }
-        await p.Then();
+        try { await p.Then(); }
+        finally { lock (_gate) _userConfirmed = null; } // 한 번만 — 쓰지 않았으면 버린다
     }
 
     private async Task RecheckStopAsync()

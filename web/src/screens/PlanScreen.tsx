@@ -121,6 +121,8 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
   }, [])
 
   /** 화면에서 계획 고치기: 서버가 고친 뒤의 계획·그래프로 바꾼다. 안 되면 이유를 오류 줄에. 그 뒤 다른 고침·AI 답이 있었으면 늦은 응답은 버린다 */
+  // 거절된 고침 수 (확정이 기다리는 동안 하나라도 거절됐는지 — 마지막 고침이 성공해도 확정하지 않게, CX-40-06)
+  const rejectGen = useRef(0)
   const edit = useCallback((change: () => Promise<Edited>) => {
     setError(null)
     const mine = ++changes.current
@@ -136,6 +138,7 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
       } catch (e) {
         setError(e instanceof Error ? e.message : '계획을 바꾸지 못했습니다.')
         setRejects((n) => n + 1)
+        rejectGen.current++
         // 앞서 성공한 고침의 응답을 버렸을 수 있다 — 서버의 지금 계획으로 화면을 다시 맞춘다 (CX-38-02)
         await resync()
         return false
@@ -158,6 +161,8 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
     setStarting(true)
     // 칸을 떠나며 보낸 고침(같은 누름에서 시작됨)과 기다리는 사이 더한 고침이 모두 끝나기를 기다린다 (CX-38-03 — 누른 순간의 것만 기다렸다).
     // 그중 하나라도 거절됐거나 화면을 서버와 다시 맞추지 못했으면 확정하지 않는다(오류 줄을 보게)
+    // 누른 뒤 거절된 고침이 하나라도 있으면 확정하지 않는다 — 사슬 끝의 성공만 보던 것 (CX-40-06). 누르기 전의 거절은 이미 오류 줄에 보였다
+    const rejectsAtPress = rejectGen.current
     let failed = false
     for (;;) {
       const p = edits.current
@@ -165,6 +170,7 @@ function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onConti
       if (!(await p) && waited) failed = true
       if (p === edits.current) break
     }
+    if (rejectGen.current !== rejectsAtPress) failed = true
     if (failed || (stale.current && !(await resync()))) {
       if (stale.current) setError('서버의 계획을 다시 받지 못했습니다. 잠시 뒤 다시 눌러 주세요.')
       setStarting(false)

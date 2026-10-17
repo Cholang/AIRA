@@ -8,7 +8,26 @@
 
 ---
 
-## 2026-10-18 · [Claude] 실기 뒤 고침 — 종료 때 홈, OnStep 홈 이동 판정, 센터링 사진, SharpCap 화면, 모의 모드 미리 켜기 · 화면 문구 키(UiText)
+## 2026-10-18 · [Claude] Codex 40절 반영 — 이어서 하기 정지 확인, N.I.N.A. 끊기 확인, 촬영 중 종료 목록, 바꾼 노출 저장, 직접 확인 재시도, 확정 거절 누적 · 다음 리뷰 요청
+
+**요청**: "코덱스 리뷰도 왔어? 지금까지 한 거 커밋하고 봐봐" → 40절 7항목(장비 안전 1·겪음 5·문서 1) 판단을 말씀드림 → "진행해".
+
+**변경** (리뷰 ID별, 모두 동의해 반영):
+- CX-40-01: `NinaRig.ConfirmStillAsync`·`StopSlewAndConfirmAsync`에 `trustNeverConnected`, `IShootDevices.ConfirmMountStillAsync(afterPreviousRun)` — `PrepareStarter.StopForResumeAsync`는 연결 안 됨을 멈춤으로 보지 않음. 장비 없이 화면을 넘기는 경로는 그대로.
+- CX-40-02: `ProgramCloser.DisconnectNinaAsync`가 끊은 뒤 상태를 읽어 못 끊은 장비를 돌려줌(`KindNames`), `/engine/close/{id}`는 그때 닫지 않고 problem, `QuitControl`이 그 문장을 보임.
+- CX-40-03: `/engine/programs` 촬영 중에도 목록, `ConfirmDialog.confirmDisabled`로 목록 받기 전 종료 잠금, 목록 실패는 끄지 않고 안내.
+- CX-40-04: `PrepContext.PlanChanged` → `PlanAssistant.AdjustConfirmed`(확정 시각 그대로, 계획 칸도) — 밤 기록이 바뀐 노출·장수로 저장·복원.
+- CX-40-05: `PrepareRunner` `_userConfirmed`/`TakeUserConfirmed` — 직접 확인을 그 작업의 다음 정지 확인 한 번에만.
+- CX-40-06: `PlanScreen` `rejectGen` — 확정을 누른 뒤 거절이 하나라도 있으면 확정 안 함.
+- 문서: OPERATION_PROCEDURE 밝기 눈금 후지 예외 · 이어서 하기 · 종료(N.I.N.A. 남기기·목록), DECISION_HISTORY, REVIEW_CODEX 41절(처리 기록), REVIEW_REQUEST_CODEX(다음 요청 `a7dff52..HEAD`, 42절).
+
+**확인**: 서버 시험 402 통과·1 건너뜀(새 CX40_01·04·05 각 1, CX40_02 1 + 기존 2 고침), 솔루션 빌드 경고 0, 웹 tsc·린트(38 그대로)·시험 52·빌드. CX-40-03·06은 화면 조작으로 재현하지 않음(코드·타입 검사만).
+
+**남은 것**: Codex 42절 리뷰(요청서 작성함 — 사용자가 Codex에 "요청서 읽고 리뷰해 줘").
+
+---
+
+## 2026-10-18 · f4e73dd [Claude] 실기 뒤 고침 — 종료 때 홈, OnStep 홈 이동 판정, 센터링 사진, SharpCap 화면, 모의 모드 미리 켜기 · 화면 문구 키(UiText)
 
 **요청**: 1회차 실기(장비 연결, 낮)에서 나온 문제 — 모의 모드에서 N.I.N.A.·PHD2·Empire가 남음, 바닥 그래픽 지평선 외곽선 빼기, 종료 때 추적 끄기 실패·홈으로 안 감(사용자: 기본은 홈, 끌 수 있게), SharpCap 위 초록 줄·건너뛰기 뒤 창 전체, 센터링 사진이 안 옴·"사진만 보기"는 가운데 아래로, 장비 연결 화면 툴팁이 행성보다 먼저, 출발 전 점검 숨쉬기 때 뒤가 비침, 홈 이동 중 "적도의와 통신이 끊겼습니다", N.I.N.A. 체크를 끄고 종료할 때 창 깜빡임, 프로필 화면의 완더러박스 창. UI 텍스트 검수 JSON에 버튼 칸. 버튼·상단 제목·상태 줄·단계 레일 글자를 게임처럼 텍스트 키로.
 

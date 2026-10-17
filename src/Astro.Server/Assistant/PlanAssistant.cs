@@ -66,6 +66,20 @@ public sealed partial class PlanAssistant(ChatModelFactory models, PlanTools too
     }
     public NightContext? Night => _night;
 
+    /// <summary>
+    /// 대상 준비가 노출을 바꾸면(가이드 없이 줄이기·노출 맞추기 — PrepContext.ChangeExposure) 확정 계획과 계획 칸에 반영한다 (CX-40-04).
+    /// 확정 시각은 그대로 — 촬영의 누적 장수가 이것으로 이어진다
+    /// </summary>
+    public void AdjustConfirmed(int exposureSeconds, int estimatedFrames)
+    {
+        if (Confirmed is not { } c) return;
+        Confirmed = c with { ExposureSeconds = exposureSeconds, EstimatedFrames = estimatedFrames };
+        lock (_planGate)
+            if (_plan.Settings is { } s && _plan.Target?.Id == c.TargetId)
+                _plan.Settings = s with { ExposureSeconds = exposureSeconds, EstimatedFrames = estimatedFrames };
+        log.LogInformation("확정 계획의 노출을 {Seconds}초 · {Frames}장으로 고침 (대상 준비에서 바꿈)", exposureSeconds, estimatedFrames);
+    }
+
     /// <summary>지금 프로필의 준비 시간 (기록이 없으면 기본값)</summary>
     private TimeSpan PrepLead() => prepTimes?.Lead(profiles?.Current()?.Id) ?? PlanRules.DefaultPrepLead;
 

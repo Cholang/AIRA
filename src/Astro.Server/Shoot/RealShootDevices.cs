@@ -300,7 +300,7 @@ public sealed class RealShootDevices(NinaRig rig, Phd2Client phd2, LiveImages li
         return new FlipOutcome(true, centered, guiding);
     }
 
-    public Task<bool> ConfirmMountStillAsync(CancellationToken ct) => rig.StopSlewAndConfirmAsync(ct);
+    public Task<bool> ConfirmMountStillAsync(CancellationToken ct, bool afterPreviousRun = false) => rig.StopSlewAndConfirmAsync(ct, trustNeverConnected: !afterPreviousRun);
 
     public async Task<RefocusOutcome> RefocusAsync(Action<int, double> point, CancellationToken ct)
     {

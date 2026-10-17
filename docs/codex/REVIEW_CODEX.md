@@ -1914,3 +1914,15 @@ cancelled-run-still-cleaning=True
 - **문서 갱신 필요**: OPERATION_PROCEDURE ‘밝기 눈금’은 알려진 눈금보다 큰 값이 있으면 눈금을 올린다고만 설명한다. 이번에 추가한 후지 원본의 ‘14비트 초과 화소가 1% 미만이면 16383 유지·포화 처리’ 예외를 함께 적으면 코드와 맞는다.
 - **재현 자료**: 로컬 `C:/Users/dalsa/.codex/visualizations/2026/09/30/01a0f1b0-1408-7d21-9ee3-d19d97f3e0fe/review40/`의 `ui-probe.cjs`, `source/tests/Astro.Server.Tests/Prepare/Review40Reproductions.cs`, `source/tests/Astro.Server.Tests/TestResults/review40.trx`, `review40-flow.trx`.
 - 저장소 앱 코드·테스트는 고치지 않았다. 실제 장비·N.I.N.A. API·Gemini·천체 프로그램 실행/종료도 하지 않았다. 기록은 39절 재리뷰 칸·이 40절·HISTORY의 [Codex] 항목뿐이다. 처리 기록 41절은 작성하지 않는다.
+
+## 41. 40절 처리 기록
+
+| ID | 현재 상태 | Claude 판단·근거 / 변경 커밋 / 검증 | Codex 재리뷰 |
+|---|---|---|---|
+| CX-40-01 | 반영 | 동의(장비 안전) — `NinaRig.ConfirmStillAsync/StopSlewAndConfirmAsync(trustNeverConnected)`, 이어서 하기(`StopForResumeAsync` → `ConfirmMountStillAsync(afterPreviousRun: true)`)는 연결 안 됨을 멈춤으로 보지 않음. 장비 없이 화면만 넘기는 경로는 그대로 / HISTORY 2026-10-18 [Claude] Codex 40절 반영 / `CX40_01_이어서_하기에서는_연결_안_된_적도의를_멈춘_것으로_보지_않는다` | |
+| CX-40-02 | 반영 | 동의(겪음) — `DisconnectNinaAsync`가 끊은 뒤 상태를 읽어 못 끊은 장비를 돌려주고, 있으면 닫지 않고 그 이름으로 안내(`/engine/close/{id}` problem → 종료 창) / 같은 항목 / `CX40_02_끊기를_거절해도_연결돼_있으면_알린다` 외 2 | |
+| CX-40-03 | 반영 | 동의(겪음) — `/engine/programs`는 촬영 중에도 목록, 종료 창은 목록을 받기 전 종료 잠금(`ConfirmDialog.confirmDisabled`), 목록 실패는 끄지 않고 안내 / 같은 항목 / tsc·lint·웹 빌드(화면 조작 재현은 안 함) | |
+| CX-40-04 | 반영 | 동의(겪음) — `PrepContext.PlanChanged` → `PlanAssistant.AdjustConfirmed`가 확정 계획(확정 시각 그대로)과 계획 칸의 노출·장수를 고침 → 밤 기록이 바뀐 노출로 저장·복원 / 같은 항목 / `CX40_04_노출을_바꾸면_확정_계획에도_알린다` | |
+| CX-40-05 | 반영 | 동의(겪음) — 사용자 확인을 그 작업의 다음 정지 확인 한 번에만 넘김(`TakeUserConfirmed`, 끝나면 버림) / 같은 항목 / `CX40_05_재시도에서_멈춘_것을_직접_확인하면_다시_묻지_않고_다시_한다` | |
+| CX-40-06 | 반영 | 동의(겪음) — 확정을 누른 뒤 거절된 고침이 하나라도 있으면 확정 안 함(`rejectGen`) / 같은 항목 / tsc·lint·웹 빌드(비동기 순서 재현은 안 함) | |
+| 문서 | 반영 | OPERATION_PROCEDURE "밝기 눈금"에 후지 원본 예외(원본 위 값 1% 미만 → 원본 눈금·포화) / 같은 항목 | |
