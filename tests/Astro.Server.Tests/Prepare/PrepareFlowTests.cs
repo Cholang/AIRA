@@ -208,11 +208,13 @@ public class PrepareFlowTests
     {
         var n = await RigDone();
         n.Sim.Faults.Arm("slew.low");
+        n.Sim.Slew!.Hold(); // 낮은 화면을 볼 때까지 대상이 올라오지 않게
         n.Flow.StartTarget(n.Target());
         var runner = n.Flow.Target;
         // 낮은 동안은 버튼 없이 기다리기만 (2026-10-16 — "기다리기"·"이동"을 따로 묻지 않는다)
         var low = await runner.Until(v => v.Current?.Guide.Title.Contains("아직 낮습니다") == true, "낮음");
         Assert.False(low.Has("move"));
+        n.Sim.Slew.Release();
         await runner.Press("move"); // 올라온 뒤 "○○로 이동"을 눌러야 움직인다
         var done = await runner.Until(v => v.Row("slew") == PrepTaskStatus.Done, "이동 끝");
         Assert.Equal(PrepTaskStatus.Done, done.Row("slew"));

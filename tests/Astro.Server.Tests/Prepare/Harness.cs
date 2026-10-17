@@ -41,6 +41,34 @@ public static class Harness
     {
         /// <summary>마무리 모의 장비 (홈 명령 횟수 등을 시험이 본다)</summary>
         public SimulatedWrapDevices? Wrap { get; set; }
+        /// <summary>대상 이동 모의 장비 (기다리기 틱을 시험이 붙잡는다)</summary>
+        public HeldSlewDevices? Slew { get; set; }
+    }
+
+    /// <summary>
+    /// 기다리기 틱을 붙잡을 수 있는 이동 장비. 모의 시간 0이면 낮은 대상이 틱 두 번 만에 바로 올라와, 낮은 동안의 화면이
+    /// 시험이 보기 전에 지나갈 수 있다(2026-10-17 — 전체 실행에서 가끔 "낮음" 시간 초과). 붙잡은 동안은 대상이 올라오지 않는다
+    /// </summary>
+    public sealed class HeldSlewDevices(ISlewDevices inner) : ISlewDevices
+    {
+        private volatile TaskCompletionSource? _hold;
+
+        public void Hold() => _hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void Release() => _hold?.TrySetResult();
+
+        public double TargetAltitude(PrepContext ctx) => inner.TargetAltitude(ctx);
+        public int? MinutesUntilUsable(PrepContext ctx) => inner.MinutesUntilUsable(ctx);
+
+        public async Task WaitTickAsync(CancellationToken ct)
+        {
+            if (_hold is { } hold) await hold.Task.WaitAsync(ct);
+            await inner.WaitTickAsync(ct);
+        }
+
+        public Task<SlewMove> SlewToTargetAsync(double raDeg, double decDeg, Action<double> remainingDeg, CancellationToken ct) =>
+            inner.SlewToTargetAsync(raDeg, decDeg, remainingDeg, ct);
+        public Task<bool> StopAsync(CancellationToken ct) => inner.StopAsync(ct);
+        public Task<SlewEndState> ReadEndStateAsync(PrepContext ctx, CancellationToken ct) => inner.ReadEndStateAsync(ctx, ct);
     }
 
     /// <summary>실제 작업 8개 + 모의 장비로 두 묶음 (장비 준비 · 대상). 묻지 않고 넘어가는 작업은 기다리지 않는다</summary>
@@ -49,12 +77,13 @@ public static class Harness
         var sim = new Sim(new SimOptions { Speed = 0 }, new SimFaults());
         var focuser = new SimulatedFocusDevices(sim.Options, sim.Faults); // 초점·초점 확인이 같은 포커서
         var wrap = new SimulatedWrapDevices(sim.Options, sim.Faults);
+        var slew = new HeldSlewDevices(new SimulatedSlewDevices(sim.Options, sim.Faults));
         IPrepTask[] tasks =
         [
             new PolarTask(new SimulatedPolarDevices(sim.Options, sim.Faults)),
             new CalibrationTask(new SimulatedCalibrationDevices(sim.Options, sim.Faults)),
             new FocusTask(focuser),
-            new SlewTask(new SimulatedSlewDevices(sim.Options, sim.Faults)),
+            new SlewTask(slew),
             new CenterTask(new SimulatedCenterDevices(sim.Options, sim.Faults)),
             new FocusCheckTask(focuser),
             new GuidingTask(new SimulatedGuidingDevices(sim.Options, sim.Faults)),
@@ -62,6 +91,7 @@ public static class Harness
             new FlatTask(wrap), new DarkTask(wrap), new PackTask(wrap),
         ];
         sim.Wrap = wrap;
+        sim.Slew = slew;
         return (new PrepareFlow(tasks, NullLogger<PrepareRunner>.Instance, simulated: true, autoNextDelay: TimeSpan.Zero, prepTimes), sim);
     }
 
