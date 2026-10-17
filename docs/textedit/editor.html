@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>아이라 문구 검수</title>
+<title>아이라 UI 텍스트 검수</title>
 <!--
-  문구 검수 도구 (2026-10-17). 빌드에 들어가지 않는다.
+  UI 텍스트 검수 도구 (2026-10-17). 빌드에 들어가지 않는다.
   - Claude가 검수할 문구를 JSON 하나(요청 하나)로 이 폴더에 둔다: { title, created, about, rows: [{ id, text, edit, context, where, files, applied }] }
   - 사용자는 Edge(또는 Chrome)에서 이 파일을 열고 → JSON 열기 → 2열(edit)에 바꿀 말 입력 → 저장(같은 파일에 덮어씀). 비운 칸은 지금 문구 그대로.
   - Claude는 edit가 있는 줄만 코드에 반영하고 applied에 날짜를 적는다.
@@ -60,7 +60,7 @@ tr[hidden] { display: none; }
 <body>
 <header>
   <div class="bar">
-    <h1>문구 검수</h1>
+    <h1>UI 텍스트 검수</h1>
     <button id="open" class="primary">JSON 열기</button>
     <button id="save" disabled>저장</button>
     <span class="seg" role="group" aria-label="보기">

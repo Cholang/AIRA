@@ -14,7 +14,7 @@ public static class ExposureMatch
     public const double Target = 0.07;
     /// <summary>[임시] 이 사이면 그대로 둔다</summary>
     public const double Low = 0.05, High = 0.10;
-    /// <summary>[임시] 가장 짧은 노출 — 너무 짧으면 장마다 붙는 시간(X-T5 약 10초, PlanRules.FrameOverheadSeconds)에 밤이 많이 간다</summary>
+    /// <summary>가장 짧은 노출 (2026-10-17 사용자 확정) — 너무 짧으면 장마다 붙는 시간(X-T5 약 10초, PlanRules.FrameOverheadSeconds)에 밤이 많이 간다</summary>
     public const int MinSeconds = 10;
     /// <summary>늘릴 때 상한: 가이드 없으면 60초(가이드 없이 권하는 노출과 같게 — 2026-10-17 사용자), 있으면 [임시] 300초</summary>
     public const int MaxUnguided = Guiding.GuidingTask.UnguidedExposure, MaxGuided = 300;

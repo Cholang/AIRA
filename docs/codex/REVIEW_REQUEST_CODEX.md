@@ -6,51 +6,55 @@
 
 ---
 
-## 이번 요청 (2026-10-16 저녁 · Claude 작성)
+## 이번 요청 (2026-10-17 · Claude 작성)
 
 ### 범위
 
-- **`2a0428f..HEAD`** — 지난 리뷰(36절, 고정 HEAD `2a0428f`) 뒤의 모든 커밋. HEAD는 이 요청서가 들어간 커밋이다. 시작할 때 `git rev-parse HEAD`를 절 첫머리에 적어 줘.
-- 코드 변경은 `src`·`web/src`·`tests` 기준 91개 파일, +5,629/−4,473줄 — **그중 대부분은 큰 파일 분리(옮기기만)**라 실제로 읽을 양은 훨씬 적다(아래 4번).
-- 이번에는 Gemini에게 따로 요청하지 않는다. **정확성과 장비 안전**만 봐 줘.
+- **`4ed2348..HEAD`** — 지난 리뷰(38절, 고정 HEAD `4ed2348`) 뒤의 모든 커밋(16개 + 이 요청서 커밋). 시작할 때 `git rev-parse HEAD`를 절 첫머리에 적어 줘.
+- 코드 변경은 `src`·`web/src`·`tests` 기준 약 95개 파일, +2,300/−470줄. 큰 덩어리는 **장비 트리**(X-T5·UMi17X·Oasis·G3M662M·WandererBox에 묶인 값을 `src/Astro.Server/Equipment/`의 모델로 옮김 — 동작은 그대로가 목표)와 **버튼 문구·설명**(문구가 대부분).
+- 이번에도 **정확성과 장비 안전**만 봐 줘. Gemini에는 따로 요청하지 않는다.
 
 ### 결과 쓰는 곳
 
-1. `REVIEW_CODEX.md` 끝에 **`## 38. 2a0428f..<HEAD 짧은 해시> — <한 줄 제목> (날짜)`** 절. 항목 ID는 `CX-38-01`부터.
-2. **37절 표의 "Codex 재리뷰" 칸**(CX-36-01 ~ 09 — `7b3bd3e`에서 반영)을 채워 줘. 반영이 의도대로인지, 고치면서 새로 생긴 문제가 없는지.
-3. 처리 기록 절(39절)은 Claude가 쓴다. 리뷰만이므로 코드는 고치지 않는다.
+1. `REVIEW_CODEX.md` 끝에 **`## 40. 4ed2348..<HEAD 짧은 해시> — <한 줄 제목> (날짜)`** 절. 항목 ID는 `CX-40-01`부터.
+2. **39절 표의 "Codex 재리뷰" 칸**(CX-38-01 ~ 04 — `e9c30a9`에서 반영)을 채워 줘.
+3. 처리 기록 절(41절)은 Claude가 쓴다. 리뷰만이므로 코드는 고치지 않는다.
 
 ### 읽는 순서
 
 1. `AGENTS.md` — 실사용 등급(장비 안전 · 겪음 · 이론상), 문서 지도
-2. `HISTORY.md` — 맨 위부터 `52fad14` 항목까지가 이번 범위
-3. `docs/OPERATION_PROCEDURE.md` — 아래 표의 "기준"에 적은 절
-4. `docs/FIELD_TEST_CHECKLIST.md` — 실기 미확인 항목은 결함으로 세지 않는다
-5. `git diff 2a0428f..HEAD`
+2. `HISTORY.md` — 맨 위부터 `e9c30a9` 항목까지가 이번 범위
+3. `docs/implementation/ARCHITECTURE.md` 4.8 "장비 트리"(용어: 장비 → 종류 → 특성·모델·기본 모델, 배운 값·지금 장비)
+4. `docs/OPERATION_PROCEDURE.md` — 아래 표의 "기준"에 적은 절
+5. `docs/FIELD_TEST_CHECKLIST.md` — 실기 미확인 항목은 결함으로 세지 않는다
+6. `git diff 4ed2348..HEAD`
 
 ### 변경 묶음과 의심해 볼 곳 (위가 먼저)
 
 | # | 묶음 · 커밋 | 의심해 볼 곳 | 기준 |
 |---|---|---|---|
-| 1 | **CX-36 반영** — `7b3bd3e` | 01·09 `IPrepMemory.PolarNeedsReturn`: 돌리기 **전에** 켜고 홈 도착·"손으로 홈에 옮겼어요"로만 끄는지, 극 찾기가 회전 전에 실패하면 끄는 것(`!found.Rotated`)이 맞는지, 성공 뒤에도 켜 둬서 극축 정렬을 다시 하면 먼저 홈으로 가는지, 앱을 다시 켜면 사라지는 것(메모리)이 문제인지. 02 이어서 하기에서 `MoveApprovalUsed = ConfirmedAt`. 03 잠금 뒤 `TooLow` → `_lowAtLock`·`movedAt` 지움. 04 `MountHome.RestForPlanAsync` — 바쁠 때(홈·확인 필요·촬영·작업·잠금) 넘기는 것, 상태 못 읽음 → 경고, 가이드·이동 중 확인을 뺀 것이 괜찮은지. 05 `PlanScreen` 고침 사슬(`edits`·`pendingEdits`)과 확정. 06 `Fits.Analyze(img, knownBits)`. 07 `FramingGoal.PlanKey`. 08 `RigScene` Enter | 37절 표 · OPERATION_PROCEDURE "① 극축 정렬" · "④ 이동" · "⑤ 센터링" · "⑦ 시험 사진" |
-| 2 | **시험 사진 별 모양** — `ba88a68` | `StarShapes.ExtractAsync`: `astap_cli` 실행·60초 제한·취소 때 프로세스 종료, 사진 옆 `.csv`를 이번에 쓴 것만 읽고 지우는지(사용자 파일을 지울 수 있는 경로), 시험 폴더로 옮기기 전에 도는 순서. `Measure`의 가장자리·창 크기·`BottomUp`. `TestShotRules.Trailed`(가운데 이심률 + 방향 모임 — 방향을 모르면 이심률만)와 아홉 칸 판정이 촬영을 막지 않는지. 기준값([임시])은 결함이 아니다 | OPERATION_PROCEDURE "⑦ 시험 사진"(별 모양 · 아홉 칸) |
-| 3 | **Gemini 7절 반영** — `52fad14` | 적색 테마에서 설정 "찾아보기"를 막은 것, 준비·마무리 안내 문장의 이름(`Product`), 새 프로필 오류 줄 자리 — 동작이 바뀐 곳만 | DESIGN 6장 |
-| 4 | **큰 파일 분리** — `6877fca` ~ `244677b` (13커밋) | **옮기기만 했는지**만: 커밋마다 `git show -M --color-moved=dimmed-zebra <커밋>`으로 옮긴 줄이 아닌 것을 보면 된다(새 파일 머리·`partial`·`export`·import). 서버는 `partial class`라 잠금·필드가 하나인지, 흩어진 필드를 모은 것이 초기화 순서를 바꾸지 않았는지(`ShootSession`·`PrepareRunner`·`EquipmentConnector`·`PlanAssistant`). 옮기기가 아닌 커밋은 둘 — `4d57178`(다크플랫 옮기기를 `ImageFolders.Move`로), `b0d33b0`(쓰지 않는 `_hubNoPower` 지움 · `Task<string>` 형) | ARCHITECTURE 5.3 "큰 파일 나눔" |
-| 5 | **화면 — 겪음만** — `79ac4c0` | 팝업 크기 한도(`--frame-scale`), 툴팁 셋을 공통 `Tooltip`으로(`open`, 오른쪽 자리). 모양 취향은 빼고 | DESIGN "공통 부품" |
+| 1 | **아이라 종료 — 켜진 프로그램 고르기** — `197910a` | 누가 켰든 떠 있는 프로그램을 모두 보여 주고(처음엔 모두 체크) 고른 것만 닫는다. N.I.N.A.를 남기고 다른 것을 닫으면 `ProgramCloser.DisconnectNinaAsync`로 N.I.N.A. 장비 연결을 먼저 끊는다(적도의 마지막) — 추적 끄기·정지 확인이 앞 단계에서 끝난 뒤인지, 끊기가 실패·시간 초과일 때 그래도 PHD2·허브 프로그램을 닫아 N.I.N.A. 오류 창이 뜨거나 장비를 놓치는 경로, `CloseOneAsync(ninaDisconnected)`가 "N.I.N.A.가 떠 있으면 다른 것은 닫지 않음"을 너무 넓게 풀지 않는지, 모의 장비 모드·촬영 중에는 닫지 않는지, 확인 창 목록과 실제 닫는 목록의 차이(그 사이 켜진 것은 닫지 않음) | OPERATION_PROCEDURE "아이라 종료" |
+| 2 | **장비 트리 — 적도의·카메라 모델** — `51a568c` · `71d1dac` | `MountCatalog.Match`(이름·드라이버에 "OnStep"이면 UMi17X 60°)·기본 모델 45°·홈 센서 없음: `RealPolarDevices.FindPoleAsync`가 회전 각도·속도를 모델에서 읽는 것, 적도의 정보를 못 읽으면 기본 모델(45°)로 도는 것, 홈 센서가 없으면 `ReturnToStartAsync`가 홈 명령 없이 멈춤만 확인하고 `PolarReturn.Stopped`를 돌려 사용자가 옮기게 하는 흐름이 "같은 방향으로 또 돌리지 않기"(CX-36-01)를 지키는지. 노출 중단: `NinaRig.AbortExposureAsync`가 `CameraTraits.CanAbortExposure`로 갈리는 것(후지 = 중단 안 보냄 — X-T5에 중단을 보내는 경로가 새로 생기지 않았는지), 카메라 정보를 못 읽으면 "모름"으로 남는지 | OPERATION_PROCEDURE "① 극축 정렬" · 공통 "X-T5는 노출을 중단하지 않는다" · ARCHITECTURE 4.8 |
+| 3 | **노출 맞추기** — `d6d5c52` | `ExposureMatch.Next`(배경 5~10%, 포화 1%, 가이드 300초·없으면 60초, 하한 10초): 늘리려다 상한에 걸려 줄이거나 하한 때문에 늘리는 경우가 없는지, 많아야 3장. `PrepContext.ChangeExposure`로 계획 노출·장수를 바꾸는 것이 촬영(`ShootSession`)·끝 조건·이어서 하기(`NightSession`)에 일관되게 쓰이는지. `Fits.Analyze`: 후지 원본에 14비트 위 값이 조금 있으면 16383 눈금·위 값은 포화로 — 후지가 아닌 카메라의 눈금이 바뀌지 않는지 | OPERATION_PROCEDURE "⑦ 시험 사진"(노출 맞추기) |
+| 4 | **장 사이 쉬는 시간 · 배운 값** — `d6d5c52` · `51a568c` · `71d1dac` | `PlanRules.FrameOverheadSeconds` 40 → 10, 계획은 `Rig.FrameOverheadSeconds`(배운 값 → 모델 값). `Shoot/FrameGap`: 반전·초점·가이드 별 잃음·사진 실패·멈춤이 낀 간격을 빠짐없이 버리는지, 끝날 때만 기록(모의 장비 제외). `EquipmentLearned`(`equipment.json`) — 등록 안 된 장비는 `SetAbsent`, 없거나 모르면 없는 것으로 | OPERATION_PROCEDURE 계획 "장수" · ARCHITECTURE 4.8 |
+| 5 | **전원 허브 모델** — `3c4b630` | 하드코딩된 Wanderer Empire를 `HubCatalog`로: 미리 켜기(`EngineStarter.WarmUp` — 지금 허브가 없거나 모르면 켜지 않음), 종료 목록·닫기(`ProgramCloser` 이름표 "empire"), USB를 다시 꽂았을 때 다시 켜기(`HubAppStale`·`CloseHubApp`), 날씨 센서(`AscomWeather.DriverId` null이면 읽지 않음), 열선 자동 표시. 동작이 예전과 같은지, 이름을 바꾼 메서드의 호출이 빠진 곳 | ARCHITECTURE 4.8 |
+| 6 | **포커서·가이드 카메라 모델** — `71d1dac` | `RealFocusDevices`: 0점 잡기는 모델의 `ZeroBySdk`(Oasis), 최대 위치 = 설정 Prepare:FocuserMax → 모델 → 56000 — `MoveAsync`가 매번 이 값으로 자르는지. `DevicePrecheck.UsbVendor`·`GuideCameraVendor`가 모델의 USB 번호를 쓰고, G3M662M(PHD2 이름에 제조사 없음)도 이제 0547로 확인 — 잘못 막을 수 있는 경우 | ARCHITECTURE 4.8 |
+| 7 | **이동 기다리기 · 정지 확인** — `93e9aa5` · `d137442` · `3e6f5de` | `SlewTask.WaitUntilMoveAsync`: 낮은 동안 버튼 없음, 이르기만 하면 "지금 이동", 때가 되면 "○○로 이동"을 눌러야 움직임 — 누르지 않았는데 움직이는 경로. `NinaRig.MountSeenConnected`·정지 확인에서 "이번 실행에 연결된 적 없는 적도의는 멈춤"이 맞는지, "멈춘 것을 확인했어요"(`device-confirm`). `RealPolarDevices.StopAsync` 정리 분리 | OPERATION_PROCEDURE "④ 이동" · 공통 "멈추기" |
+| 8 | **버튼 문구·설명 — 겪음만** — `d5273df` | `ITaskRun.AskAsync(prompt, …)`·`Current.Show`(버튼을 바꾸면 설명도 지움)로 설명이 다른 질문의 버튼에 남지 않는지, 문구를 바꾸며 버튼 id나 분기가 바뀐 곳이 없는지(문구만 바뀌어야 함) | DESIGN "버튼 단어 표준" · "버튼 레이아웃 영역" |
 
 ### 이미 확인한 것 (다시 하지 않아도 됨)
 
-- `244677b` 기준: 서버 시험 316 통과 · 1 건너뜀(전체 3번 연속), 웹 시험 52, lint 경고 38(새 경고 0), 솔루션 빌드 경고 0. 분리 커밋마다 같은 시험을 돌렸다.
-- 가끔 실패하던 시험 둘(`다크_장수는_5장씩…`, `FramingTests`의 센터링 기다리기)은 보고 누르는 사이 저절로 넘어가는 경우를 기다리게 시험만 고쳤다(`7b3bd3e`).
-- 사용자 N.I.N.A. 프로필의 카메라 비트 수를 16 → 14로 바꿨다(앱 코드가 아닌 설정, `ba88a68` HISTORY).
+- `90301ba` 기준: 서버 시험 387 통과 · 1 건너뜀(전체 3번 연속), 웹 시험 52, lint 경고 38(새 경고 0), 솔루션 빌드 경고 0.
+- 2026-10-17 낮 집에서 읽기만(적도의 움직이지 않음): 적도의 "On-Step"→UMi17X, 카메라 "X-T5"→후지 X, 포커서 "Oasis Focuser", PHD2 G3M662M·On-Step 연결, N.I.N.A. 적도의 정보 갱신 약 2초 · 멈춤 흔들림 0.0002°(`MountTiming`).
+- 받은 X-T5 FITS 4장을 고친 `Fits.Analyze`로 읽어 배경 18~19%(전에는 6%로 잘못 읽음).
+- 간헐적으로 실패하던 `PrepareFlowTests` 이동 기다리기 시험은 시험만 고침(`90301ba`, 앱 코드 아님).
 
 ### 빼는 것
 
-- [임시] 건너뛰기·모의 실패 버튼이 있는 것, 폰 화면, `FIELD_TEST_CHECKLIST.md`의 실기 미확인 항목, 별 모양·밝기 눈금의 [임시] 기준값, 문구·모양 취향.
-- 분리에서 하지 않은 것(`RigScene`의 그림 떼기, `AppServer` 서비스 등록 묶기)은 일부러 남겼다.
+- [임시] 건너뛰기·모의 실패 버튼, 폰 화면, `FIELD_TEST_CHECKLIST.md`의 실기 미확인 항목, [임시]·[확인 필요] 기준값(노출 맞추기 목표 7%, 모르는 적도의 45° 등), 문구·모양 취향, 시안(`mockups/`)·UI 텍스트 검수 도구(`docs/textedit/`).
 
 ### 쓰는 방식 (기존 절과 같게)
 
 - 절 첫머리: 범위 · 기준 HEAD · 읽은 문서 · **결과 요약**(P1/P2 개수와 실사용 등급).
-- 항목: `### CX-38-NN · P1|P2 · 장비 안전|겪음|이론상 — 한 줄 제목` 아래에 **파일:줄** · **변경 커밋** · **사용자에게 보이는 상황**(한 문장) · **근거** · **검증**(재현했으면 방법) · **수정 방향** · **검증 한계**.
+- 항목: `### CX-40-NN · P1|P2 · 장비 안전|겪음|이론상 — 한 줄 제목` 아래에 **파일:줄** · **변경 커밋** · **사용자에게 보이는 상황**(한 문장) · **근거** · **검증**(재현했으면 방법) · **수정 방향** · **검증 한계**.
 - 이론상 항목은 짧게 묶어도 된다.
