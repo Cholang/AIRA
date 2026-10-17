@@ -176,23 +176,25 @@ public static partial class AppServer
         // 준비 작업이 돌고 있으면 닫지 않는다 — 종료 화면이 먼저 /prepare/stop-for-quit로 멈춘다 (CX-20-02)
         // 작업이 아직 돌고 있으면 빈 목록이 아니라 held(이유) — 화면이 "닫을 것 없음"으로 알고 바로 꺼지지 않게 (CX-21-02)
         // 2026-10-16 사용자: 누가 켰든 지금 떠 있는 것을 모두 보여 주고(처음엔 모두 체크) 고른 것만 닫는다. N.I.N.A.를 남기면 그 장비 연결을 먼저 끊는다.
-        // 모의 장비로 돌 때는 닫지 않는다 — 시연 중 켜 둔 실제 프로그램을 건드리지 않게
-        api.MapGet("/engine/programs", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.PrepareMode mode) =>
-            Results.Ok(new { apps = shoot.Active || mode.Simulate ? [] : programs.Targets(onlyOurs: false) }));
+        // 모의 장비로 돌 때는 아이라가 켜진 뒤에 켜진 것만(엔진 켜기가 켠 N.I.N.A.) — 시연 전에 켜 둔 실제 프로그램을 건드리지 않게
+        // home = 종료 창에 "적도의를 홈으로 보내기"(처음엔 체크)를 보일지 — 적도의가 연결돼 있고 홈이 아닐 때 (2026-10-17 사용자, MountHome.OfferForQuitAsync)
+        api.MapGet("/engine/programs", async (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.PrepareMode mode, Prepare.MountHome home, CancellationToken ct) =>
+            Results.Ok(new { apps = shoot.Active ? [] : programs.Targets(onlyOurs: mode.Simulate), home = await home.OfferForQuitAsync(ct) }));
         api.MapGet("/engine/close", (ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Prepare.PrepareMode mode) =>
             PrepareBusy(flow, home) is { } held
                 ? Results.Ok(new { apps = Array.Empty<ProgramCloser.Target>(), held })
-                : Results.Ok(new { apps = shoot.Active || mode.Simulate ? [] : programs.Targets(onlyOurs: false), held = (string?)null }));
+                : Results.Ok(new { apps = shoot.Active ? [] : programs.Targets(onlyOurs: mode.Simulate), held = (string?)null }));
         api.MapPost("/engine/close/{id}", async (string id, ProgramCloser programs, Shoot.ShootSession shoot, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Prepare.PrepareMode mode, NinaApiClient nina, CancellationToken ct) =>
         {
-            if (mode.Simulate || shoot.Active || PrepareBusy(flow, home) is not null) return Results.Ok(new { closed = false });
+            if (shoot.Active || PrepareBusy(flow, home) is not null) return Results.Ok(new { closed = false });
             var keepNina = id != "nina" && ProgramCloser.NinaRunning;
             if (keepNina) await ProgramCloser.DisconnectNinaAsync(nina, ct);
-            return Results.Ok(new { closed = await programs.CloseOneAsync(id, ct, onlyOurs: false, ninaDisconnected: keepNina) });
+            return Results.Ok(new { closed = await programs.CloseOneAsync(id, ct, onlyOurs: mode.Simulate, ninaDisconnected: keepNina) });
         });
         // 아이라 종료 전: 진행 중인 준비 작업과 계속 도는 가이딩을 멈추고 확인 (CX-20-02). 촬영 중이면 그대로 — 촬영은 N.I.N.A.가 이어 간다
         // 홈 버튼으로 시작한 홈 이동도 멈추고 확인한다 (CX-21-02)
-        api.MapPost("/prepare/stop-for-quit", async (Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Shoot.ShootSession shoot) =>
+        // keepHome=true: 종료 창에서 홈으로 보내기를 골랐으면 진행 중인 홈 이동은 멈추지 않는다 (다음 단계 /mount/home-for-quit가 끝나기를 기다림)
+        api.MapPost("/prepare/stop-for-quit", async (bool? keepHome, Prepare.Flow.PrepareFlow flow, Prepare.MountHome home, Shoot.ShootSession shoot) =>
         {
             // 촬영 중이면 지금 사진이 끝나기를 기다려 촬영을 끝낸 뒤 평소 종료 절차로 (CX-30-01 — 아이라가 꺼지면 다음 사진·반전을 볼 주체가 없다.
             // X-T5는 일반 노출을 중단할 수 없어 끝까지 찍는다 — ShootSession.StopForQuitAsync)
@@ -203,7 +205,7 @@ public static partial class AppServer
                 return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"촬영이 끝나기를 기다렸지만 끝나지 않았거나, 가이드·적도의가 멈췄는지 확인하지 못했습니다. N.I.N.A.·PHD2와 적도의를 직접 확인해 주세요." });
             foreach (var runner in new[] { flow.Rig, flow.Target, flow.Wrap })
                 if (!await runner.StopForQuitAsync()) return Results.Ok(new { stopped = false, shooting = false, problem = (string?)null });
-            if (!await home.StopForQuitAsync())
+            if (!await home.StopForQuitAsync(keepHome == true))
                 return Results.Ok(new { stopped = false, shooting = false, problem = (string?)"적도의 홈 이동을 멈췄는지 확인하지 못했습니다. 적도의가 멈춰 있는지 직접 확인해 주세요." });
             return Results.Ok(new { stopped = true, shooting = false, problem = (string?)null });
         });
@@ -221,6 +223,8 @@ public static partial class AppServer
         // 아이라 종료 전: 적도의 추적 끄기 (촬영 중·미연결이면 할 일 없음). ok=false면 끄지 못함
         // "그래도 종료": 확인 없이 끄기 전에 가이딩 멈춤·추적 끄기를 한 번씩 시도 (끄지 못했으면 problem)
         api.MapPost("/quit/force-safe", async (Prepare.MountHome home) => Results.Ok(new { problem = await home.ForceSafeAsync() }));
+        // 아이라 종료 중 홈으로 (종료 창에서 체크했을 때): 홈 도착·추적 끔까지 기다린다. problem = 확인하지 못한 것 (없으면 null)
+        api.MapPost("/mount/home-for-quit", async (Prepare.MountHome home, CancellationToken ct) => Results.Ok(new { problem = await home.HomeForQuitAsync(ct) }));
         api.MapPost("/mount/tracking-off-for-quit", async (Prepare.MountHome home, CancellationToken ct) =>
             Results.Ok(new { ok = await home.TrackingOffForQuitAsync(ct) != false }));
         api.MapPost("/mount/home/confirm", (Prepare.MountHome home) => { home.Confirm(); return Results.NoContent(); });

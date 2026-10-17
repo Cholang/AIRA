@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 
 namespace Astro.Server.Prepare.Tasks.TestShot;
@@ -31,10 +32,10 @@ public sealed record TestShotEndState(bool CameraExposing, bool Guiding, bool Fi
 public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
 {
     public string Id => "test";
-    public string Title => "시험 사진";
-    public string StartLabel => "시험 사진 찍기";
+    public string Title => UiText.Get("rail.task.testShot");
+    public string StartLabel => UiText.Get("button.testShot.start");
     public string? StartPrompt => "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인할까요? 이 사진은 촬영 사진에 넣지 않아요.";
-    public IReadOnlyList<SubStep> SubSteps { get; } = [new("expose", "시험 노출"), new("download", "사진 받기"), new("check", "사진 검사"), new("result", "결과 확인")];
+    public IReadOnlyList<SubStep> SubSteps { get; } = [new("expose", UiText.Get("rail.step.testShot.expose")), new("download", UiText.Get("rail.step.testShot.download")), new("check", UiText.Get("rail.step.testShot.check")), new("result", UiText.Get("rail.step.testShot.result"))];
 
     public bool AppliesTo(PrepContext ctx) => true;
 
@@ -47,7 +48,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
         {
             run.SubStep(0);
             if (matched is null)
-                run.Guide("시험 노출", "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인합니다. 이 사진은 촬영 사진에 넣지 않습니다.");
+                run.Guide(UiText.Get("rail.step.testShot.expose"), "계획한 노출 그대로 한 장 찍어 초점·추적·구도를 확인합니다. 이 사진은 촬영 사진에 넣지 않습니다.");
             run.Live("none");
             run.Status($"노출 중입니다 · {ctx.ExposureSeconds}초 · ISO {ctx.Plan.Iso}");
             var since = ctx.Now();
@@ -57,14 +58,14 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             {
                 // 노출이 실패하면 내려받기·검사로 가지 않는다 (CX-PREP-CODE-05)
                 run.ClearReadout();
-                run.Guide("시험 사진을 찍지 못했습니다", "카메라가 노출하지 못했습니다. 카메라 전원·USB 연결과 카메라의 PC 연결 방식(테더링)을 확인해 주세요.");
+                run.Guide(UiText.Get("title.testShot.failed"), "카메라가 노출하지 못했습니다. 카메라 전원·USB 연결과 카메라의 PC 연결 방식(테더링)을 확인해 주세요.");
                 run.Status("카메라가 노출하지 못했습니다", Tone.Fail);
                 if (await run.AskAsync("시험 사진을 다시 찍을까요?\n건너뛰기를 누르면 시험 사진 없이 촬영으로 가요.", [new("retry", ButtonText.Retry, true), SkipAction], ct) == "skip") return Skipped(ctx);
                 continue;
             }
 
             run.SubStep(1);
-            run.Guide("사진 받기", "카메라에서 사진을 내려받습니다.");
+            run.Guide(UiText.Get("rail.step.testShot.download"), "카메라에서 사진을 내려받습니다.");
             run.Status("사진을 내려받는 중입니다");
             var stats = await devices.DownloadAndAnalyzeAsync(since, ct);
             if (stats is null)
@@ -74,7 +75,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
             }
             if (stats is null)
             {
-                run.Guide("사진을 받지 못했습니다", "두 번 시도했지만 카메라에서 사진을 내려받지 못했습니다. 카메라 USB 연결과 전원, 카메라 화질 설정이 RAW인지 확인해 주세요 (JPEG면 사진을 쓸 수 없습니다).");
+                run.Guide(UiText.Get("title.testShot.noPhoto"), "두 번 시도했지만 카메라에서 사진을 내려받지 못했습니다. 카메라 USB 연결과 전원, 카메라 화질 설정이 RAW인지 확인해 주세요 (JPEG면 사진을 쓸 수 없습니다).");
                 run.Status("시험 사진을 찍지 못했습니다", Tone.Fail);
                 if (await run.AskAsync("시험 사진을 다시 찍을까요?\n건너뛰기를 누르면 시험 사진 없이 촬영으로 가요.", [new("retry", ButtonText.Retry, true), SkipAction], ct) == "skip") return Skipped(ctx);
                 continue;
@@ -110,7 +111,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 var why = stats.SaturatedPercent > ExposureMatch.SaturatedLimit && next < ctx.ExposureSeconds ? "밝은 별이 많이 포화돼"
                     : stats.Background > ExposureMatch.High ? "하늘 배경이 밝아" : "하늘 배경이 어두워";
                 matched = $"{why} 노출을 {ctx.ExposureSeconds}초에서 {next}초로 바꿨어요";
-                run.Guide("노출을 맞추고 있어요", $"{matched}. 확인용으로 한 장 더 찍습니다. 계획의 노출과 장수도 바뀌어요.");
+                run.Guide(UiText.Get("title.testShot.matchingExposure"), $"{matched}. 확인용으로 한 장 더 찍습니다. 계획의 노출과 장수도 바뀌어요.");
                 run.Status($"배경 {stats.Background * 100:F0}% · 목표 {ExposureMatch.Target * 100:F0}% 안팎 · 노출 {next}초로", Tone.Busy);
                 ctx.ChangeExposure(next);
                 continue;
@@ -140,9 +141,9 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
                 StarFieldRules.Kind.Corners => "초점·배경·가이드는 괜찮습니다. 다만 귀퉁이 별이 가운데보다 고르게 커서 백포커스(플래트너와 카메라 사이 거리)가 맞지 않거나 상이 굽었을 수 있어요. 촬영은 그대로 해도 됩니다.",
                 _ => "초점·별 모양·배경·가이드 모두 괜찮습니다.",
             };
-            return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", "좋아요, 촬영을 시작해도 돼요",
+            return new Completed(result, $"좋아요 · HFR {stats.Hfr:F1} · {ctx.ExposureSeconds}초", UiText.Get("title.testShot.good"),
                 $"{looks}{exposureNote} 끝나는 시각은 {ctx.Plan.End:HH:mm}입니다." + (stats.Tiles ? " 귀퉁이 별까지 보려면 9칸 확대 보기를 누르세요." : ""),
-                [new("redo:test", ButtonText.Redo), new("redo:center", "센터링 다시 하기")])
+                [new("redo:test", ButtonText.Redo), new("redo:center", UiText.Get("button.recenter"))])
             { ExtraPrompt = "다시 하기를 누르면 시험 사진을 다시 찍고, 센터링 다시 하기를 누르면 구도부터 다시 맞춰요." };
         }
     }
@@ -151,7 +152,7 @@ public sealed class TestShotTask(ITestShotDevices devices) : IPrepTask
     private static readonly PrepAction SkipAction = new("skip", ButtonText.Skip);
 
     private static Completed Skipped(PrepContext ctx) =>
-        new(new TestShotResult(ctx.ExposureSeconds, null, null, null, null, ctx.Now(), Skipped: true), "건너뜀", "시험 사진을 건너뛰었어요",
+        new(new TestShotResult(ctx.ExposureSeconds, null, null, null, null, ctx.Now(), Skipped: true), UiText.Get("rail.result.skipped"), UiText.Get("title.testShot.skipped"),
             "바로 촬영을 시작할 수 있어요. 첫 사진들의 등급으로 초점·추적을 확인해요.");
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
@@ -197,9 +198,9 @@ public static class TestShotRules
         var caption = string.Join(" · ", parts);
 
         if (focusHfr is { } fh && s.Hfr > fh * HfrGrowthLimit)
-            return new Verdict(caption, Tone.Warn, new("초점이 밀렸어요", $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", "초점 다시 맞추기"), field);
+            return new Verdict(caption, Tone.Warn, new(UiText.Get("title.testShot.focusDrift"), $"별 크기가 초점을 맞출 때({fh:F1})보다 커졌습니다({s.Hfr:F1}). 기온이 바뀌었을 수 있어요.", "별 크기 증가", "redo:focuscheck", UiText.Get("button.refocus")), field);
         if (trailed)
-            return new Verdict(caption, Tone.Warn, new("별이 길쭉해요", "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", "가이드 다시 하기"), field);
+            return new Verdict(caption, Tone.Warn, new(UiText.Get("title.testShot.trailed"), "별이 한쪽으로 늘어졌습니다. 가이드나 추적이 흔들렸을 수 있어요.", "별 모양 길쭉함", "redo:guiding", UiText.Get("button.reguide")), field);
         return new Verdict(caption, Tone.Ok, null, field);
     }
 }

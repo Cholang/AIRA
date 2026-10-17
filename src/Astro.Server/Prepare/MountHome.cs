@@ -24,6 +24,7 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     /// <summary>진행 중인 홈 (종료가 멈추고 끝나기를 기다린다)</summary>
     private Task _run = Task.CompletedTask;
     private CancellationTokenSource? _cts;
+    private const string NotConnected = "적도의가 연결되지 않았습니다";
     private const string UnconfirmedText = "적도의가 멈췄는지 확인하지 못했습니다. 적도의를 직접 보고 멈춰 있으면 \"적도의 확인 필요\" 버튼에서 확인해 주세요.";
 
     /// <summary>멈춤 확인 필요 — 사용자 확인 전에는 적도의를 움직이는 작업을 모두 막는다</summary>
@@ -56,14 +57,66 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
         // 연결 여부와 실제 이동을 한 번에 — N.I.N.A.에서 직접 시작한 이동은 아이라의 잠금을 잡지 않으므로 실제 상태로도 본다 (CX-20-03)
         if (await nina.GetInfoAsync("mount", ct) is not { ValueKind: System.Text.Json.JsonValueKind.Object } info
             || !info.TryGetProperty("Connected", out var c) || c.ValueKind != System.Text.Json.JsonValueKind.True)
-            return "적도의가 연결되지 않았습니다";
+            return NotConnected;
         if (info.TryGetProperty("Slewing", out var sl) && sl.ValueKind == System.Text.Json.JsonValueKind.True)
             return "적도의가 움직이는 중입니다. 멈춘 뒤 눌러 주세요";
+        // N.I.N.A.에서 직접 시작한 홈 이동: OnStep은 Slewing=false로 답한다 (MountTiming.HomingLikely — 2026-10-17 실기)
+        if (HomingLikely(info)) return "적도의가 홈으로 가는 중입니다. 도착한 뒤 눌러 주세요";
         if (await nina.GetInfoAsync("guider", ct) is { ValueKind: System.Text.Json.JsonValueKind.Object } g
             && g.TryGetProperty("State", out var st) && st.GetString() is { } state
             && (state.Contains("Guiding", StringComparison.OrdinalIgnoreCase) || state.Contains("Calibrating", StringComparison.OrdinalIgnoreCase)))
             return "가이드 중에는 홈으로 보낼 수 없습니다. 가이드가 멈춘 뒤 눌러 주세요";
         return null;
+    }
+
+    /// <summary>N.I.N.A. 적도의 정보로 본 "홈으로 가는 중일 수 있음" (MountTiming.HomingLikely)</summary>
+    private static bool HomingLikely(System.Text.Json.JsonElement info) =>
+        Real.MountTiming.HomingLikely(
+            info.TryGetProperty("AtHome", out var h) && h.ValueKind == System.Text.Json.JsonValueKind.True,
+            info.TryGetProperty("Coordinates", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.Object && c.TryGetProperty("Dec", out var d) && d.TryGetDouble(out var dec) ? dec : double.NaN,
+            info.TryGetProperty("SideOfPier", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.String ? p.GetString() ?? "" : "");
+
+    /// <summary>
+    /// 아이라 종료 창에 "적도의를 홈으로 보내기"를 보일까 (2026-10-17 사용자 — 기본으로 홈, 끌 수 있게): 적도의가 연결돼 있고 홈이 아닐 때,
+    /// 또는 홈 이동이 이미 진행 중일 때. 이미 홈·미연결·상태를 못 읽음·멈춤 확인 필요면 보이지 않는다. 모의 장비는 늘 보인다(모의 홈)
+    /// </summary>
+    public async Task<bool> OfferForQuitAsync(CancellationToken ct)
+    {
+        if (_homing) return true;
+        if (NeedsCheck) return false;
+        if (mode.Simulate) return true;
+        return await nina.GetInfoAsync("mount", ct) is { ValueKind: System.Text.Json.JsonValueKind.Object } info
+            && info.TryGetProperty("Connected", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.True
+            && !(info.TryGetProperty("AtHome", out var h) && h.ValueKind == System.Text.Json.JsonValueKind.True);
+    }
+
+    /// <summary>
+    /// 아이라 종료 중 홈으로 (종료 창에서 체크했을 때 — 진행 중인 작업을 멈춘 뒤, 추적 끄기 전). 홈 도착(AtHome)까지 기다리고 추적을 끈다 — "적도의 홈" 버튼과 같은 절차.
+    /// 이미 홈 이동 중이면(장비 준비 끝의 자동 홈 등) 그것이 끝나기를 기다린다. 보낼 일이 없으면(미연결·이미 홈) 문제 없음(null).
+    /// 홈 도착이나 멈춤을 확인하지 못했으면 사용자에게 보일 문장 — 종료 창이 멈추고 "그래도 종료"를 보인다
+    /// </summary>
+    public async Task<string?> HomeForQuitAsync(CancellationToken ct)
+    {
+        if (!_homing)
+        {
+            var s = await StateAsync(ct);
+            if (s.NeedsCheck) return s.Problem ?? UnconfirmedText;
+            if (!s.Available)
+            {
+                // 연결 안 됨은 할 일 없음 (추적 끄기 단계가 따로 확인한다). 그 밖의 이유(움직이는 중 등)는 홈으로 보내지 못한 것
+                if (s.Reason == NotConnected) return null;
+                log.LogInformation("종료 전 홈으로 보내지 못함: {Reason}", s.Reason);
+                return $"적도의를 홈으로 보내지 못했습니다 — {s.Reason}";
+            }
+            if (!mode.Simulate && await nina.GetInfoAsync("mount", ct) is { ValueKind: System.Text.Json.JsonValueKind.Object } info
+                && info.TryGetProperty("AtHome", out var h) && h.ValueKind == System.Text.Json.JsonValueKind.True)
+                return null; // 이미 홈
+            if (!Begin("종료 전")) { /* 그 사이 다른 쪽이 시작함 — 아래에서 함께 기다린다 */ }
+            log.LogInformation("종료 전 적도의를 홈으로 보냄");
+        }
+        await _run.WaitAsync(ct);
+        if (NeedsCheck) return _problem ?? UnconfirmedText;
+        return _problem;
     }
 
     /// <summary>"적도의 홈" 버튼: 지금 보낼 수 있으면 시작하고 null, 아니면 이유. 홈·추적 끔은 뒤에서 (적도의 잠금 안에서)</summary>
@@ -134,7 +187,11 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
             return false;
         }
         if (c.ValueKind == System.Text.Json.JsonValueKind.False) return null;
-        if (info.TryGetProperty("TrackingEnabled", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.False) return true;
+        if (info.TryGetProperty("TrackingEnabled", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.False)
+        {
+            log.LogInformation("{When} 적도의 추적 끄기: 이미 꺼져 있음", when);
+            return true;
+        }
         var off = await wrap.TrackingOffAsync(ct);
         log.LogInformation("{When} 적도의 추적 끄기: {Result}", when, off ? "끔" : "실패");
         return off;
@@ -176,8 +233,10 @@ public sealed class MountHome(PrepareMode mode, NinaApiClient nina, Flow.Prepare
     /// 아이라를 끄기 전 (CX-21-02): 홈 이동 중이면 멈추고 멈춘 것을 확인할 때까지 기다린다.
     /// 멈춤을 확인하지 못했거나 이미 "확인 필요"면 false (종료 화면이 문제를 보여 주고 사용자가 정한다)
     /// </summary>
-    public async Task<bool> StopForQuitAsync()
+    /// keepHome: 종료 창에서 "홈으로 보내기"를 골랐으면 진행 중인 홈 이동을 멈추지 않는다 (HomeForQuitAsync가 끝나기를 기다린다)
+    public async Task<bool> StopForQuitAsync(bool keepHome = false)
     {
+        if (keepHome && _homing) return !NeedsCheck;
         if (_homing)
         {
             log.LogInformation("종료: 홈 이동을 멈춤");

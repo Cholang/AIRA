@@ -348,6 +348,14 @@ g[data-on='true'] > .moons {
   transition: background-color 260ms, border-color 260ms, color 260ms, transform var(--lift-ms), box-shadow var(--lift-ms);
 }
 
+/* 다 나타나기 전: 행성·망원경이 가리킴·누름을 받지 않는다 (투명한 자리에 이름표만 뜨던 것) */
+.graph[data-ready='false'] .node,
+.graph[data-ready='false'] .node *,
+.graph[data-ready='false'] .scope,
+.graph[data-ready='false'] .scope * {
+  pointer-events: none;
+}
+
 /* 장비 종류는 아이콘으로 (이름은 가리키면 — title), 연결 표시는 아이콘 오른쪽 아래에 겹쳐서 */
 .devWrap,
 .name {

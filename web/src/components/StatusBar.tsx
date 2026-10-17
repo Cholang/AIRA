@@ -1,7 +1,7 @@
 import { Minus, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { inDesktop, tellHost } from '../host'
-import { PRODUCT, VERSION } from '../product'
+import { VERSION } from '../product'
 import { profileImageUrl, type ObservingSite, type Profile } from '../profiles'
 import { coordText, type CurrentSite } from '../sites'
 import type { Theme } from '../theme'
@@ -12,6 +12,7 @@ import styles from './StatusBar.module.css'
 import ThemeSwitch from './ThemeSwitch'
 import Tooltip from './Tooltip'
 import BrandMark from './BrandMark'
+import { T, TF } from '../uiText'
 
 export interface DeviceState {
   name: string
@@ -79,7 +80,7 @@ export default function StatusBar({
             <span key={d.name} className={styles.device} data-connected={d.connected}>
               <span className={styles.dot} aria-hidden="true" />
               {d.name}
-              <span className={styles.srOnly}>{d.connected ? ' 연결됨' : ' 연결 안 됨'}</span>
+              <span className={styles.srOnly}>{' ' + (d.connected ? T('statusbar.device.connected') : T('statusbar.device.disconnected'))}</span>
             </span>
           ))
         )}
@@ -93,21 +94,21 @@ export default function StatusBar({
             <>
               {site.name && <span className={styles.siteName}>{site.name}</span>}
               {!site.name && site.otherName && (
-                <span className={styles.siteName} title="이 프로필에 저장되지 않은 장소입니다">
-                  <span className={styles.unsaved}>(저장 안 됨)</span> {site.otherName}
+                <span className={styles.siteName} title={T('statusbar.site.unsavedTip')}>
+                  <span className={styles.unsaved}>{T('statusbar.site.unsaved')}</span> {site.otherName}
                 </span>
               )}
               <span className={styles.coord}>{coordText(site.current)}</span>
             </>
           ) : (
-            <span className={styles.noSite}>관측지 없음</span>
+            <span className={styles.noSite}>{T('statusbar.site.none')}</span>
           )}
           {site.editable && (
             <button
               type="button"
               className={styles.pen}
               data-site-toggle=""
-              aria-label="관측지 고르기"
+              aria-label={T('statusbar.site.pick')}
               aria-expanded={siteOpen}
               disabled={!!site.syncing}
               onClick={() => setSiteOpen((o) => !o)}
@@ -146,7 +147,7 @@ export default function StatusBar({
 
       {/* 창 내리기: 전체 화면이라 창 버튼이 없다 (2026-10-08 사용자 요청, 데스크톱 창에서만) */}
       {inDesktop() && (
-        <button type="button" className={styles.pen} aria-label={`${PRODUCT.name} 창 내리기 (최소화)`} title="창 내리기" onClick={() => tellHost({ type: 'minimize' })}>
+        <button type="button" className={styles.pen} aria-label={T('statusbar.minimizeLabel')} title={T('statusbar.minimize')} onClick={() => tellHost({ type: 'minimize' })}>
           <Minus strokeWidth={2} aria-hidden="true" />
         </button>
       )}
@@ -184,7 +185,7 @@ function ProfileSwitcher({ profile, profiles, onSwitch }: { profile: Profile; pr
         className={styles.me}
         data-can={canSwitch}
         disabled={!canSwitch}
-        aria-label={canSwitch ? `${profile.nickname} · 프로필 바꾸기` : profile.nickname}
+        aria-label={canSwitch ? TF('statusbar.profile.switch', { name: profile.nickname }) : profile.nickname}
         aria-expanded={canSwitch ? open : undefined}
         onClick={() => setOpen((o) => !o)}
       >
@@ -200,7 +201,7 @@ function ProfileSwitcher({ profile, profiles, onSwitch }: { profile: Profile; pr
                 type="button"
                 role="menuitem"
                 className={styles.other}
-                aria-label={`${p.nickname}(으)로 바꾸기`}
+                aria-label={TF('statusbar.profile.switchTo', { name: p.nickname })}
                 onClick={() => {
                   setOpen(false)
                   onSwitch(p)

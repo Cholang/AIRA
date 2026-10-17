@@ -6,7 +6,9 @@
 <title>아이라 UI 텍스트 검수</title>
 <!--
   UI 텍스트 검수 도구 (2026-10-17). 빌드에 들어가지 않는다.
-  - Claude가 검수할 문구를 JSON 하나(요청 하나)로 이 폴더에 둔다: { title, created, about, rows: [{ id, text, edit, context, where, files, applied }] }
+  - Claude가 검수할 문구를 JSON 하나(요청 하나)로 이 폴더에 둔다: { title, created, about, standard?, rows: [{ id, text, edit, context, where, files, applied, buttons?, buttonsNote? }] }
+  - buttons(2026-10-18): 그 문장과 함께 나오는 버튼 [{ label, primary, std, edit }] — 맨 앞이 주 버튼, std = 버튼 단어 표준의 단어(바꾸면 모든 곳이 바뀜).
+    standard: 표준 단어 목록 [{ label, meaning }] — 화면 위에 늘 보인다(외우지 않아도 되게)
   - 사용자는 Edge(또는 Chrome)에서 이 파일을 열고 → JSON 열기 → 2열(edit)에 바꿀 말 입력 → 저장(같은 파일에 덮어씀). 비운 칸은 지금 문구 그대로.
   - Claude는 edit가 있는 줄만 코드에 반영하고 applied에 날짜를 적는다.
 -->
@@ -26,7 +28,7 @@ button { font: inherit; font-size: 14px; white-space: nowrap; padding: 6px 14px;
 button:hover { border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: #17153a; font-weight: 700; }
 button:disabled { opacity: .45; cursor: default; }
-button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .seg { display: flex; gap: 4px; }
 .seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .sp { flex: 1; }
@@ -41,7 +43,17 @@ main { max-width: 1500px; margin: 0 auto; padding: 18px 20px 80px; }
 table { width: 100%; margin-top: 16px; border-collapse: collapse; table-layout: fixed; }
 th { position: sticky; top: 61px; z-index: 1; background: var(--bg); text-align: left; font-size: 13px; font-weight: 700; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
 td { vertical-align: top; padding: 10px; border-bottom: 1px solid var(--line); }
-col.n { width: 46px; } col.t { width: 34%; } col.e { width: 34%; } col.c { width: auto; }
+col.n { width: 46px; } col.t { width: 28%; } col.e { width: 28%; } col.b { width: 19%; } col.c { width: auto; }
+.std-legend { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.std-legend b { color: var(--text); font-weight: 700; }
+.btns { display: grid; gap: 6px; }
+.btn { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; }
+.chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.btn[data-primary="true"] .chip { background: var(--accent); border-color: var(--accent); color: #17153a; font-weight: 700; }
+.btn[data-std="true"] .chip::after { content: ' 표준'; font-size: 11px; opacity: .7; }
+.btn input { min-width: 0; font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); }
+.btn input:not(:placeholder-shown) { border-color: var(--accent); }
+.bnote { margin-top: 6px; font-size: 12px; color: #6f6d68; white-space: pre-line; }
 td.n { color: var(--muted); font-size: 12px; padding-top: 14px; }
 .text { white-space: pre-wrap; }
 .tok { color: var(--accent); }
@@ -78,10 +90,10 @@ tr[hidden] { display: none; }
     <p>2열에 바꿀 문구를 적고 <b>저장</b>(Ctrl+S)하면 같은 파일에 저장됩니다. 비운 칸은 지금 문구 그대로 둡니다.</p>
     <p>Edge나 Chrome에서 열어야 같은 파일에 저장됩니다. 다른 브라우저는 저장 대신 내려받기가 됩니다.</p>
   </div>
-  <section class="intro" id="intro" hidden><h2 id="title"></h2><p id="about"></p></section>
+  <section class="intro" id="intro" hidden><h2 id="title"></h2><p id="about"></p><div class="std-legend" id="std"></div></section>
   <table id="table" hidden>
-    <colgroup><col class="n"><col class="t"><col class="e"><col class="c"></colgroup>
-    <thead><tr><th>#</th><th>지금 문구 (앱에 쓰인 그대로)</th><th>바꿀 문구 (비우면 그대로)</th><th>언제 나오나</th></tr></thead>
+    <colgroup><col class="n"><col class="t"><col class="e"><col class="b"><col class="c"></colgroup>
+    <thead><tr><th>#</th><th>지금 문구 (앱에 쓰인 그대로)</th><th>바꿀 문구 (비우면 그대로)</th><th>버튼 (맨 앞이 주 버튼 · 칸에 바꿀 이름)</th><th>언제 나오나</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
 </main>
@@ -95,9 +107,12 @@ const tokens = (s) => (s.match(/\{[^}]+\}/g) || []).sort()
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const mark = (s) => esc(s).replace(/\{[^}]+\}/g, (t) => `<span class="tok">${t}</span>`)
 
+/** 이 줄에 입력이 있나 (문구 또는 버튼 이름) */
+const isEdited = (r) => !!(r.edit && r.edit.trim()) || (r.buttons || []).some((b) => b.edit && b.edit.trim())
+
 function setDirty(v) {
   dirty = v
-  const edited = data ? data.rows.filter((r) => r.edit && r.edit.trim()).length : 0
+  const edited = data ? data.rows.filter(isEdited).length : 0
   $('state').textContent = data ? `${fileName} · ${data.rows.length}줄 · 입력 ${edited}줄${dirty ? ' · 저장 안 함' : ''}` : '열린 파일 없음'
   $('state').dataset.dirty = dirty
   $('save').disabled = !data || !dirty
@@ -106,9 +121,11 @@ function setDirty(v) {
 function note(r) {
   const e = (r.edit || '').trim()
   if (r.applied) return `<div class="note ok">반영함 · ${esc(String(r.applied))}</div>`
-  if (!e) return ''
+  const std = (r.buttons || []).filter((b) => b.std && b.edit && b.edit.trim()).map((b) => b.label)
+  const stdNote = std.length ? `<div class="note warn">표준 단어(${esc(std.join(', '))})를 바꾸면 그 단어를 쓰는 모든 버튼이 함께 바뀝니다. 이 줄만 바꾸려면 그렇다고 적어 주세요.</div>` : ''
+  if (!e) return stdNote
   const a = tokens(r.text).join(), b = tokens(e).join()
-  return a !== b ? `<div class="note warn">바뀌는 자리(${tokens(r.text).join(' ') || '없음'})가 지금 문구와 다릅니다. 일부러 뺐거나 더했다면 그대로 두셔도 됩니다.</div>` : ''
+  return (a !== b ? `<div class="note warn">바뀌는 자리(${tokens(r.text).join(' ') || '없음'})가 지금 문구와 다릅니다. 일부러 뺐거나 더했다면 그대로 두셔도 됩니다.</div>` : '') + stdNote
 }
 
 /** 글 길이에 맞춰 높이 — field-sizing을 쓰는 브라우저(Edge·Chrome)는 CSS가 맡는다 */
@@ -121,6 +138,7 @@ function render() {
   if (!data) return
   $('title').textContent = data.title || fileName
   $('about').textContent = data.about || ''
+  $('std').innerHTML = (data.standard || []).length ? '버튼 단어 표준: ' + data.standard.map((x) => `<span><b>${esc(x.label)}</b> ${esc(x.meaning)}</span>`).join('') : ''
   const body = $('rows')
   body.innerHTML = ''
   data.rows.forEach((r, i) => {
@@ -128,11 +146,17 @@ function render() {
     tr.innerHTML = `<td class="n">${i + 1}</td>
       <td><div class="text">${mark(r.text)}</div></td>
       <td><textarea rows="2" placeholder="그대로 두려면 비워 두세요" aria-label="${i + 1}번 바꿀 문구"></textarea><div class="msg">${note(r)}</div></td>
+      <td><div class="btns">${(r.buttons || []).map((b, k) => `<label class="btn" data-primary="${!!b.primary}" data-std="${!!b.std}"><span class="chip">${mark(b.label)}</span><input data-k="${k}" placeholder="그대로" aria-label="${i + 1}번 버튼 ${esc(b.label)} 바꿀 이름"></label>`).join('')}</div>${r.buttonsNote ? `<div class="bnote">${esc(r.buttonsNote)}</div>` : ''}</td>
       <td><div class="ctx">${esc(r.context || '')}</div>${r.where ? `<div class="where">${esc(r.where)}</div>` : ''}</td>`
     const ta = tr.querySelector('textarea')
     ta.value = r.edit || ''
+    tr.querySelectorAll('.btn input').forEach((inp) => {
+      const b = r.buttons[+inp.dataset.k]
+      inp.value = b.edit || ''
+      inp.addEventListener('input', () => { b.edit = inp.value; sync(); setDirty(true); applyFilter() })
+    })
     const sync = () => {
-      tr.dataset.edited = !!ta.value.trim()
+      tr.dataset.edited = isEdited(r)
       tr.dataset.applied = !!r.applied
       tr.querySelector('.msg').innerHTML = note(r)
     }
@@ -148,7 +172,7 @@ function applyFilter() {
   if (!data) return
   ;[...$('rows').children].forEach((tr, i) => {
     const r = data.rows[i]
-    tr.hidden = filter === 'edited' ? !(r.edit && r.edit.trim()) : filter === 'todo' ? !!r.applied : false
+    tr.hidden = filter === 'edited' ? !isEdited(r) : filter === 'todo' ? !!r.applied : false
   })
 }
 

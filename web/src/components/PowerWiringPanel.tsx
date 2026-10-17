@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { PRODUCT } from '../product'
 import { DEFAULT_WIRING, type PowerSource, type PowerWiring } from '../profiles'
 import styles from './PowerWiringPanel.module.css'
+import { T } from '../uiText'
 
 /**
  * 전원 배선 패널 (DESIGN.md "프로필" 전원 배선, 시안 mockups/aira-power-wiring.html — 2026-10-10 사용자 확정).
@@ -138,7 +139,7 @@ export default function PowerWiringPanel({
     <section className={styles.panel} aria-label="전원 설정">
       <div className={styles.head}>
         <div>
-          <h2>장비에 전원이 어떻게 들어가나요?</h2>
+          <h2>{T('title.powerWiring')}</h2>
           <p>설정해 두면 {PRODUCT.ga} 이 설정을 믿고 안내합니다. 실제와 다른 것을 발견하면 {PRODUCT.ga} 고쳐 둡니다.</p>
         </div>
         <button type="button" className={styles.close} onClick={onClose}>

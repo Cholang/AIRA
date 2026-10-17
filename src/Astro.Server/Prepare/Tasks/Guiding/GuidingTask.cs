@@ -31,10 +31,10 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
     private const double Exposure = 1.5, LongExposure = 3;
 
     public string Id => "guiding";
-    public string Title => "가이드";
-    public string StartLabel => "가이드 시작";
+    public string Title => UiText.Get("rail.task.guiding");
+    public string StartLabel => UiText.Get("button.guiding.start");
     public string? StartPrompt => "가이드 별을 골라 가이드를 시작할까요? 안정되면 오차를 재어 보여 드려요.";
-    public IReadOnlyList<SubStep> SubSteps { get; } = [new("star", "별 선택"), new("settle", "안정화"), new("measure", "오차 측정")];
+    public IReadOnlyList<SubStep> SubSteps { get; } = [new("star", UiText.Get("rail.step.guiding.star")), new("settle", UiText.Get("rail.step.guiding.settle")), new("measure", UiText.Get("rail.step.guiding.measure"))];
 
     public bool AppliesTo(PrepContext ctx) => ctx.HasGuider;
 
@@ -46,7 +46,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
         while (true)
         {
             run.SubStep(0);
-            run.Guide("별 선택", "가이드 별을 따라 적도의를 미세하게 보정합니다. 안정되면 오차를 재어 보여 드립니다.");
+            run.Guide(UiText.Get("rail.step.guiding.star"), "가이드 별을 따라 적도의를 미세하게 보정합니다. 안정되면 오차를 재어 보여 드립니다.");
             run.ClearReadout();
             var exposure = Exposure;
             GuideStart start;
@@ -55,7 +55,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
                 run.Status($"가이드 별을 고르는 중입니다 · 가이드 노출 {exposure:0.#}초 ({Product.Ga} 정함)");
                 start = await devices.StartAsync(exposure, phase =>
                 {
-                    if (phase == "settle") { run.SubStep(1); run.Guide("안정화", "가이드가 안정되기를 기다립니다."); run.Status("가이드가 안정되기를 기다리는 중입니다"); }
+                    if (phase == "settle") { run.SubStep(1); run.Guide(UiText.Get("rail.step.guiding.settle"), "가이드가 안정되기를 기다립니다."); run.Status("가이드가 안정되기를 기다리는 중입니다"); }
                 }, ct);
                 if (start.StarFound || exposure >= LongExposure) break;
                 exposure = LongExposure;
@@ -63,24 +63,24 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
             }
             if (start.CalibrationMismatch)
             {
-                run.Guide("캘리브레이션이 맞지 않습니다", "보정값이 지금 장비 상태와 맞지 않아 가이드가 흔들립니다. 캘리브레이션부터 다시 하는 게 좋아요.");
+                run.Guide(UiText.Get("title.guiding.badCalibration"), "보정값이 지금 장비 상태와 맞지 않아 가이드가 흔들립니다. 캘리브레이션부터 다시 하는 게 좋아요.");
                 run.Status(start.Problem ?? "보정값 불일치", Tone.Fail);
                 var c = await run.AskAsync("캘리브레이션부터 다시 할까요? 적도의가 남쪽 하늘로 움직여요.\n재시도를 누르면 지금 보정값으로 가이드를 다시 시작하고, 가이드 없이 진행을 누르면 가이드를 끄고 짧은 노출로 찍어요.",
-                    [new("recal", "캘리브레이션 다시 하기", true), new("retry", ButtonText.Retry), NoGuide], ct);
+                    [new("recal", UiText.Get("button.recalibrate"), true), new("retry", ButtonText.Retry), NoGuide], ct);
                 if (c == "recal") return new RedoRequest("calibration");
                 if (c == "noguide") return await SkipAsync(run, ct);
                 continue;
             }
             if (!start.Ok || !start.StarFound)
             {
-                run.Guide("가이드 별을 찾지 못했습니다", "노출을 늘려도 가이드 카메라에 별이 보이지 않습니다. 가이드 망원경 덮개·초점이나 구름을 확인해 주세요.");
+                run.Guide(UiText.Get("title.guiding.noStar"), "노출을 늘려도 가이드 카메라에 별이 보이지 않습니다. 가이드 망원경 덮개·초점이나 구름을 확인해 주세요.");
                 run.Status(start.Problem ?? "별 없음", Tone.Fail);
                 if (await run.AskAsync("가이드 별을 다시 찾아 볼까요?\n가이드 없이 진행을 누르면 가이드를 끄고 짧은 노출로 찍어요.", [new("retry", ButtonText.Retry, true), NoGuide], ct) == "noguide") return await SkipAsync(run, ct);
                 continue;
             }
 
             run.SubStep(2);
-            run.Guide("오차 측정", "가이드 오차를 잽니다.");
+            run.Guide(UiText.Get("rail.step.guiding.measure"), "가이드 오차를 잽니다.");
             run.Status("가이드 오차를 재는 중입니다");
             var series = new List<double[]>();
             var stats = await devices.MeasureAsync((ra, dec) =>
@@ -104,7 +104,7 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
 
     /// <summary>가이딩 없이 찍을 때 권하는 한 장 노출 상한 (2026-10-08 사용자 결정 — 자동으로 바꾸지 않고 권함)</summary>
     public const int UnguidedExposure = 60;
-    private static readonly PrepAction NoGuide = new("noguide", "가이드 없이 진행");
+    private static readonly PrepAction NoGuide = new("noguide", UiText.Get("button.noGuide"));
 
     /// <summary>
     /// 가이딩 없이 진행 (2026-10-08 사용자 결정): PHD2를 멈추고 그날 밤 가이딩을 쓰지 않는다(GuiderSkipped — 촬영은 PHD2를 부르지 않음, 디더링 없음).
@@ -117,14 +117,14 @@ public sealed class GuidingTask(IGuidingDevices devices) : IPrepTask
         ctx.Results.Set(new GuiderSkipped("가이드를 시작하지 못함", ctx.Now()));
         if (ctx.ExposureSeconds > UnguidedExposure)
         {
-            run.Guide("노출을 줄일까요?", $"가이드 없이 {ctx.ExposureSeconds}초를 찍으면 별이 흐를 수 있어요. 가이드 없이는 {UnguidedExposure}초 이하를 권해요. 시험 사진에서 별 모양을 확인할 수 있어요.");
+            run.Guide(UiText.Get("title.guiding.shorterExposure"), $"가이드 없이 {ctx.ExposureSeconds}초를 찍으면 별이 흐를 수 있어요. 가이드 없이는 {UnguidedExposure}초 이하를 권해요. 시험 사진에서 별 모양을 확인할 수 있어요.");
             run.Status(null);
             var c = await run.AskAsync($"한 장 노출을 {UnguidedExposure}초로 줄일까요?\n계획대로 찍으면 별이 흐를 수 있어요. 시험 사진에서 별 모양을 확인할 수 있어요.",
-                [new("shorter", $"{UnguidedExposure}초로 줄이기", true), new("keep", $"계획대로 {ctx.ExposureSeconds}초")], ct);
+                [new("shorter", UiText.Format("button.guiding.shorter", ("seconds", UnguidedExposure)), true), new("keep", UiText.Format("button.guiding.keep", ("seconds", ctx.ExposureSeconds)))], ct);
             if (c == "shorter") ctx.ChangeExposure(UnguidedExposure);
         }
         return new Completed(new GuidingResult(0, 0, 0, "건너뜀", ctx.Now(), Skipped: true), $"건너뜀 · 가이드 없이 {ctx.ExposureSeconds}초",
-            "가이드 없이 진행합니다", "오늘 밤은 가이드 없이 찍어요. 디더링도 하지 않아요. 다음은 시험 사진입니다.") { AutoNext = true };
+            UiText.Get("title.noGuide"), "오늘 밤은 가이드 없이 찍어요. 디더링도 하지 않아요. 다음은 시험 사진입니다.") { AutoNext = true };
     }
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)

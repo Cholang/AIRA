@@ -3,6 +3,7 @@ import ProfileAvatar from '../components/ProfileAvatar'
 import UpdateNotice from '../components/UpdateNotice'
 import { profileImageUrl, type Profile } from '../profiles'
 import styles from './ProfileScreen.module.css'
+import { T } from '../uiText'
 
 /**
  * 프로필 선택 (넷플릭스·유튜브 프로필 화면 방식).
@@ -29,7 +30,7 @@ export default function ProfileScreen({
   return (
     <main className={styles.stage}>
       <div className={styles.content}>
-        <h1 className={styles.title}>프로필 선택</h1>
+        <h1 className={styles.title}>{T('title.profile.select')}</h1>
 
         <ul className={styles.grid}>
           <li>
@@ -47,7 +48,7 @@ export default function ProfileScreen({
                 <span className={styles.name}>{p.nickname}</span>
                 {p.memo && <span className={styles.memo}>{p.memo}</span>}
               </button>
-              <button type="button" className={styles.edit} aria-label={`${p.nickname} 프로필 편집`} title="프로필 편집" onClick={() => onEdit(p)}>
+              <button type="button" className={styles.edit} aria-label={`${p.nickname} 프로필 편집`} title={T('title.profile.edit')} onClick={() => onEdit(p)}>
                 <Pencil strokeWidth={2} aria-hidden="true" />
               </button>
             </li>

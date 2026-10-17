@@ -3,6 +3,7 @@ import Button from './Button'
 import { scaleOf } from '../frame'
 import { normDeg, turnText } from '../framing'
 import styles from './FrameRotate.module.css'
+import { T } from '../uiText'
 
 /** 사진이 놓인 자리 (하늘 화면 기준 틀 px — LiveView의 FramedImage가 알려 줌) */
 export type PhotoBox = { left: number; top: number; width: number; height: number }
@@ -207,10 +208,10 @@ export default function FrameRotate({
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.buttons}>
             <Button surface="sky" size="sm" onClick={() => void check()} disabled={busy}>
-              다시 찍기
+              {T('button.reshoot')}
             </Button>
             <Button surface="sky" size="sm" variant="ghost" onClick={() => void save(0)} disabled={busy}>
-              되돌리기
+              {T('button.undo')}
             </Button>
           </div>
         </div>

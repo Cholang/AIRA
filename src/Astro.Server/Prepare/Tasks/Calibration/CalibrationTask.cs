@@ -38,12 +38,12 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         [("A", "자오선 서쪽 1시간 · 적위 0°", +1), ("B", "자오선 동쪽 1시간 · 적위 0°", -1)];
 
     public string Id => "calibration";
-    public string Title => "캘리브레이션";
+    public string Title => UiText.Get("rail.task.calibration");
     // 누르면 적도의가 크게 움직이므로 어디로 가는지 버튼에 쓴다. 남쪽이 막힌 곳이면 옆의 "가이딩 없이 진행" (2026-10-09 사용자 제안 — 따로 묻지 않고 버튼에서)
-    public string StartLabel => "캘리브레이션 시작";
+    public string StartLabel => UiText.Get("button.calibration.start");
     public string? StartPrompt => "적도의를 남쪽 하늘로 옮겨 가이드 캘리브레이션을 시작할까요?\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.";
-    public IReadOnlyList<PrepAction> StartAlternatives { get; } = [new("next:noguide", "가이드 없이 진행")];
-    public IReadOnlyList<SubStep> SubSteps { get; } = [new("move", "위치로 이동"), new("star", "별 선택"), new("measure", "움직임 측정")];
+    public IReadOnlyList<PrepAction> StartAlternatives { get; } = [new("next:noguide", UiText.Get("button.noGuide"))];
+    public IReadOnlyList<SubStep> SubSteps { get; } = [new("move", UiText.Get("rail.step.calibration.move")), new("star", UiText.Get("rail.step.calibration.star")), new("measure", UiText.Get("rail.step.calibration.measure"))];
 
     public bool AppliesTo(PrepContext ctx) => ctx.HasGuider;
 
@@ -63,14 +63,14 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         if (ctx.Memory.LastCalibration is { } last && last.Evening == evening && last.At > (ctx.Memory.LastPolarAlignedAt ?? DateTimeOffset.MinValue)
             && await devices.HasCalibrationAsync(ct))
         {
-            run.Guide("이번 밤 보정값", "오늘 극축 정렬 뒤에 만든 보정값이 있습니다. 같은 밤 대상만 바꿀 때는 다시 하지 않습니다.");
+            run.Guide(UiText.Get("title.calibration.reuse"), "오늘 극축 정렬 뒤에 만든 보정값이 있습니다. 같은 밤 대상만 바꿀 때는 다시 하지 않습니다.");
             run.Status(null);
             var choice = await run.AskAsync("오늘 앞서 만든 보정값을 그대로 쓸까요?\n다시 하기를 누르면 적도의를 남쪽 하늘로 옮겨 새로 만들어요.",
-                [new("reuse", "이전 결과를 사용하기", true), new("new", ButtonText.Redo)], ct);
+                [new("reuse", UiText.Get("button.calibration.reuse"), true), new("new", ButtonText.Redo)], ct);
             if (choice == "reuse")
             {
                 var reused = last with { Reused = true, At = ctx.Now() };
-                return new Completed(reused, "이번 밤 보정값 재사용", "보정값을 다시 씁니다", "같은 밤 보정값을 그대로 씁니다. 다음은 이 근처 별로 초점을 맞춥니다.");
+                return new Completed(reused, UiText.Get("rail.result.calibration.reused"), UiText.Get("title.calibration.reused"), "같은 밤 보정값을 그대로 씁니다. 다음은 이 근처 별로 초점을 맞춥니다.");
             }
         }
 
@@ -78,9 +78,9 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         // 극축 정렬을 건너뛰었으면 움직이기 전에 한 번 묻는다 — 실내·북쪽만 트인 곳처럼 이미 안 될 걸 아는 경우 (2026-10-08 실기)
         if (ctx.Results.Get<PolarResult>() is { Skipped: true })
         {
-            run.Guide("캘리브레이션을 할까요?", CloudNotice.With("적도의를 자오선 근처 하늘로 옮겨 가이드 별로 보정값을 만들어요. 그쪽 하늘이 보이지 않으면 가이드 없이 진행할 수 있어요.", cloud));
+            run.Guide(UiText.Get("title.calibration.ask"), CloudNotice.With("적도의를 자오선 근처 하늘로 옮겨 가이드 별로 보정값을 만들어요. 그쪽 하늘이 보이지 않으면 가이드 없이 진행할 수 있어요.", cloud));
             run.Status(null);
-            if (await run.AskAsync("적도의를 남쪽 하늘로 옮겨 가이드 캘리브레이션을 시작할까요?\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.", [new("start", "캘리브레이션 시작", true), new("noguide", "가이드 없이 진행")], ct) == "noguide")
+            if (await run.AskAsync("적도의를 남쪽 하늘로 옮겨 가이드 캘리브레이션을 시작할까요?\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.", [new("start", "캘리브레이션 시작", true), new("noguide", UiText.Get("button.noGuide"))], ct) == "noguide")
                 return await NoGuideAsync(ctx, evening, "가이드 없이 진행을 고름", ct);
         }
 
@@ -99,19 +99,19 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
                     return new Completed(result, $"{grade} · 직교 오차 {data.OrthogonalityErrorDeg:F1}°", grade,
                         "가이드 보정값을 만들었습니다. 대상을 바꿔도 이 보정값을 그대로 씁니다. 다음은 이 근처 별로 초점을 맞춥니다.", [new("redo:calibration", ButtonText.Redo)])
                     { ExtraPrompt = "다시 하기를 누르면 캘리브레이션을 처음부터 다시 해요." };
-                run.Guide("다시 하는 게 좋아요", "보정값이 정확하지 않을 수 있습니다.");
+                run.Guide(UiText.Get("title.redoAdvised"), "보정값이 정확하지 않을 수 있습니다.");
                 run.Status(reason, Tone.Warn);
                 var c = await run.AskAsync("캘리브레이션을 처음부터 다시 할까요?\n이대로 진행을 누르면 지금 보정값으로 넘어가요. 가이드가 흔들리면 그때 다시 해도 돼요.",
                     [new("redo", ButtonText.Redo, true), new("accept", ButtonText.Proceed)], ct);
                 if (c == "accept")
-                    return new Completed(result, $"{grade} · 그대로 진행", "그대로 진행합니다", "경고가 있는 보정값으로 진행합니다. 가이드가 흔들리면 다시 하세요.", [new("redo:calibration", ButtonText.Redo)])
+                    return new Completed(result, $"{grade} · 그대로 진행", UiText.Get("title.proceeding"), "경고가 있는 보정값으로 진행합니다. 가이드가 흔들리면 다시 하세요.", [new("redo:calibration", ButtonText.Redo)])
                     { ExtraPrompt = "다시 하기를 누르면 캘리브레이션을 처음부터 다시 해요." };
                 goto Retry;
             }
-            run.Guide("캘리브레이션을 하지 못했습니다", "두 위치 모두에서 별을 찾지 못했습니다.");
+            run.Guide(UiText.Get("title.calibration.failed"), "두 위치 모두에서 별을 찾지 못했습니다.");
             run.Status("구름이 지나가는지, 가이드 망원경 덮개와 초점을 확인해 주세요", Tone.Fail);
             // 오늘 밤 보정값이 있으면 위에서 이미 물었다 — 지난밤 보정값은 조립하며 카메라 방향이 바뀌었을 수 있어 쓰지 않는다 (2026-10-08 결정)
-            if (await run.AskAsync("구름·덮개·초점을 확인한 뒤 캘리브레이션을 다시 할까요? 적도의가 다시 움직여요.\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.", [new("retry", ButtonText.Retry, true), new("noguide", "가이드 없이 진행")], ct) == "noguide")
+            if (await run.AskAsync("구름·덮개·초점을 확인한 뒤 캘리브레이션을 다시 할까요? 적도의가 다시 움직여요.\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.", [new("retry", ButtonText.Retry, true), new("noguide", UiText.Get("button.noGuide"))], ct) == "noguide")
                 return await NoGuideAsync(ctx, evening, "캘리브레이션을 하지 못함", ct);
         Retry:;
         }
@@ -123,8 +123,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         // 멈추지 못했어도 여기서는 넘어가되, "가이딩 없이"는 끝 상태 검사에서 PHD2·적도의가 멈춘 것을 확인한 뒤에 확정한다 (CX-20-08)
         await devices.StopAsync(ct);
         _skipWhy = why;
-        return new Completed(new CalibrationResult(false, null, "", evening, ctx.Now(), Skipped: true), "건너뜀 · 가이드 없이",
-            "가이드 없이 진행합니다", "오늘 밤은 가이드 없이 찍습니다. 노출은 대상 단계에서 짧게 고를 수 있어요. 다음은 초점입니다.") { AutoNext = true };
+        return new Completed(new CalibrationResult(false, null, "", evening, ctx.Now(), Skipped: true), UiText.Get("rail.result.noGuide"), UiText.Get("title.noGuide"), "오늘 밤은 가이드 없이 찍습니다. 노출은 대상 단계에서 짧게 고를 수 있어요. 다음은 초점입니다.") { AutoNext = true };
     }
 
     /// <summary>
@@ -144,7 +143,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
     private async Task<CalibrationData?> TryAtAsync(ITaskRun run, (string Name, string Label, double HourAngle) pos, string? cloud, CancellationToken ct)
     {
         run.SubStep(0);
-        run.Guide("위치로 이동", $"극 근처는 캘리브레이션에 맞지 않아 위치 {pos.Name}({pos.Label})로 옮깁니다. 케이블이 걸리지 않는지만 봐 주세요.");
+        run.Guide(UiText.Get("rail.step.calibration.move"), $"극 근처는 캘리브레이션에 맞지 않아 위치 {pos.Name}({pos.Label})로 옮깁니다. 케이블이 걸리지 않는지만 봐 주세요.");
         run.ClearReadout();
         run.Live("sky-map");
         run.Status("이동 중입니다");
@@ -163,7 +162,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
                     still = await devices.StopAsync(ct);
             }
             run.Status($"위치 {pos.Name}에 가지 못해 적도의를 멈췄습니다", Tone.Warn);
-            await run.AskAsync("케이블이 걸리지 않았는지 본 뒤 다음 위치로 옮길까요? 누르면 적도의가 움직여요.", [new("next-position", "다음 위치로 이동", true)], ct);
+            await run.AskAsync("케이블이 걸리지 않았는지 본 뒤 다음 위치로 옮길까요? 누르면 적도의가 움직여요.", [new("next-position", UiText.Get("button.calibration.nextPosition"), true)], ct);
             return null;
         }
         if (!moved.Ok || moved.ArrivalErrorDeg > ArrivalLimitDeg)
@@ -173,7 +172,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
         }
 
         run.SubStep(1);
-        run.Guide("별 선택", CloudNotice.With("PHD2가 가이드 카메라 사진에서 캘리브레이션에 쓸 별을 고릅니다.", cloud));
+        run.Guide(UiText.Get("rail.step.calibration.star"), CloudNotice.With("PHD2가 가이드 카메라 사진에서 캘리브레이션에 쓸 별을 고릅니다.", cloud));
         run.Live("guide-image", "/api/prepare/live/guide");
         run.Status("별을 고르는 중입니다");
         var star = await devices.SelectStarAsync(ct);
@@ -186,7 +185,7 @@ public sealed class CalibrationTask(ICalibrationDevices devices) : IPrepTask
             new Dictionary<string, double> { ["snr"] = star.Snr, ["exposure"] = star.ExposureSeconds });
 
         run.SubStep(2);
-        run.Guide("움직임 측정", "PHD2가 적도의를 조금씩 밀며 별이 어느 쪽으로 얼마나 움직이는지 잽니다.");
+        run.Guide(UiText.Get("rail.step.calibration.measure"), "PHD2가 적도의를 조금씩 밀며 별이 어느 쪽으로 얼마나 움직이는지 잽니다.");
         run.Status("별의 움직임을 재는 중입니다 · 2~5분");
         CalibrationData data;
         await using (await run.Context.Mount.AcquireAsync(ct))

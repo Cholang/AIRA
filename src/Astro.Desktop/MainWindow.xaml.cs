@@ -130,7 +130,7 @@ public partial class MainWindow : Window
                         if (doc.RootElement.TryGetProperty("rect", out var r) && r.ValueKind == JsonValueKind.Object)
                             rect = new Rect(r.GetProperty("x").GetDouble(), r.GetProperty("y").GetDouble(), r.GetProperty("w").GetDouble(), r.GetProperty("h").GetDouble());
                         var dpr = doc.RootElement.TryGetProperty("dpr", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetDouble() : 1;
-                        _thumbnail ??= new WindowThumbnail(this, Web, (t, shown, at) =>
+                        _thumbnail ??= new WindowThumbnail(this, Web, (t, shown, at, waiting) =>
                         {
                             // 화면이 닫히는 중이거나 죽었으면 보내지 않는다 (M5)
                             if (_stopping || _stopped || _webDead) return;
@@ -141,6 +141,7 @@ public partial class MainWindow : Window
                                     type = "window-view-state",
                                     target = t,
                                     shown,
+                                    waiting,
                                     rect = at is { } v ? new { x = v.X, y = v.Y, w = v.Width, h = v.Height } : null,
                                 }));
                             }

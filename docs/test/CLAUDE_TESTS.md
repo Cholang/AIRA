@@ -16,7 +16,9 @@ Claude가 직접 확인하는 것. 사용자가 할 것은 [USER_TESTS.md](USER_
 
 ## 장비를 연결해야 (사용자가 집에서 연결해 두면)
 
-- [ ] (2026-10-14) **적도의 홈 이동 중 좌표 갱신** — 적도의를 홈으로 보내는 동안 N.I.N.A. equipment/mount/info를 연이어 읽어 좌표가 갱신마다 바뀌는지(`MountTiming`). **적도의가 움직이니 사용자에게 묻고, 옆에 있을 때만**
+- [x] (2026-10-14) **적도의 홈 이동 중 좌표 갱신** — 적도의를 홈으로 보내는 동안 N.I.N.A. equipment/mount/info를 연이어 읽어 좌표가 갱신마다 바뀌는지(`MountTiming`). → 2026-10-17 · 바뀌지 않음: 시작하자마자 홈 값(적위 90°·pierUnknown)·Slewing=false, 약 36초 뒤 AtHome=true → `MountTiming.HomingLikely`
+- [ ] (2026-10-17) **센터링 사진 먼저 받기** — 실기 센터링 뒤 서버 기록·N.I.N.A. 이벤트에 IMAGE-PREPARED가 오는지, `prepared-image`가 솔빙 전에 사진을 주는지(안 오면 사진이 예전처럼 솔빙 뒤에 보임 — `NinaRig.PreparedImageSinceAsync`)
+- [ ] (2026-10-17) **추적 끄기 실패 이유** — 종료·계획 복귀 때 "추적 끄기 요청이 실패로 돌아옴" 줄이 있으면 N.I.N.A.가 준 이유를 읽고 원인 찾기
 - [ ] Wanderer Empire 메모리가 시간이 갈수록 느는지(실행마다 540 → 750MB를 봄) — 장비 연결해 둔 채 몇 시간 프로세스 메모리 기록
 - [ ] (2026-10-17) 사용자가 알려 준 OnStep RA 리밋·홈 센서 값을 `Equipment/Mount/MountTraits.cs`의 UMi17X 모델에 넣고, N.I.N.A. 적도의 정보로 다시 확인
 

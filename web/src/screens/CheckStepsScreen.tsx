@@ -4,6 +4,7 @@ import StepChevrons from '../components/StepChevrons'
 import StepPanel from '../components/StepPanel'
 import { useCheckStream, type CheckItem } from '../checks'
 import styles from './CheckStepsScreen.module.css'
+import { T } from '../uiText'
 
 /** [임시] 화면 설계용 버튼을 화면마다 따로 그릴 때 쓰는 손잡이 */
 /** 새로고침 아이콘이 적어도 도는 시간 (한 바퀴) */
@@ -135,7 +136,7 @@ export default function CheckStepsScreen({
           <div className={styles.complete}>
             <p>{text.completed}</p>
             <Button variant="primary" onClick={leave} autoFocus>
-              다음
+              {T('button.next')}
             </Button>
           </div>
         ) : (

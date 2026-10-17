@@ -7,8 +7,10 @@ namespace Astro.Server.Prepare.Real;
 /// 고침: 항성시(SiderealTime)가 바뀐 두 읽기 — 서로 다른 갱신 — 끼리만 비교하고, 적경이 그대로(추적 중 멈춤)이거나 시간각이 그대로(추적 끈 채 멈춤)면 멈춤.
 ///
 /// [실기 확인] 아래 값은 2026-10-06 실내 실기 기록("정보는 약 2초마다 갱신")에서 추정했다. 집에서 장비를 연결하면 확인해 이 파일만 고친다
-/// (docs/test/CLAUDE_TESTS.md "적도의 홈 이동 중 좌표 갱신" — ①③은 2026-10-17 확인): ① 연이어 읽을 때 항성시가 몇 초마다 바뀌는지 ② 홈 이동 중 좌표가 갱신마다 바뀌는지
+/// (2026-10-17 집에서 모두 확인): ① 연이어 읽을 때 항성시가 몇 초마다 바뀌는지 ② 홈 이동 중 좌표가 갱신마다 바뀌는지
 /// ③ 멈춰 있을 때 갱신 사이 적경·시간각이 얼마나 흔들리는지(아래 허용 오차보다 작아야 한다)
+/// ② 답: 바뀌지 않는다 — OnStep(UMi17X)은 홈 이동을 시작하자마자 좌표를 홈(적위 정확히 90°, 방향 pierUnknown)으로 바꾸고 Slewing=false로 답한다.
+/// 실제로 도착하면(약 36초 뒤) AtHome=true. 그래서 홈 이동 중에는 "좌표가 그대로 = 멈춤"이 틀린다 → <see cref="HomingLikely"/>
 /// </summary>
 public static class MountTiming
 {
@@ -33,6 +35,14 @@ public static class MountTiming
     public static bool Unmoved(NinaRig.MountState before, NinaRig.MountState after, double toleranceDeg) =>
         Math.Abs(before.DecDeg - after.DecDeg) < toleranceDeg
         && (AngleDiff(before.RaDeg, after.RaDeg) < toleranceDeg || AngleDiff(HourAngleDeg(before), HourAngleDeg(after)) < toleranceDeg);
+
+    /// <summary>
+    /// 홈으로 가는 중일 수 있다: 홈에 도착하지 않았는데(AtHome=false) 좌표가 홈 값(적위 정확히 90°, 방향 모름)이다 — OnStep이 홈 이동 중에 내는 모습 (②).
+    /// 추적·이동 중에 적위가 1″ 안으로 정확히 90°이고 방향을 모르는 일은 없다. 이 판정이 맞으면 "멈춤"으로 보지 않는다 —
+    /// 홈 이동이 끝나지 않은 채 멈춤 확인이 끝나지 않으면 사용자에게 직접 확인을 받는 쪽으로 간다(안전한 쪽)
+    /// </summary>
+    public static bool HomingLikely(bool atHome, double decDeg, string pier) =>
+        !atHome && double.IsFinite(decDeg) && Math.Abs(decDeg - 90) < 1.0 / 3600 && pier == "pierUnknown";
 
     private static double HourAngleDeg(NinaRig.MountState m) => m.SiderealHours * 15 - m.RaDeg;
 

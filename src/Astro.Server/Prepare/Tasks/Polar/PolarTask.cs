@@ -54,11 +54,11 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private static readonly TimeSpan OffsetStaleAfter = TimeSpan.FromSeconds(5);
 
     public string Id => "polar";
-    public string Title => "극축 정렬";
-    public string StartLabel => "극축 정렬 시작";
+    public string Title => UiText.Get("rail.task.polar");
+    public string StartLabel => UiText.Get("button.polar.start");
     public string? StartPrompt => "가이드 카메라를 SharpCap으로 넘겨 극축 정렬을 시작할까요? 극을 찾을 때 적도의가 RA축으로 크게 돌아요.";
     public IReadOnlyList<SubStep> SubSteps { get; } =
-        [new("handover", "넘겨받기"), new("find", "극 찾기"), new("align", "정렬"), new("giveback", "돌려주기")];
+        [new("handover", UiText.Get("rail.step.polar.handover")), new("find", UiText.Get("rail.step.polar.find")), new("align", UiText.Get("rail.step.polar.align")), new("giveback", UiText.Get("rail.step.polar.giveback"))];
 
     public bool AppliesTo(PrepContext ctx) => true;
 
@@ -74,7 +74,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
         run.Context.Memory.LastPolarAlignedAt = run.Context.Now(); // 이 뒤로는 새 캘리브레이션 (CX-PREP-CODE-06)
         var line = arcmin is { } a ? $"{grade} · {a:F1}′" : $"{Math.Abs(offset.XPx):F0}·{Math.Abs(offset.YPx):F0}px";
         // 캘리브레이션 버튼(남쪽 하늘로 이동 / 가이딩 없이 진행)을 누르기 전에 구름 예보를 다시 본다
-        return new Completed(result, line, grade ?? "정렬 완료",
+        return new Completed(result, line, grade ?? UiText.Get("title.polar.done"),
             CloudNotice.With("가이드 카메라가 PHD2에 다시 연결되었습니다. 다음은 가이드 보정값을 만드는 캘리브레이션입니다.", await CloudNotice.ReadAsync(run.Context, ct)));
     }
 
@@ -87,7 +87,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     {
         while (true)
         {
-            run.Guide("시작 위치로 되돌리기", "다시 돌리기 전에 적도의를 홈(시작 위치)으로 되돌립니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.");
+            run.Guide(UiText.Get("title.polar.backToStart"), "다시 돌리기 전에 적도의를 홈(시작 위치)으로 되돌립니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.");
             run.Status("적도의를 홈으로 되돌리는 중입니다", Tone.Busy);
             PolarReturn back;
             await using (await run.Context.Mount.AcquireAsync(ct))
@@ -115,7 +115,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     /// </summary>
     private async Task<TaskOutcome> SkipAsync(ITaskRun run, CancellationToken ct)
     {
-        run.Guide("극축 정렬을 건너뜁니다", "SharpCap을 닫고 가이드 카메라를 PHD2에 돌려준 뒤 다음으로 갑니다.");
+        run.Guide(UiText.Get("title.polar.skipping"), "SharpCap을 닫고 가이드 카메라를 PHD2에 돌려준 뒤 다음으로 갑니다.");
         run.Live("none");
         while (true)
         {
@@ -125,7 +125,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             run.Status("적도의가 멈췄는지 확인하지 못했습니다", Tone.Fail);
             await run.AskAsync("적도의를 직접 본 뒤 가이드 카메라를 PHD2로 다시 돌려줄까요?", [new("retry", ButtonText.Retry, true)], ct);
         }
-        return new Completed(new PolarResult(null, 0, 0, "건너뜀", run.Context.Now(), Skipped: true), "건너뜀", "극축 정렬을 건너뛰었어요",
+        return new Completed(new PolarResult(null, 0, 0, "건너뜀", run.Context.Now(), Skipped: true), UiText.Get("rail.result.skipped"), UiText.Get("title.polar.skipped"),
             "극축이 틀어져 있으면 가이드 보정이 잦아지고 긴 촬영에서 시야가 조금 돌 수 있어요. 다음은 캘리브레이션입니다.") { AutoNext = true };
     }
 
@@ -133,7 +133,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private async Task<bool> HandOverAsync(ITaskRun run, string? cloud, CancellationToken ct)
     {
         run.SubStep(0);
-        run.Guide("넘겨받기", CloudNotice.With("가이드 카메라를 PHD2에서 SharpCap으로 넘깁니다. 손대실 것은 없습니다.", cloud));
+        run.Guide(UiText.Get("rail.step.polar.handover"), CloudNotice.With("가이드 카메라를 PHD2에서 SharpCap으로 넘깁니다. 손대실 것은 없습니다.", cloud));
         run.Live("none");
         while (true)
         {
@@ -148,7 +148,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
             {
                 run.Status("SharpCap이 이미 켜져 있습니다", Tone.Warn);
                 var pick = await run.AskAsync($"{Product.Neun} 극축 정렬용 설정으로 SharpCap을 켜야 조종할 수 있어요. 켜져 있는 SharpCap을 닫고 다시 켤까요?\n건너뛰기를 누르면 극축 정렬 없이 넘어가요.",
-                    [new("restart-sharpcap", "SharpCap 재시작", true), new("skip", ButtonText.Skip)], ct);
+                    [new("restart-sharpcap", UiText.Get("button.sharpcap.restart"), true), new("skip", ButtonText.Skip)], ct);
                 if (pick == "skip") return false;
                 run.Status("켜져 있던 SharpCap을 닫는 중입니다");
                 var closed = await devices.CloseOpenSharpCapAsync(ct);
@@ -190,7 +190,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     {
         run.SubStep(1);
         // 케이블 확인은 출발 전 점검에서 빼고 크게 돌리기 직전에 (2026-10-12 사용자 결정)
-        run.Guide("극 찾기", CloudNotice.With("적도의를 RA축으로 크게 돌려 회전 전후의 별 위치를 비교합니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.", cloud));
+        run.Guide(UiText.Get("rail.step.polar.find"), CloudNotice.With("적도의를 RA축으로 크게 돌려 회전 전후의 별 위치를 비교합니다. 케이블이 당기거나 걸리지 않는지 봐 주세요.", cloud));
         run.Live("sharpcap", "/api/prepare/live/sharpcap");
         var memory = run.Context.Memory;
         while (true)
@@ -235,7 +235,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private async Task<PolarOffset> AlignAsync(ITaskRun run, CancellationToken ct)
     {
         run.SubStep(2);
-        run.Guide("정렬", "화살표 방향으로 나사를 조절해 오차를 줄여 주세요.");
+        run.Guide(UiText.Get("rail.step.polar.align"), "화살표 방향으로 나사를 조절해 오차를 줄여 주세요.");
         run.Status(null);
         var scale = await devices.GuidePixelScaleAsync(ct);
         PolarOffset? last = null;
@@ -303,7 +303,7 @@ public sealed class PolarTask(IPolarDevices devices) : IPrepTask
     private async Task GiveBackAsync(ITaskRun run, CancellationToken ct)
     {
         run.SubStep(3);
-        run.Guide("돌려주기", "SharpCap을 닫고 가이드 카메라를 PHD2에 다시 연결합니다.");
+        run.Guide(UiText.Get("rail.step.polar.giveback"), "SharpCap을 닫고 가이드 카메라를 PHD2에 다시 연결합니다.");
         run.Live("none");
         while (true)
         {

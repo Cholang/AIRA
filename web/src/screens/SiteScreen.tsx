@@ -10,6 +10,7 @@ import UndoToast from '../components/UndoToast'
 import { addSite, removeSite, renameSite, SITE_NAME_MAX_BYTES, SITES_MAX, type ObservingSite, type Profile } from '../profiles'
 import { applySite, coordValue, elevationOf, parseCoords, sameSpot, type CurrentSite } from '../sites'
 import styles from './SiteScreen.module.css'
+import { T } from '../uiText'
 
 /**
  * 관측지 고르기 (DESIGN.md "관측지 고르기"): 장비 연결 뒤 "변경"을 눌렀거나 관측지가 없을 때, 또는 상태 줄 목록의 "관측지 편집".
@@ -98,7 +99,7 @@ export default function SiteScreen({
           {apply.text}
         </JarvisRing>
         <div className={styles.applyActions} data-shown={apply.state === 'failed'}>
-          <Button onClick={() => setApply(null)}>돌아가기</Button>
+          <Button onClick={() => setApply(null)}>{T('button.back')}</Button>
           <Button variant="primary" onClick={() => chosen && applyChosen(chosen)}>
             {BUTTON.retry}
           </Button>
@@ -111,10 +112,10 @@ export default function SiteScreen({
       <div className={styles.intro}>
         {/* 뒤로: 제목 줄의 왼쪽(설명 줄은 제목 아래에 맞춤). 아무것도 바꾸지 않고 나간다.
             관측지가 없으면(강제로 들어옴) 나갈 수 없으니 숨기되 자리는 둔다 — 제목·카드가 옆으로 움직이지 않게 */}
-        <button type="button" className={styles.back} onClick={onDone} aria-label="뒤로" title="뒤로" disabled={!current} data-hidden={!current}>
+        <button type="button" className={styles.back} onClick={onDone} aria-label={T('button.backShort')} title={T('button.backShort')} disabled={!current} data-hidden={!current}>
           <ChevronLeft strokeWidth={2} aria-hidden="true" />
         </button>
-        <h1>{adding ? '새 관측지 추가' : '오늘 어디에서 촬영하나요?'}</h1>
+        <h1>{adding ? T('title.site.add') : T('title.site.choose')}</h1>
         <p>{adding ? '지도에서 촬영 장소를 누르거나 검색해 주세요. 복사한 좌표를 붙여 넣어도 됩니다.' : '관측지를 두 번 누르면 N.I.N.A.와 적도의에 알려 줍니다.'}</p>
       </div>
 
@@ -249,7 +250,7 @@ function SiteInfo({ profile, site, onProfileChange }: { profile: Profile; site: 
       </p>
       <div className={styles.sideActions} data-shown={changed}>
         <Button variant="primary" onClick={save} disabled={!changed || saving}>
-          {saving ? '수정하는 중' : '수정하기'}
+          {saving ? T('button.site.updating') : T('button.site.update')}
         </Button>
       </div>
     </>
@@ -330,9 +331,9 @@ function AddSite({ profile, onCancel, onAdded }: { profile: Profile; onCancel?: 
           {error}
         </p>
         <div className={styles.sideActions}>
-          {onCancel && <Button onClick={onCancel}>취소</Button>}
+          {onCancel && <Button onClick={onCancel}>{T('button.cancel')}</Button>}
           <Button variant="primary" onClick={submit} disabled={!spot || !name.trim() || saving}>
-            {saving ? '추가하는 중' : '추가하기'}
+            {saving ? T('button.site.adding') : T('button.add')}
           </Button>
         </div>
       </aside>

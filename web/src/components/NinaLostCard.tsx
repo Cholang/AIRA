@@ -1,5 +1,6 @@
 import Button from './Button'
 import DiagnosticCard from './DiagnosticCard'
+import { T } from '../uiText'
 
 /** Closed = 마무리에서 아이라가 일부러 닫음 (경고하지 않음) */
 export type NinaState = 'Unknown' | 'Running' | 'Exited' | 'NotResponding' | 'Closed'
@@ -21,7 +22,7 @@ export default function NinaLostCard({ state, onRestart }: { state: NinaState; o
       }
       actions={
         <Button variant="primary" onClick={onRestart}>
-          다시 켜기
+          {T('button.relaunch')}
         </Button>
       }
     />

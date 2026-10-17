@@ -39,6 +39,7 @@ import styles from './App.module.css'
 import {
   CORNER_SUN, SCENE_OF, prelaunchedPhase, STAGE_OF, NOTICE_HIDE, NO_HIDE, WATCHED, SITE_SHOWN, SITE_EDITABLE, LABEL_OF, FADE_MS, BOOT_FADE_MS, type Phase,
 } from './appFlow'
+import { T } from './uiText'
 
 export default function App() {
   const { theme, setTheme } = useTheme()
@@ -411,7 +412,7 @@ export default function App() {
             onSwitchProfile={switchProfile}
             onProfileChange={updateProfile}
             devices={devices}
-            label={LABEL_OF[phase] ?? '소프트웨어 준비'}
+            label={LABEL_OF[phase] ?? T('statusbar.phase.setup')}
             site={
               SITE_SHOWN.includes(phase) && site !== undefined
                 ? {
@@ -545,8 +546,8 @@ export default function App() {
                   ? `지난번 촬영이 중단됐습니다.\n${pending.summary}\n재부팅되었거나 시간이 많이 지났으므로 새로 시작합니다.`
                   : ''
         }
-        confirmLabel={pending?.kind === 'resume' ? (pending.error ? BUTTON.retry : '이어서 하기') : '확인'}
-        cancelLabel="새로 시작하기"
+        confirmLabel={pending?.kind === 'resume' ? (pending.error ? BUTTON.retry : T('button.resume')) : T('button.ok')}
+        cancelLabel={T('button.startOver')}
         size="md"
         single={pending?.kind !== 'resume'}
         dismissable={false}

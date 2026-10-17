@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { tellHost } from './host'
+import { T } from './uiText'
 
 // 테마는 두 가지 (2026-10-10 사용자 결정 — 밝게 테마 없앰): 기본(값 dark — 짙은 회색) · 다크(값 night — 촬영용 적색). 값 이름은 저장된 설정과 호환을 위해 그대로
 export type Theme = 'dark' | 'night'
 
 export const THEMES: { value: Theme; label: string }[] = [
-  { value: 'dark', label: '기본' },
-  { value: 'night', label: '다크' },
+  { value: 'dark', label: T('statusbar.theme.dark') },
+  { value: 'night', label: T('statusbar.theme.night') },
 ]
 
 const KEY = 'app.theme'

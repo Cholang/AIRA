@@ -2,9 +2,11 @@ import { Check } from 'lucide-react'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Button from './Button'
 import styles from './StepRail.module.css'
+import { T } from '../uiText'
+import { stageLabel } from '../appFlow'
 
 /** 촬영 단계 (DESIGN.md "진행 표시", "장비 준비 · 대상" 2026-10-07). 연결 = 설치 확인·엔진 켜기·장비 연결 */
-export const STAGES = ['점검', '연결', '장비 준비', '대상', '촬영', '마무리'] as const // 2026-10-15 점검이 맨 앞(프로필 바로 다음)
+export const STAGES = ['preflight', 'connect', 'rig', 'target', 'shoot', 'wrap'] as const // 2026-10-15 점검이 맨 앞(프로필 바로 다음)
 export type Stage = (typeof STAGES)[number]
 
 /** 지금 단계 아래에 펼치는 작업 한 줄 (예: 장비 준비의 극축 정렬 · 캘리브레이션 · 초점) */
@@ -233,7 +235,7 @@ export default function StepRail({ current, extra: given, foot, temp }: { curren
   }
 
   return (
-    <nav className={styles.rail} aria-label="촬영 진행">
+    <nav className={styles.rail} aria-label={T('rail.label')}>
       <ol className={styles.track}>
         {STAGES.map((s, i) => {
           const k = index(`${i}`)
@@ -261,7 +263,7 @@ export default function StepRail({ current, extra: given, foot, temp }: { curren
               {line(nodes[k], k, 'in')}
               {line(nodes[k], k, 'out')}
               <span className={styles.name} aria-current={state === 'now' ? 'step' : undefined}>
-                {s}
+                {stageLabel(s)}
               </span>
               <span className={styles.dot} onMouseEnter={() => setOpen(stageKey)} onMouseLeave={() => setOpen(null)}>
                 <Check strokeWidth={2.5} aria-hidden="true" />
@@ -275,7 +277,7 @@ export default function StepRail({ current, extra: given, foot, temp }: { curren
                   groupRefs.current[i] = el
                 }}
               >
-                <ol className={styles.items} aria-label={`${s} 작업`}>
+                <ol className={styles.items} aria-label={`${stageLabel(s)} 작업`}>
                   {items.map((it, j) => {
                     const key = `${i}:${it.id}`
                     const ik = index(key)

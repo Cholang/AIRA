@@ -24,9 +24,10 @@ public sealed class LiveImages(Phd2Client phd2, Astro.Nina.NinaApiClient nina)
 
     public async Task<(byte[] Bytes, string Type, DateTimeOffset At, string Tag)?> GetAsync(string kind, CancellationToken ct)
     {
-        // SharpCap: 스크립트가 저장한 영상만 (창 캡처는 메뉴·패널까지 나와 하늘이 작게 보임 — 2026-10-08 실기). 저장본이 없을 때만 창 캡처
+        // SharpCap: 스크립트가 저장한 영상만 (창 캡처는 메뉴·패널까지 나와 하늘이 작게 보임 — 2026-10-08 실기).
+        // 저장본이 없으면 마지막 영상 그대로 — 전에는 창 전체를 캡처해 보였다(2026-10-17 실기: 극축 정렬을 건너뛰자 스크립트가 저장을 멈추고 SharpCap 창 전체가 사진 틀에 나왔다)
         if (kind == "sharpcap") SharpCapBridge.WantView();
-        if (kind == "sharpcap" && (SharpCapBridge.LatestView() ?? WindowCapture.Capture("SharpCap")) is { } shot) Set("sharpcap", shot);
+        if (kind == "sharpcap" && SharpCapBridge.LatestView() is { } shot) Set("sharpcap", shot);
         if (kind == "guide") await RefreshGuideAsync(ct);
         if (kind == "nina") await RefreshNinaAsync(ct);
         lock (_gate) return _images.TryGetValue(kind, out var v) ? v : null;

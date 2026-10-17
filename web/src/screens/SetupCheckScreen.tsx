@@ -1,5 +1,6 @@
 import { pending, type CheckItem } from '../checks'
 import CheckStepsScreen, { type StepScreenText } from './CheckStepsScreen'
+import { T } from '../uiText'
 
 // 서버 SetupChecker와 같은 순서·이름 (칸에는 설치할 프로그램 이름만).
 // 서버가 결과를 보내기 전부터 칸을 그리려고 미리 둔다.
@@ -14,9 +15,9 @@ const STEPS = [
 // 제목은 "소프트웨어", 안내 문장은 가장 일상적인 "프로그램"으로 쓴다.
 const TEXT: StepScreenText = {
   // 제목 아래 설명은 두지 않는다 — 상태에 따라 한 줄이 생겼다 없어지면 화면 전체가 위아래로 움직인다
-  running: ['촬영 준비를 위한 소프트웨어 확인'],
-  failed: ['촬영 준비를 위한 소프트웨어 확인'],
-  passed: ['필요한 프로그램이 모두 설치되어 있어요'],
+  running: [T('title.setup.checking')],
+  failed: [T('title.setup.checking')],
+  passed: [T('title.setup.passed')],
   completed: '모든 준비가 완료되어 다음 단계로 이동합니다.',
   stripLabel: '설치 확인 항목',
 }

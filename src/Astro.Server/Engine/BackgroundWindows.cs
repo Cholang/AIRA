@@ -19,12 +19,17 @@ public static class BackgroundWindows
     public const string Phd2 = "phd2";
     /// <summary>전원 허브의 제조사 프로그램 창 이름 (장비 › 전원 허브 — 아는 모든 허브: 쓰지 않는 제조사의 것이 섞여도 그 창이 없으면 아무 일 없다)</summary>
     public static string[] HubApps => [.. Equipment.Hub.HubCatalog.AllApps.Select(a => a.Process)];
+    /// <summary>
+    /// 지켜볼 전원 허브 창: 제조사 프로그램과 그 프로그램이 함께 띄우는 ASCOM 서버(WandererBox1·2 등) — 2026-10-18 실기: 프로필 화면에서
+    /// ASCOM 서버 창(완더러박스 아이콘)이 아이라 위로 떴다. 프로그램만 지켜봐서 빠져 있었다
+    /// </summary>
+    public static string[] HubWindows => [.. Equipment.Hub.HubCatalog.AllApps.SelectMany(a => a.AllProcesses)];
 
     /// <summary>장비 연결 중 저절로 켜지는 프로그램: 가이더 → PHD2, 전원 허브 → 그 허브의 제조사 프로그램(Wanderer Empire 등). 없으면 null</summary>
     public static IDisposable? ForConnect(string kind) => kind switch
     {
         "guider" => Watch(TimeSpan.FromSeconds(5), Phd2),
-        "switch" => Watch(TimeSpan.FromSeconds(5), HubApps),
+        "switch" => Watch(TimeSpan.FromSeconds(5), HubWindows),
         _ => null,
     };
 

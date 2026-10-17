@@ -1,18 +1,32 @@
 {
   "title": "UI 텍스트 검수 — 버튼 옆 설명 (버튼 레이아웃 영역)",
   "created": "2026-10-17",
-  "about": "하늘 화면 아래 버튼 왼쪽에 나오는 설명(첫 줄 = 주 버튼을 누르면 무엇이 되는지 묻기, 다음 줄 = 보조 버튼을 누르면 어떻게 되는지). {대상}·{n}처럼 중괄호 안은 실제 값으로 바뀌는 자리, (으)로·을(를)은 앞말에 맞춰 바뀐다. 같은 문장이 여러 곳에 쓰이면 한 줄로 묶었다 — 고치면 모두 함께 바뀐다. 줄바꿈은 그대로 줄바꿈.",
+  "about": "하늘 화면 아래 버튼 왼쪽에 나오는 설명(첫 줄 = 주 버튼을 누르면 무엇이 되는지 묻기, 다음 줄 = 보조 버튼을 누르면 어떻게 되는지). {대상}·{n}처럼 중괄호 안은 실제 값으로 바뀌는 자리, (으)로·을(를)은 앞말에 맞춰 바뀐다. 같은 문장이 여러 곳에 쓰이면 한 줄로 묶었다 — 고치면 모두 함께 바뀐다. 줄바꿈은 그대로 줄바꿈. 버튼 칸: 그 문장과 함께 나오는 버튼(맨 앞이 주 버튼). \"표준\" 표시는 버튼 단어 표준의 단어라, 바꾸면 그 단어를 쓰는 모든 버튼이 함께 바뀐다.",
   "rows": [
     {
       "id": "p001",
       "text": "장비 상태를 다시 읽어 볼까요?\n다시 하기를 누르면 {단계}을(를) 처음부터 다시 해요.",
-      "edit": "",
+      "edit": "장비 상태가 달라졌습니다.\n{단계}을(를) 다시 하시겠습니까?",
       "context": "단계는 끝났는데 장비 상태가 약속과 다를 때 (예: 극축 정렬 뒤 추적이 꺼져 있음). 버튼: 다시 확인 / 다시 하기",
       "where": "PrepareRunner.cs",
       "files": [
         "src/Astro.Server/Prepare/Flow/PrepareRunner.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p002",
@@ -23,111 +37,228 @@
       "files": [
         "src/Astro.Server/Prepare/Flow/PrepareRunner.Stop.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p003",
       "text": "장비 상태를 다시 읽어 멈췄는지 확인할까요?\n적도의·포커서를 직접 보고 멈춰 있으면 멈춘 것을 확인했어요를 눌러 주세요.",
-      "edit": "",
+      "edit": "적도의와 포커서가 멈췄는지 다시 확인합니다.\n적도의, 포커서가 멈춘 것을 직접 확인했으면 확인 완료를 눌러주세요. (버튼: 확인 시작 /직접 확인함)",
       "context": "단계를 멈췄는데 적도의·포커서가 정말 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인 / 멈춘 것을 확인했어요",
       "where": "PrepareRunner.Stop.cs",
       "files": [
         "src/Astro.Server/Prepare/Flow/PrepareRunner.Stop.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "멈춘 것을 확인했어요",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p004",
       "text": "장비 준비를 마쳤어요. 오늘 밤 찍을 대상을 고를까요?",
-      "edit": "",
+      "edit": "장비 준비가 완료 되었습니다. \n오늘 밤 찍을 대상을 찾을 차례입니다. (버튼: 대상 선택)",
       "context": "장비 준비(극축 정렬·캘리브레이션·초점)를 모두 마친 화면. 버튼: 대상 고르기",
       "where": "RunnerSetup.cs",
       "files": [
         "src/Astro.Server/Prepare/Flow/RunnerSetup.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "대상 고르기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p005",
       "text": "계획대로 촬영을 시작할까요? 촬영 중에는 적도의가 대상을 따라가요.",
-      "edit": "",
+      "edit": "촬영 준비가 완료 되었습니다. \n이제 촬영을 시작합니다. (버튼: 촬영 시작)",
       "context": "대상 준비(이동~시험 사진)를 모두 마친 화면. 버튼: 촬영 시작",
       "where": "RunnerSetup.cs",
       "files": [
         "src/Astro.Server/Prepare/Flow/RunnerSetup.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "촬영 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p006",
       "text": "오늘 밤 찍은 사진과 보정 프레임을 정리해서 볼까요?",
-      "edit": "",
+      "edit": "오늘 밤 찍은 사진들을 정리해 볼 수 있습니다. (버튼: 요약 내용 확인)",
       "context": "마무리(플랫·다크·장비 정리)가 끝난 뒤 요약으로 넘어가기 전. 버튼: 오늘 밤 요약 (보통 자동으로 넘어가 거의 안 보임)",
       "where": "RunnerSetup.cs",
       "files": [
         "src/Astro.Server/Prepare/Flow/RunnerSetup.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "오늘 밤 요약",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p007",
       "text": "적도의를 남쪽 하늘로 옮겨 가이드 캘리브레이션을 시작할까요?\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.",
-      "edit": "",
+      "edit": "캘리브레이션을 시작합니다. \n가이드 없이 짧은 노출로 찍어도 된다면 '건너뛰기' 버튼을 눌러주세요. (버튼: 시작하기 /건너뛰기)",
       "context": "· 극축 정렬이 끝난 화면에서 다음 단계로 넘어갈 때. 버튼: 캘리브레이션 시작 / 가이드 없이 진행\n· 캘리브레이션 단계를 처음 시작할 때(앞 단계 버튼을 거치지 않고 들어온 경우). 버튼: 캘리브레이션 시작 / 가이드 없이 진행",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "캘리브레이션 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "가이드 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p008",
       "text": "오늘 앞서 만든 보정값을 그대로 쓸까요?\n다시 하기를 누르면 적도의를 남쪽 하늘로 옮겨 새로 만들어요.",
-      "edit": "",
+      "edit": "오늘 밤 만든 보정값을 그대로 사용할지 선택해 주세요. (버튼: 그대로 사용 /다시 캘리브레이션)",
       "context": "같은 밤에 대상을 바꿔 다시 준비할 때, 오늘 이미 만든 캘리브레이션 값이 있으면. 버튼: 이전 결과를 사용하기 / 다시 하기",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "이전 결과를 사용하기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p009",
       "text": "다시 하기를 누르면 캘리브레이션을 처음부터 다시 해요.",
-      "edit": "",
+      "edit": "캘리브레이션이 종료 되었습니다. 다음 단계로 진행하시겠습니까?",
       "context": "· 캘리브레이션이 잘 끝난 화면, 보조 버튼 설명 줄. 버튼: (다음 단계 시작) / 다시 하기\n· 부정확한 캘리브레이션을 \"이대로 진행\"한 뒤 끝난 화면, 보조 버튼 설명 줄. 버튼: (다음 단계 시작) / 다시 하기",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "초점 맞추기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "캘리브레이션이 끝난 화면 — 주 버튼은 다음 작업(초점)의 시작 버튼이고, 이 문장은 19번(초점 시작 설명) 아래에 붙어 나온다"
     },
     {
       "id": "p010",
       "text": "캘리브레이션을 처음부터 다시 할까요?\n이대로 진행을 누르면 지금 보정값으로 넘어가요. 가이드가 흔들리면 그때 다시 해도 돼요.",
-      "edit": "",
+      "edit": "캘리브레이션은 종료 되었지만 오차가 있습니다. 이대로 진행하시겠습니까?\n가이드 그래프가 흔들리면 그때 다시할 수도 있습니다.",
       "context": "캘리브레이션은 됐지만 값이 부정확할 수 있을 때(직교 오차가 큼 등). 버튼: 다시 하기 / 이대로 진행",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 하기",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p011",
       "text": "구름·덮개·초점을 확인한 뒤 캘리브레이션을 다시 할까요? 적도의가 다시 움직여요.\n가이드 없이 진행을 누르면 캘리브레이션과 가이드를 하지 않고 짧은 노출로 찍어요.",
-      "edit": "",
+      "edit": "캘리브레이션에 실패했습니다. 구름, 덮개, 초첨을 모두 확인해 주세요. 재시도 시 적도의가 다시 움직입니다. \n가이드 없이 짧은 노출로 찍어도 된다면 '건너뛰기' 버튼을 눌러주세요. (버튼: 재시도 /건너뛰기)",
       "context": "두 위치 모두에서 가이드 별을 못 찾아 캘리브레이션에 실패했을 때. 버튼: 재시도 / 가이드 없이 진행",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "가이드 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p012",
       "text": "적도의를 직접 본 뒤 장비 상태를 다시 읽어 볼까요?",
-      "edit": "",
+      "edit": "적도의 상태를 다시 확인합니다.",
       "context": "· 캘리브레이션 위치로 가다가 적도의가 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 센터링 중 적도의를 조금 옮기다 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 극 찾기를 다시 하려고 홈으로 되돌리다 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 극 찾기 중 적도의를 돌리다 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 이동 중 \"멈춤\"을 눌렀는데 적도의가 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 이동이 실패해 적도의를 멈췄는데 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인\n· 자오선 반전이 안 돼 촬영을 멈췄는데 적도의가 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인",
       "where": "CalibrationTask.cs, CenterTask.cs, PolarTask.cs, SlewTask.cs, ShootScreen.tsx",
       "files": [
@@ -137,128 +268,269 @@
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs",
         "web/src/screens/ShootScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p013",
       "text": "케이블이 걸리지 않았는지 본 뒤 다음 위치로 옮길까요? 누르면 적도의가 움직여요.",
-      "edit": "",
+      "edit": "캘리브레이션 위치로 이동하지 못했습니다. \n다음 캘리브레이션 대상으로 이동합니다. (버튼: 이동하기)",
       "context": "캘리브레이션 위치에 못 가서 적도의를 멈춘 뒤, 다음 후보 위치로 옮기기 전. 버튼: 다음 위치로 이동",
       "where": "CalibrationTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Calibration/CalibrationTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다음 위치로 이동",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p014",
       "text": "사진을 찍어 실제 위치를 계산하고, 대상이 가운데 오도록 적도의를 조금씩 옮길까요?",
-      "edit": "",
+      "edit": "사진을 찍어 실제 위치를 계산하고 대상이 가운데 오도록 적도의를 움직입니다.",
       "context": "초점 확인 등 앞 단계가 끝나고 센터링을 시작할 때 (지금 순서에서는 이동 뒤). 버튼: 센터링 시작",
       "where": "CenterTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Center/CenterTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "센터링 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p015",
       "text": "다시 찍어 가운데로 맞출까요? 적도의가 조금씩 움직여요.",
-      "edit": "",
+      "edit": "사진을 다시 찍어 대상을 가운데로 맞추시겠습니까?",
       "context": "센터링 중 적도의를 멈춘 뒤(멈춘 것은 확인됨). 버튼: 재시도",
       "where": "CenterTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Center/CenterTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p016",
       "text": "초점이나 구름을 확인한 뒤 센터링을 다시 할까요?\n초점 다시 맞추기를 누르면 자동초점부터 다시 하고, 건너뛰기를 누르면 가운데 맞추지 않고 넘어가요.",
-      "edit": "",
+      "edit": "센터링에 실패했습니다. 초점이나 구름 상태를 확인해주세요.\n초첨을 다시 설정하거나, 센터링을 건너뛰고 촬영을 시작할 수도 있습니다.",
       "context": "노출을 늘리고 하늘 전체에서 찾아도 사진 위치를 계산하지 못했을 때(초점·구름 의심). 버튼: 재시도 / 초점 다시 맞추기 / 건너뛰기",
       "where": "CenterTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Center/CenterTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "초점 다시 맞추기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p017",
       "text": "다른 대상을 누르면 계획 화면으로 돌아가 새 대상을 골라요.",
-      "edit": "",
+      "edit": "센터링이 완료되었습니다. (보조 버튼: 촬영 대상 변경)",
       "context": "· 센터링이 잘 끝난 화면(구도 회전 사진이 보이는 곳), 보조 버튼 설명 줄. 버튼: 이 대상으로 확정 / 다른 대상\n· 센터링을 건너뛴 뒤 화면, 보조 버튼 설명 줄. 버튼: 이 대상으로 확정 / 다른 대상",
       "where": "CenterTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Center/CenterTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "이 대상으로 확정",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다른 대상",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "센터링이 끝난 화면 — 주 버튼은 다음 작업(초점 확인)의 시작 버튼이고, 이 문장은 28번 아래에 붙어 나온다"
     },
     {
       "id": "p018",
       "text": "케이블·바람을 확인한 뒤 센터링을 다시 할까요?\n건너뛰기를 누르면 지금 위치 그대로 넘어가요.",
-      "edit": "",
+      "edit": "케이블 또는 바람 때문에 센터링이 실패한 것 같습니다.\n센터링을 재시도 하거나 센터링을 건너뛸 수 있습니다.",
       "context": "여러 번 보정해도 목표(1′) 안에 들어오지 않았을 때(바람·케이블 의심). 버튼: 재시도 / 건너뛰기",
       "where": "CenterTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Center/CenterTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p019",
       "text": "이 근처 별로 자동초점을 할까요? 포커서를 조금씩 옮기며 별 크기를 재요.",
-      "edit": "",
+      "edit": "캘리브레이션에 성공했습니다. 이 상태로 자동 초점 맞추기를 시작합니다. (버튼: 시작)",
       "context": "캘리브레이션이 끝난 화면에서 초점 단계로 넘어갈 때. 버튼: 초점 맞추기",
       "where": "FocusTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "초점 맞추기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "캘리브레이션을 마친 화면에서는 9번 문장과 \"다시 하기\"(캘리브레이션)가 함께 나온다"
     },
     {
       "id": "p020",
       "text": "지금 포커서 위치에서 자동초점을 다시 할까요?\n이대로 진행을 누르면 손으로 맞춘 초점 그대로 넘어가요.",
-      "edit": "",
+      "edit": "별을 찾지 못해 초점을 맞추지 못했습니다. \n포커서 노브를 손으로 조정해 대략적인 초점을 맞춘 후 재시도해주세요.\n이대로 진행할 수도 있습니다.",
       "context": "· 이 망원경이 처음이라 넓게 훑었는데도 별을 못 찾았을 때. 포커서를 손으로 대충 돌린 뒤 누름. 버튼: 재시도 / 이대로 진행\n· 지난번 위치에서 시작한 자동초점이 넓게 훑어도 별을 못 찾았을 때. 버튼: 재시도 / 이대로 진행",
       "where": "FocusTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p021",
       "text": "N.I.N.A.에서 자동초점이 멈췄는지 본 뒤 장비 상태를 다시 읽어 볼까요?",
-      "edit": "",
+      "edit": "자동 초점 오류가 발생했습니다. N.I.N.A. 에서 다시 확인해볼 수 있습니다.",
       "context": "자동초점 중 오류가 나서 N.I.N.A.의 자동초점이 멈췄는지 확인하지 못했을 때. 버튼: 다시 확인",
       "where": "FocusTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p022",
       "text": "자동초점을 다시 할까요?\n이대로 진행을 누르면 지금 찾은 위치로 넘어가요.",
-      "edit": "",
+      "edit": "자동 초점 곡선이 고르지 않습니다. 다시 초점 맞추기를 시도하거나 이대로 진행할 수 있습니다.",
       "context": "자동초점 곡선이 고르지 않을 때(구름·바람 의심). 버튼: 재시도 / 이대로 진행",
       "where": "FocusTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p023",
       "text": "다시 하기를 누르면 자동초점을 처음부터 다시 해요.",
-      "edit": "",
+      "edit": "초점 설정에 성공했습니다. 촬영 대상을 고를 수 있습니다.",
       "context": "자동초점이 잘 끝난 화면, 보조 버튼 설명 줄. 버튼: 대상 고르기 / 다시 하기",
       "where": "FocusTask.cs",
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "대상 고르기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "초점(장비 준비의 마지막)이 끝난 화면 — 주 버튼은 장비 준비를 마치는 버튼이고, 이 문장은 4번 아래에 붙어 나온다"
     },
     {
       "id": "p024",
@@ -269,7 +541,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "0점 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p025",
@@ -280,7 +566,27 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "완료",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "0점 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p026",
@@ -291,7 +597,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p027",
@@ -302,7 +622,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Focus/FocusTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p028",
@@ -313,7 +641,16 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/FocusCheck/FocusCheckTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "이 대상으로 확정",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "센터링을 마친 화면에서는 17번 문장과 \"다른 대상\"이 함께 나온다"
     },
     {
       "id": "p029",
@@ -324,7 +661,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/FocusCheck/FocusCheckTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "초점 다시 맞추기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p030",
@@ -335,7 +686,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/FocusCheck/FocusCheckTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "초점 다시 맞추기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p031",
@@ -346,7 +711,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Guiding/GuidingTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "가이드 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p032",
@@ -357,7 +730,27 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Guiding/GuidingTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "캘리브레이션 다시 하기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "재시도",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "가이드 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p033",
@@ -368,7 +761,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Guiding/GuidingTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "가이드 없이 진행",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p034",
@@ -379,7 +786,22 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Guiding/GuidingTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "시험 사진 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "가이드 측정이 끝난 화면 — 주 버튼은 다음 작업(시험 사진)의 시작 버튼이고, 이 문장은 53번 아래에 붙어 나온다"
     },
     {
       "id": "p035",
@@ -390,7 +812,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Guiding/GuidingTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "{n}초로 줄이기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "계획대로 {계획 노출}초",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p036",
@@ -401,7 +837,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "극축 정렬 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p037",
@@ -412,7 +856,27 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "재시도",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p038",
@@ -423,7 +887,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p039",
@@ -434,7 +906,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "SharpCap 재시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p040",
@@ -445,7 +931,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p041",
@@ -456,7 +956,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p042",
@@ -467,7 +981,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p043",
@@ -478,7 +1006,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p044",
@@ -489,7 +1031,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p045",
@@ -500,7 +1050,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Polar/PolarTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p046",
@@ -511,7 +1069,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "대상으로 이동",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p047",
@@ -522,7 +1088,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "{대상}(으)로 이동",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p048",
@@ -533,7 +1107,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p049",
@@ -544,7 +1132,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "지금 이동",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p050",
@@ -555,7 +1151,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "멈춤",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p051",
@@ -566,7 +1170,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p052",
@@ -577,7 +1195,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Slew/SlewTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p053",
@@ -588,7 +1220,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/TestShot/TestShotTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "시험 사진 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p054",
@@ -599,7 +1239,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/TestShot/TestShotTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p055",
@@ -610,7 +1264,9 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/TestShot/TestShotTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [],
+      "buttonsNote": "이 질문은 이제 앱에 없다 — 노출 맞추기가 묻지 않고 노출을 바꾼다(2026-10-17). 비워 두면 된다"
     },
     {
       "id": "p056",
@@ -621,7 +1277,27 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/TestShot/TestShotTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "{초점 다시 맞추기·가이드 다시 하기}",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p057",
@@ -632,7 +1308,28 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/TestShot/TestShotTask.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "촬영 시작",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "다시 하기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "센터링 다시 하기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "시험 사진이 끝난 화면 — 주 버튼은 대상 단계를 마치는 버튼이고, 이 문장은 5번 아래에 붙어 나온다"
     },
     {
       "id": "p058",
@@ -643,7 +1340,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "플랫 프레임 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p059",
@@ -654,7 +1359,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "이대로 진행",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p060",
@@ -665,7 +1384,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p061",
@@ -676,7 +1409,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p062",
@@ -687,7 +1434,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p063",
@@ -698,7 +1453,27 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "{n}장으로 끝내기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p064",
@@ -709,7 +1484,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다크 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p065",
@@ -720,7 +1503,34 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "완료",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "줄이기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "늘리기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "건너뛰기",
+          "primary": false,
+          "std": true,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "줄이기·늘리기는 다크 장수(5장씩)"
     },
     {
       "id": "p066",
@@ -731,7 +1541,16 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다크 프레임 촬영 중단",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ],
+      "buttonsNote": "다크를 찍는 동안 나오는 버튼 하나"
     },
     {
       "id": "p067",
@@ -742,7 +1561,15 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "장비 정리",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p068",
@@ -753,7 +1580,21 @@
       "files": [
         "src/Astro.Server/Prepare/Tasks/Wrap/WrapTasks.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        },
+        {
+          "label": "직접 확인했어요",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p069",
@@ -764,7 +1605,15 @@
       "files": [
         "src/Astro.Server/Prepare/Flow/PrepareRunner.cs"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "재시도",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p070",
@@ -775,7 +1624,27 @@
       "files": [
         "web/src/screens/ShootScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "중단 후 종료",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "새 대상을 찾기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "계속 찍기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p071",
@@ -786,7 +1655,21 @@
       "files": [
         "web/src/screens/ShootScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "그대로 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "더 기다리기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p072",
@@ -797,7 +1680,15 @@
       "files": [
         "web/src/screens/ShootScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "다시 확인",
+          "primary": true,
+          "std": true,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p073",
@@ -808,7 +1699,21 @@
       "files": [
         "web/src/screens/ShootScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "플랫 프레임 찍기",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "새 대상을 찾기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
     },
     {
       "id": "p074",
@@ -819,7 +1724,47 @@
       "files": [
         "web/src/screens/SummaryScreen.tsx"
       ],
-      "applied": null
+      "applied": null,
+      "buttons": [
+        {
+          "label": "{아이라} 종료",
+          "primary": true,
+          "std": false,
+          "edit": ""
+        },
+        {
+          "label": "폴더 열기",
+          "primary": false,
+          "std": false,
+          "edit": ""
+        }
+      ]
+    }
+  ],
+  "standard": [
+    {
+      "label": "재시도",
+      "meaning": "방금 실패한 것을 아이라가 다시"
+    },
+    {
+      "label": "이대로 진행",
+      "meaning": "경고·실패를 알고 지금 상태로 넘어감"
+    },
+    {
+      "label": "건너뛰기",
+      "meaning": "이 단계를 하지 않고 다음으로"
+    },
+    {
+      "label": "완료",
+      "meaning": "사람이 손으로 한 일을 끝냄 (할 일은 설명에)"
+    },
+    {
+      "label": "다시 확인",
+      "meaning": "장비 상태를 다시 읽음"
+    },
+    {
+      "label": "다시 하기",
+      "meaning": "끝난 단계를 처음부터 다시"
     }
   ]
 }

@@ -4,10 +4,12 @@ import PrepCenter from '../components/PrepCenter'
 import PrepGuide from '../components/PrepGuide'
 import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra } from '../components/StepRail'
+import { stageLabel } from '../appFlow'
 import { closeApp } from '../host'
 import { PRODUCT } from '../product'
 import { hm, nightSummary, type NightSummary } from '../shoot'
 import styles from './PrepareScreen.module.css'
+import { T } from '../uiText'
 
 /**
  * 오늘 밤 요약 (마무리 끝, 시안 v10): 대상별 쓸 사진·누적·제외 폴더, 보정 프레임, 폴더·등급 분포.
@@ -23,7 +25,7 @@ export default function SummaryScreen() {
 
   useScreenSky(true)
   // 레일 아래 종료 버튼은 App이 이 화면에서 숨긴다(가운데에 종료 버튼이 있어서)
-  useRailExtra({ stage: '마무리', complete: true })
+  useRailExtra({ stage: 'wrap', complete: true })
 
   const openFolder = async () => {
     const r = await fetch('/api/night/open-folder', { method: 'POST' }).catch(() => null)
@@ -62,8 +64,8 @@ export default function SummaryScreen() {
       <div className={styles.scrim} />
       <div className={styles.over}>
         <PrepGuide
-          task="마무리"
-          title="오늘 밤 촬영을 마쳤어요"
+          task={stageLabel('wrap')}
+          title={T('title.summary.done')}
           text={`찍은 사진과 보정 프레임은 오늘 밤 폴더에 대상별로 정리했어요. 제외 폴더의 사진은 스태킹에 넣지 않으면 돼요. ${
             pack?.safeToPowerOff ? '장비 전원을 끄셔도 돼요.' : '전원을 끄기 전에 적도의가 멈춰 있고 장비 연결이 끊겼는지 확인해 주세요.'
           }${
@@ -77,8 +79,8 @@ export default function SummaryScreen() {
           readout={null}
           status={status}
           actions={[
-            { id: 'quit', label: `${PRODUCT.name} 종료`, primary: true },
-            { id: 'folder', label: '폴더 열기', primary: false },
+            { id: 'quit', label: T('button.quit'), primary: true },
+            { id: 'folder', label: T('button.openFolder'), primary: false },
           ]}
           prompt={`${PRODUCT.reul} 끌까요?\n폴더 열기를 누르면 오늘 밤 사진이 담긴 폴더를 열어요.`}
           onAct={(id) => (id === 'quit' ? closeApp() : void openFolder())}

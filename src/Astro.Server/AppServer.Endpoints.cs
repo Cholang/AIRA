@@ -132,6 +132,8 @@ public static partial class AppServer
             http.Response.Headers.CacheControl = "no-cache";
             return http.Request.Headers.IfNoneMatch.ToString() == img.Tag ? Results.StatusCode(304) : Results.File(img.Bytes, img.Type);
         });
+        // 데스크톱 창이 SharpCap 영상을 직접 비추기 시작함: 영상 저장을 바로 멈춘다 (저장마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄움 — SharpCapBridge.StopView)
+        prepare.MapPost("/sharpcap/view-off", () => { Prepare.Real.SharpCapBridge.StopView(); return Results.NoContent(); });
         // SharpCap 스크립트가 극축 정렬 상태를 보내고, 답으로 AA의 명령(advance · exposure:ms · quit)을 받는다
         prepare.MapPost("/sharpcap/report", (System.Text.Json.JsonElement body, Prepare.Real.SharpCapBridge bridge) => Results.Text(bridge.Receive(body)));
     }

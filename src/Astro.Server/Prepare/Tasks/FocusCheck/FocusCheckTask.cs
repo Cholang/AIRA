@@ -1,3 +1,4 @@
+using Astro.Core;
 using Astro.Server.Prepare.Flow;
 using Astro.Server.Prepare.Tasks.Focus;
 
@@ -19,11 +20,11 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
     private int? _best;
 
     public string Id => "focuscheck";
-    public string Title => "초점 확인";
+    public string Title => UiText.Get("rail.task.focusCheck");
     /// <summary>앞 작업(센터링)의 끝 버튼 — 센터링 사진을 보고 이 대상으로 확정</summary>
-    public string StartLabel => "이 대상으로 확정";
+    public string StartLabel => UiText.Get("button.focusCheck.start");
     public string? StartPrompt => "이 구도로 확정하고 장비 준비 때 맞춘 초점이 아직 맞는지 볼까요?";
-    public IReadOnlyList<SubStep> SubSteps { get; } = [new("compare", "초점 때와 비교"), new("refocus", "다시 맞추기")];
+    public IReadOnlyList<SubStep> SubSteps { get; } = [new("compare", UiText.Get("rail.step.focusCheck.compare")), new("refocus", UiText.Get("rail.step.focusCheck.refocus"))];
 
     /// <summary>포커서가 있고 장비 준비에서 자동초점으로 맞췄을 때 (손 초점이면 비교할 기준이 없다)</summary>
     public bool AppliesTo(PrepContext ctx) => ctx.HasFocuser && ctx.Results.Get<FocusResult>() is not { Manual: true };
@@ -44,7 +45,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
         var focus = ctx.Results.Get<FocusResult>();
         var center = ctx.Results.Get<CenterResult>();
         run.SubStep(0);
-        run.Guide("초점이 아직 맞는지 보고 있습니다", "장비 준비 때 맞춘 초점을 그대로 써도 되는지, 기온 변화와 방금 센터링 사진의 별 크기로 봅니다.");
+        run.Guide(UiText.Get("title.focusCheck.checking"), "장비 준비 때 맞춘 초점을 그대로 써도 되는지, 기온 변화와 방금 센터링 사진의 별 크기로 봅니다.");
         run.Status("초점 때와 비교하는 중입니다");
         var temp = await devices.TemperatureAsync(ct);
         var ev = new Evidence(temp, temp is { } t && focus?.TemperatureC is { } ft ? Math.Round(t - ft, 1) : null, center?.Hfr, focus?.Hfr, center?.Stars);
@@ -53,15 +54,14 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
         if (ctx.RefocusRequested)
         {
             ctx.RefocusRequested = false;
-            run.Guide("초점을 다시 맞춥니다", "초점이 밀렸을 수 있다고 하셔서 대상 근처 별로 자동초점을 다시 합니다.");
+            run.Guide(UiText.Get("title.focusCheck.refocusAsked"), "초점이 밀렸을 수 있다고 하셔서 대상 근처 별로 자동초점을 다시 합니다.");
             return await RefocusAsync(run, ev, ct);
         }
 
         if (!ev.TemperatureBad && !ev.HfrBad)
         {
             run.Status("초점 유지", Tone.Ok);
-            return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 씀",
-                "그대로 써도 돼요", "기온도 별 크기도 초점 맞출 때와 비슷해요. 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 한 번 더 확인해요.")
+            return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), UiText.Get("rail.result.focusCheck.kept"), UiText.Get("title.focusCheck.kept"), "기온도 별 크기도 초점 맞출 때와 비슷해요. 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 한 번 더 확인해요.")
             { AutoNext = true };
         }
 
@@ -70,12 +70,11 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
             : ev.TemperatureBad
                 ? $"초점을 맞춘 뒤 기온이 {Math.Abs(ev.TemperatureChangeC!.Value):F1}°C {(ev.TemperatureChangeC < 0 ? "내려갔어요. 망원경이 줄어" : "올라갔어요. 망원경이 늘어")} 초점이 밀렸을 수 있어요."
                 : $"기온은 거의 그대로인데 센터링 사진의 별이 {ev.GrowthPercent}% 커졌어요. 포커서가 밀렸거나 장비를 건드렸을 수 있어요.";
-        run.Guide("초점을 다시 맞출까요?", why + " 자동초점은 2분쯤 걸려요.");
+        run.Guide(UiText.Get("title.focusCheck.ask"), why + " 자동초점은 2분쯤 걸려요.");
         run.Status(ev.TemperatureBad ? "기온 변화가 커요" : "별 크기가 커졌어요", Tone.Warn);
-        var c = await run.AskAsync("대상 근처 별로 자동초점을 다시 할까요?\n이대로 진행을 누르면 장비 준비 때 맞춘 초점 그대로 넘어가요.", [new("refocus", "초점 다시 맞추기", true), new("keep", ButtonText.Proceed)], ct);
+        var c = await run.AskAsync("대상 근처 별로 자동초점을 다시 할까요?\n이대로 진행을 누르면 장비 준비 때 맞춘 초점 그대로 넘어가요.", [new("refocus", UiText.Get("button.refocus"), true), new("keep", ButtonText.Proceed)], ct);
         if (c == "keep")
-            return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 진행",
-                "그대로 진행합니다", "초점을 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
+            return new Completed(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), UiText.Get("rail.result.proceeded"), UiText.Get("title.proceeding"), "초점을 다시 맞추지 않고 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
         return await RefocusAsync(run, ev, ct);
     }
 
@@ -100,7 +99,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
         while (true)
         {
             run.SubStep(1);
-            run.Guide("초점을 다시 맞추고 있습니다", "대상 근처 별로 자동초점을 합니다. 지난번 맞은 위치에서 시작합니다.");
+            run.Guide(UiText.Get("title.focusCheck.running"), "대상 근처 별로 자동초점을 합니다. 지난번 맞은 위치에서 시작합니다.");
             run.Status("시작 위치로 옮기는 중입니다");
             if (ctx.Memory.LastFocus is { } lf)
             {
@@ -134,7 +133,7 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
                 new Dictionary<string, double> { ["hfr"] = af.Hfr, ["position"] = af.BestPosition });
             run.Status("초점을 다시 맞췄어요", Tone.Ok);
             return new Completed(new FocusCheckResult(true, ev.TemperatureChangeC, ev.CenterHfr, af.BestPosition, af.Hfr, temp, ctx.Now()),
-                $"다시 맞춤 · HFR {af.Hfr:F1}", "초점을 다시 맞췄어요",
+                $"다시 맞춤 · HFR {af.Hfr:F1}", UiText.Get("title.focusCheck.done"),
                 temp is { } tt ? $"이번 기온({tt:F1}°C)과 함께 기억했어요. 가이드로 넘어갑니다." : "새 위치를 기억했어요. 가이드로 넘어갑니다.")
             { AutoNext = true };
         }
@@ -143,14 +142,13 @@ public sealed class FocusCheckTask(IFocusDevices devices) : IPrepTask
     /// <summary>다시 맞추다 안 됨: 다시 시도면 true, 그대로 진행이면 false</summary>
     private static async Task<bool> AskAfterProblemAsync(ITaskRun run, string problem, CancellationToken ct)
     {
-        run.Guide("초점을 다시 맞추지 못했습니다", "구름이 지나가거나 바람에 흔들렸을 수 있습니다.");
+        run.Guide(UiText.Get("title.focusCheck.failed"), "구름이 지나가거나 바람에 흔들렸을 수 있습니다.");
         run.Status(problem, Tone.Fail);
         return await run.AskAsync("자동초점을 다시 할까요?\n이대로 진행을 누르면 장비 준비 때 맞춘 초점 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("keep", ButtonText.Proceed)], ct) == "retry";
     }
 
     private static Completed Kept(PrepContext ctx, Evidence ev) =>
-        new(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), "그대로 진행",
-            "그대로 진행합니다", "장비 준비 때 맞춘 초점으로 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
+        new(new FocusCheckResult(false, ev.TemperatureChangeC, ev.CenterHfr, null, null, null, ctx.Now()), UiText.Get("rail.result.proceeded"), UiText.Get("title.proceeding"), "장비 준비 때 맞춘 초점으로 가이드로 넘어갑니다. 시험 사진에서 별 크기를 한 번 더 확인해요.") { AutoNext = true };
 
     public async Task<EndStateCheck> CheckEndStateAsync(PrepContext ctx, CancellationToken ct)
     {

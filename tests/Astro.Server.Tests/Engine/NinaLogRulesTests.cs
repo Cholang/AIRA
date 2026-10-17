@@ -40,6 +40,19 @@ public class NinaLogRulesTests
     }
 
     [Fact]
+    public void OnStep_홈_이동_중_적경_값_거절은_통신_끊김으로_알리지_않는다()
+    {
+        // 2026-10-18 실기 로그 줄 그대로 — 홈으로 가는 동안 OnStep이 적경을 음수로 준다
+        Assert.Null(One("2026-10-18T00:44:50.7250|ERROR|AscomDevice.cs|GetProperty|546|An unexpected exception occurred during GET of Telescope.RightAscension: ",
+            "ASCOM.InvalidOperationException: RightAscension, unexpected value: -5:57:56.1700",
+            " ---> System.Runtime.InteropServices.COMException (0x8004040B): RightAscension, unexpected value: -5:57:56.1700"));
+        // 값이 아니라 통신 자체가 실패하면 그대로 알린다
+        var n = One("2026-10-18T00:44:50.7250|ERROR|AscomDevice.cs|GetProperty|546|An unexpected exception occurred during GET of Telescope.RightAscension: ",
+            "ASCOM.NotConnectedException: Serial port is not open");
+        Assert.Equal("mount", n!.Value.Category);
+    }
+
+    [Fact]
     public void 같은_예외라도_다른_곳에서_나면_버리지_않는다_CodexL04()
     {
         Assert.NotNull(One("2026-10-08T21:00:00.0000|ERROR|Different.cs|Critical|80", "System.InvalidOperationException: Sequence contains no matching element"));

@@ -8,7 +8,30 @@
 
 ---
 
-## 2026-10-17 · [Codex] 4ed2348..a7dff52 리뷰 — 종료·노출 복원·정지 확인
+## 2026-10-18 · [Claude] 실기 뒤 고침 — 종료 때 홈, OnStep 홈 이동 판정, 센터링 사진, SharpCap 화면, 모의 모드 미리 켜기 · 화면 문구 키(UiText)
+
+**요청**: 1회차 실기(장비 연결, 낮)에서 나온 문제 — 모의 모드에서 N.I.N.A.·PHD2·Empire가 남음, 바닥 그래픽 지평선 외곽선 빼기, 종료 때 추적 끄기 실패·홈으로 안 감(사용자: 기본은 홈, 끌 수 있게), SharpCap 위 초록 줄·건너뛰기 뒤 창 전체, 센터링 사진이 안 옴·"사진만 보기"는 가운데 아래로, 장비 연결 화면 툴팁이 행성보다 먼저, 출발 전 점검 숨쉬기 때 뒤가 비침, 홈 이동 중 "적도의와 통신이 끊겼습니다", N.I.N.A. 체크를 끄고 종료할 때 창 깜빡임, 프로필 화면의 완더러박스 창. UI 텍스트 검수 JSON에 버튼 칸. 버튼·상단 제목·상태 줄·단계 레일 글자를 게임처럼 텍스트 키로.
+
+**변경**:
+- 모의 모드: `EngineStarter.PreLaunch`·`WarmUp` 안 함, 종료 창은 아이라가 켜진 뒤 켜진 것만(`/engine/programs`·`/engine/close`).
+- 적도의: `MountTiming.HomingLikely`·`MountState.Moving` — OnStep은 홈 이동 중 좌표를 처음부터 홈 값(적위 90°·pierUnknown)·Slewing=false로 준다(실기, 도착은 약 36초 뒤 AtHome). 멈춤 확인(`StillAsync`)·작업 끝 상태·`MountHome.WhyNotAsync`가 이를 움직이는 중으로. 홈 이동 자체는 원래 AtHome으로 확인하고 있었음.
+- 종료 때 홈: `MountHome.OfferForQuitAsync`·`HomeForQuitAsync`, `/mount/home-for-quit`, `stop-for-quit?keepHome`, `QuitControl` 맨 위 체크 줄. 종료 중에도 목록을 그대로 두고 표시만(깜빡임).
+- 추적: `NinaRig.SetTrackingAsync`가 상태로 판단(실패로 와도 꺼졌으면 끔, 2초 뒤 한 번 더, N.I.N.A. 이유 기록).
+- 센터링: `CaptureAsync(preview)` — IMAGE-PREPARED 뒤 `prepared-image`로 솔빙 전에 사진. 사진 보기 버튼 가운데 아래(`PrepareScreen`).
+- SharpCap: 저장본이 없을 때 창 전체 캡처를 뺌(`LiveImages`), 직접 비추기 시작하면 저장 멈춤(`SharpCapBridge.StopView`, `/sharpcap/view-off`), 데스크톱이 찾는 중(waiting)이면 대체 사진을 묻지 않음(`WindowThumbnail`·`WindowView`).
+- N.I.N.A. 알림: OnStep 홈 이동 중 적경 "unexpected value"는 버림(`NinaLogRules`).
+- 화면: 지평선 외곽선 제거(`RigScene`), 숨쉬기를 선 색·빛으로, 장비 연결 행성 이름표·가리킴은 다 나타난 뒤부터. 허브 ASCOM 서버 창도 지켜봄(`BackgroundWindows.HubWindows`).
+- 화면 문구 키: `src/Astro.Core/UiText.json`(289키) · `Astro.Core.UiText` · `web/src/uiText.ts`. 버튼(`ButtonText`·`BUTTON`도 표에서), 작업 이름·세부 과정·결과 줄, 준비·촬영·화면 제목, 상태 줄, 레일 단계(웹 `Stage`를 id로). 계획 화면 레일 "이동" → "대상 이동"(서버 이름과 같게).
+- UI 텍스트 검수: JSON에 buttons(주 버튼·표준 단어) · standard, `editor.html`에 버튼 칸·표준 단어 안내.
+- 문서: OPERATION_PROCEDURE(종료 홈·OnStep 홈·추적·센터링·알림), DESIGN(종료 창·사진 보기·숨쉬기·이름표·버튼 표준), ARCHITECTURE 5.4.1(문구 키), CLAUDE.md, DECISION_HISTORY, docs/test.
+
+**확인**: 서버 시험 398 통과·1 건너뜀(새 `QuitHomeTests` 7·`UiTextTests` 3·알림 규칙 1), 솔루션 빌드 경고 0, 웹 tsc·린트(경고 38 그대로)·시험 52·빌드. 모의 서버(5211)로 종료 홈 API·저장 멈춤·숨쉬기(투명도 고정)·화면 문구(프로필~장비 준비) 확인 후 끔. 실기: 사용자 요청으로 N.I.N.A. API로 적도의를 홈에 보내 AtHome·추적 꺼짐 확인(그때 홈 이동 중 좌표 모습을 기록).
+
+**남은 것**: 실기 확인(USER_TESTS — 종료 때 홈, SharpCap 줄·창, 센터링 사진 먼저, 이름표, 숨쉬기, 완더러박스 창, 문구 키). 센터링 사진 먼저는 N.I.N.A.가 IMAGE-PREPARED를 준다는 가정(안 오면 예전처럼 솔빙 뒤). 행성 깜빡임은 재현 못 함(실제 장비에서 다시). UI 텍스트 검수 도구가 UiText.json을 바로 고치게 하는 것은 후속.
+
+---
+
+## 2026-10-17 · f200412 [Codex] 4ed2348..a7dff52 리뷰 — 종료·노출 복원·정지 확인
 
 **요청**: 저장소 리뷰 요청서의 범위·중점에 따라 정확성과 장비 안전 검토. 시작 시 HEAD `a7dff52fafbdaf474d8fed07098725c7309899d0`로 고정하고, 38절 반영 4건 재확인.
 

@@ -117,7 +117,7 @@ public sealed class RealCalibrationDevices(NinaRig rig, Phd2Client phd2) : ICali
         try { state = await phd2.AppStateAsync(ct); } catch (Phd2Exception) { state = null; } // 읽지 못함 ≠ 멈춤 (CX-20-08)
         var m = await rig.MountAsync(ct);
         return new CalibrationEndState(await HasCalibrationAsync(ct), state is "Guiding" or "Calibrating", state == "Looping",
-            m is null || m.Slewing, m?.Tracking ?? false, Phd2Unknown: string.IsNullOrEmpty(state));
+            m is null || m.Moving, m?.Tracking ?? false, Phd2Unknown: string.IsNullOrEmpty(state));
     }
 
     private async Task<bool> StopPhd2Async(CancellationToken ct)

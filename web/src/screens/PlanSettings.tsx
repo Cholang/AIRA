@@ -6,8 +6,8 @@ import {
   type PlanPick,
   type PlanWindow,
 } from '../plan'
-import { withRo } from '../product'
 import styles from './PlanScreen.module.css'
+import { TF } from '../uiText'
 
 /** 계획 화면의 설정 줄 (큰 파일 분리 2026-10-16 — 옮기기만) */
 
@@ -39,7 +39,7 @@ export function SettingsRow({
   const gain = o.gain
   const short = !!w && w.clipped && w.maxFrames < w.frames
 
-  const goLabel = !current || !w ? '-' : waits ? `${current.name} 기다리기 (${w.start})` : `${withRo(current.name)} 이동`
+  const goLabel = !current || !w ? '-' : waits ? TF('button.plan.wait', { target: current.name, start: w.start }) : TF('button.slew.to', { target: current.name })
   const goTip = !current || !w ? '' : waits
     ? `${moveAt}에 적도의가 움직이고 ${w.start}부터 찍어요. 그때까지 기다리는 화면으로 넘어가요`
     : `누르면 적도의가 바로 ${current.name} 쪽으로 움직여요`

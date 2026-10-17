@@ -8,6 +8,7 @@ import ProfileAvatar from '../components/ProfileAvatar'
 import TextField from '../components/TextField'
 import { createProfile, DEFAULT_WIRING, deleteProfile, editProfile, getPower, MEMO_MAX_BYTES, NICKNAME_MAX_BYTES, profileImageUrl, savePower, toSquareProfileImage, uploadProfileImage, type PowerWiring, type Profile } from '../profiles'
 import styles from './NewProfileScreen.module.css'
+import { T } from '../uiText'
 
 /**
  * 새 프로필 만들기 (화면 가운데 한 줄 배치):
@@ -110,12 +111,12 @@ export default function NewProfileScreen({
     <main className={styles.stage} data-wiring={wiringOpen}>
       <form className={styles.form} onSubmit={submit} noValidate>
         <div className={styles.head}>
-          <h1 className={styles.title}>{editing ? '프로필 편집' : '프로필 선택'}</h1>
+          <h1 className={styles.title}>{editing ? T('title.profile.edit') : T('title.profile.select')}</h1>
 
           <div className={styles.imageSlot}>
             <ProfileAvatar src={shownImage} size="hero" />
             {/* 이미지 변경: 이미지 오른쪽 아래의 정사각형 연필 버튼 (이미지 한 변의 약 1/6) */}
-            <button type="button" className={styles.editImage} aria-label="이미지 변경" title="이미지 변경" onClick={() => fileInput.current?.click()}>
+            <button type="button" className={styles.editImage} aria-label={T('button.profile.image')} title={T('button.profile.image')} onClick={() => fileInput.current?.click()}>
               <Pencil strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
@@ -168,7 +169,7 @@ export default function NewProfileScreen({
             {error}
           </p>
           <Button variant="primary" type="submit" disabled={!nickname.trim() || saving}>
-            {editing ? (saving ? '저장 중' : '저장') : saving ? '생성 중' : '프로필 생성'}
+            {editing ? (saving ? T('button.saving') : T('button.save')) : saving ? T('button.profile.creating') : T('button.profile.create')}
           </Button>
           {onCancel && (
             <button type="button" className={styles.back} onClick={onCancel}>
@@ -178,7 +179,7 @@ export default function NewProfileScreen({
           {/* 프로필 삭제: 편집 때만, 맨 아래 작은 글자 버튼 (주 버튼과 떨어뜨려 실수로 누르지 않게) → 확인 창 */}
           {editing && (
             <button type="button" className={styles.remove} onClick={() => setDeleting('ask')} disabled={saving || deleting === 'busy'}>
-              프로필 삭제
+              {T('button.profile.delete')}
             </button>
           )}
         </div>
@@ -186,7 +187,7 @@ export default function NewProfileScreen({
       <ConfirmDialog
         open={deleting !== null}
         message={`'${editing?.nickname ?? ''}' 프로필을 삭제합니다.\n관측지 목록과 전원 설정도 함께 지워지고 되돌릴 수 없습니다.`}
-        confirmLabel="삭제"
+        confirmLabel={T('button.delete')}
         busy={deleting === 'busy'}
         onConfirm={() => void remove()}
         onCancel={() => setDeleting(null)}

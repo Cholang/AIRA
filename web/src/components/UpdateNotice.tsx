@@ -2,6 +2,7 @@ import { ExternalLink } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Modal from './Modal'
 import styles from './UpdateNotice.module.css'
+import { TF } from '../uiText'
 
 /** 서버 Setup/UpdateChecker.cs의 UpdateInfo와 같은 모양 */
 interface UpdateInfo {
@@ -64,7 +65,7 @@ export default function UpdateNotice() {
         새 버전 {items.length}개
       </button>
 
-      <Modal open={open} onClose={close} size="lg" title={`새 버전 ${items.length}개`}>
+      <Modal open={open} onClose={close} size="lg" title={TF('title.updates', { count: items.length })}>
         <p className={styles.lead}>업데이트는 촬영이 없는 날 하세요. 지금 버전으로도 그대로 쓸 수 있습니다.</p>
         <ul className={styles.list}>
           {items.map((u) => (

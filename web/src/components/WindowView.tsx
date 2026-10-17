@@ -12,10 +12,15 @@ type Box = { x: number; y: number; w: number; h: number }
  * 비친 영상 둘레에는 빛 테두리(GlowFrame — 칼 같은 경계를 부드럽게, 2026-10-11 사용자 요청).
  * 비추지 않는 까닭을 나눈다 (CX-28-02·03): 열린 창(dialog)·화면 가려짐 = 잠깐 감춤(아무것도 안 그림) / 촬영용 적색 테마(썸네일은 빨강 필터를 못 거침 — 밤눈 보호)·
  * 자리 부족·데스크톱 창이 못 비춤(SharpCap 최소화·못 찾음)·브라우저 = fallback(창 캡처 사진, 적색 테마면 빨강 필터)
+ * 데스크톱 창이 아직 찾는 중(waiting — SharpCap이 켜지는 중)이면 대체 사진을 묻지 않는다(15초까지). 비추기 시작하면 서버에 영상 저장을 멈추게 한다:
+ * 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄우고 그 줄이 비추는 영상에 남았다 (2026-10-17 실기)
  */
+const WAIT_MS = 15000
 export default function WindowView({ target, fallback }: { target: 'sharpcap'; fallback: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [state, setState] = useState<{ shown: boolean; rect: Box | null } | null>(null)
+  const [state, setState] = useState<{ shown: boolean; rect: Box | null; waiting: boolean } | null>(null)
+  // 데스크톱 창이 찾는 중이라고 한 지 오래됐나 (그래도 못 찾으면 대체 사진으로)
+  const [waitedLong, setWaitedLong] = useState(false)
   // 화면 쪽에서 비추지 않기로 한 까닭: null = 비춤, hidden = 잠깐 감춤, fallback = 캡처 사진으로
   const [off, setOff] = useState<null | 'hidden' | 'fallback'>(null)
   const shown = off === null ? (state?.shown ?? null) : false
@@ -37,8 +42,8 @@ export default function WindowView({ target, fallback }: { target: 'sharpcap'; f
     }
     send()
     const timer = window.setInterval(send, 250)
-    const off = onHostMessage<{ target: string; shown: boolean; rect: Box | null }>('window-view-state', (d) => {
-      if (d.target === target) setState({ shown: d.shown, rect: d.rect })
+    const off = onHostMessage<{ target: string; shown: boolean; rect: Box | null; waiting?: boolean }>('window-view-state', (d) => {
+      if (d.target === target) setState({ shown: d.shown, rect: d.rect, waiting: d.waiting ?? false })
     })
     return () => {
       clearInterval(timer)
@@ -47,11 +52,27 @@ export default function WindowView({ target, fallback }: { target: 'sharpcap'; f
     }
   }, [desktop, target])
 
+  // 찾는 중이 15초를 넘으면 대체 사진으로 (영상 칸을 끝내 못 찾는 경우)
+  const waiting = state === null || (state.waiting && !state.shown)
+  useEffect(() => {
+    if (!desktop || !waiting) return
+    const t = window.setTimeout(() => setWaitedLong(true), WAIT_MS)
+    return () => {
+      clearTimeout(t)
+      setWaitedLong(false)
+    }
+  }, [desktop, waiting])
+
+  // 비추기 시작하면 영상 저장을 멈춘다 (대체 사진이 남긴 저장 요청이 몇 초 더 이어지지 않게)
+  useEffect(() => {
+    if (desktop && shown) void fetch('/api/prepare/sharpcap/view-off', { method: 'POST' }).catch(() => {})
+  }, [desktop, shown])
+
   return (
     <>
       <div ref={ref} className={styles.slot} />
       {shown && state?.rect && <Glow at={state.rect} slot={ref.current} />}
-      {(!desktop || (off !== 'hidden' && shown === false)) && fallback}
+      {(!desktop || (off === 'fallback' || (off === null && shown === false && (!waiting || waitedLong)))) && fallback}
     </>
   )
 }

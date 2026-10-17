@@ -1,5 +1,6 @@
 import type { SceneMode } from './components/RigScene'
 import type { Stage } from './components/StepRail'
+import { T } from './uiText'
 
 // 앱 흐름 (OPERATION_PROCEDURE.md 1장):
 // 부팅 로고 → 프로필 선택 (없으면 새 프로필 만들기) → (오늘 밤 기록이 있으면 "이어서 할까요?") → 출발 전 점검(2026-10-15 맨 앞, 이어서 하면 건너뜀)
@@ -19,18 +20,21 @@ export const SCENE_OF: Partial<Record<Phase, SceneMode>> = { boot: 'boot', profi
 /** 프로필 화면: 레일은 없지만 N.I.N.A.·PHD2·Empire를 미리 켰으니 창 ×도 종료 절차(켠 프로그램 닫기)를 거친다 (CX-34-02) */
 export const prelaunchedPhase = (p: Phase) => p === 'profiles' || p === 'newProfile'
 
+/** 단계 이름 (화면 문구 표 rail.stage.*) */
+export const stageLabel = (s: Stage) => T(`rail.stage.${s}`)
+
 export const STAGE_OF: Partial<Record<Phase, Stage>> = {
-  check: '연결',
-  engine: '연결',
-  equipment: '연결',
-  site: '연결',
-  preflight: '점검',
-  rig: '장비 준비',
-  plan: '대상',
-  target: '대상',
-  shoot: '촬영',
-  wrap: '마무리',
-  summary: '마무리',
+  check: 'connect',
+  engine: 'connect',
+  equipment: 'connect',
+  site: 'connect',
+  preflight: 'preflight',
+  rig: 'rig',
+  plan: 'target',
+  target: 'target',
+  shoot: 'shoot',
+  wrap: 'wrap',
+  summary: 'wrap',
 }
 
 /**
@@ -53,17 +57,17 @@ export const WATCHED: Phase[] = ['equipment', 'site', 'rig', 'plan', 'target', '
 export const SITE_SHOWN: Phase[] = ['equipment', 'site', 'rig', 'plan', 'target', 'shoot', 'wrap', 'summary']
 export const SITE_EDITABLE: Phase[] = ['rig', 'plan', 'target']
 
-/** 상단 상태 줄의 지금 단계 이름 */
+/** 상단 상태 줄의 지금 단계 이름 (화면 문구 표 statusbar.phase.*) */
 export const LABEL_OF: Partial<Record<Phase, string>> = {
-  equipment: '장비 연결',
-  site: '관측지',
-  preflight: '출발 전 점검',
-  rig: '장비 준비',
-  plan: '대상 · 계획',
-  target: '대상',
-  shoot: '촬영',
-  wrap: '마무리',
-  summary: '오늘 밤 요약',
+  equipment: T('statusbar.phase.equipment'),
+  site: T('statusbar.phase.site'),
+  preflight: T('statusbar.phase.preflight'),
+  rig: T('statusbar.phase.rig'),
+  plan: T('statusbar.phase.plan'),
+  target: T('statusbar.phase.target'),
+  shoot: T('statusbar.phase.shoot'),
+  wrap: T('statusbar.phase.wrap'),
+  summary: T('statusbar.phase.summary'),
 }
 
 /** 화면 전환 페이드 한쪽 시간. App.module.css의 .screen transition과 같은 값 */

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from './Button'
 import DiagnosticCard from './DiagnosticCard'
+import { T } from '../uiText'
 
 interface NinaNotice {
   id: number
@@ -66,7 +67,7 @@ export default function NinaNoticeCard({ hide, paused }: { hide: string[]; pause
       fix={top.fix}
       raw={top.raw}
       actions={
-        <Button onClick={() => setQueue((q) => q.filter((n) => n.id !== top.id))}>{more > 0 ? '다음' : '닫기'}</Button>
+        <Button onClick={() => setQueue((q) => q.filter((n) => n.id !== top.id))}>{more > 0 ? T('button.next') : T('button.close')}</Button>
       }
     />
   )

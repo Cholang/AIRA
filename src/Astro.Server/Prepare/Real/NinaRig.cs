@@ -2,26 +2,31 @@ using System.Globalization;
 using System.Text.Json;
 using Astro.Core.Sky;
 using Astro.Nina;
+using Microsoft.Extensions.Logging;
 
 namespace Astro.Server.Prepare.Real;
 
 /// <summary>
 /// 준비 단계가 N.I.N.A. Advanced API로 하는 장비 명령 (2026-10-06 실내 실기로 응답 형식 확인).
 /// - 이동: slew?waitForResult=false → info로 지켜봄. 멈춤: slew/stop → "이동 중 아님" + 좌표가 연속 두 번 같으면 멈춘 것(N.I.N.A. 정보는 약 2초마다 갱신)
-/// - 홈: home → AtHome이 true가 될 때까지 (홈으로 가는 동안 Slewing은 false로 나옴)
+/// - 홈: home → AtHome이 true가 될 때까지 (홈으로 가는 동안 Slewing은 false, 좌표는 처음부터 홈 값 — MountTiming.HomingLikely)
 /// - 추적: tracking?mode=0(항성)/4(멈춤) → 약 2초 뒤 반영
 /// - 촬영: capture?duration= (시작) → capture?getResult= ("Capture already in progress"가 끝날 때까지). 실패해도 이전 사진을 줄 수 있음
 /// - 가이딩: guider/start는 별이 없어도 2분쯤 뒤 "started"로 답함 → PHD2 상태로 확인해야 함
 /// </summary>
 /// axis: N.I.N.A.가 정지 명령에 답하지 않을 때 드라이버에 직접 멈추라고 할 길 (자체 점검 M2, 없으면 N.I.N.A.만)
-public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
+public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null, ILogger<NinaRig>? log = null)
 {
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan Long = NinaApiClient.MaxRequestTimeout;
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     /// <summary>Pier = ASCOM SideOfPier ("pierEast" · "pierWest" · "pierUnknown")</summary>
-    public sealed record MountState(bool Connected, bool Slewing, bool Tracking, bool AtHome, double RaDeg, double DecDeg, double SiderealHours, Site Site, string Pier = "pierUnknown");
+    public sealed record MountState(bool Connected, bool Slewing, bool Tracking, bool AtHome, double RaDeg, double DecDeg, double SiderealHours, Site Site, string Pier = "pierUnknown")
+    {
+        /// <summary>움직이는 중: 이동 중이거나 홈으로 가는 중일 수 있음 (홈 이동 중에는 Slewing이 false — MountTiming.HomingLikely)</summary>
+        public bool Moving => Slewing || MountTiming.HomingLikely(AtHome, DecDeg, Pier);
+    }
 
     /// <summary>
     /// 이번 실행에서 적도의가 연결된 것을 한 번이라도 봤나 — 못 봤으면 아이라가 적도의를 움직였을 리 없다(명령은 연결된 적도의에만 간다).
@@ -68,7 +73,8 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             if (!m.Connected) return !_mountSeenConnected;
             // 같은 갱신을 다시 읽었으면 비교하지 않는다 (N.I.N.A.는 약 2초마다 갱신 — 같은 값끼리 "멈춤"으로 보던 것, 2026-10-14 자체 리뷰)
             if (last is { } l && MountTiming.SameSnapshot(l.SiderealHours, m.SiderealHours)) { await Task.Delay(MountTiming.PollInterval, ct); continue; }
-            if (!m.Slewing && last is { } prev && MountTiming.Unmoved(prev, m, MountTiming.StillToleranceDeg)) return true;
+            // 홈으로 가는 중이면 좌표가 처음부터 홈 값이라 그대로여도 멈춤이 아니다 (Moving — 2026-10-17 실기)
+            if (!m.Moving && last is { } prev && MountTiming.Unmoved(prev, m, MountTiming.StillToleranceDeg)) return true;
             last = m;
             await Task.Delay(MountTiming.PollInterval, ct);
         }
@@ -113,16 +119,30 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         return await ConfirmStillAsync(ct);
     }
 
-    /// <summary>추적 켜기(항성)/끄기. 반영됐는지 확인</summary>
+    /// <summary>
+    /// 추적 켜기(항성)/끄기. 반영됐는지는 적도의 상태로 판단한다 — 요청이 실패로 돌아와도 반영됐을 수 있다
+    /// (2026-10-17 실기: 종료 때 끄기 요청이 0.4초 만에 실패로 왔는데 추적은 꺼져 있었다. 그때 N.I.N.A.는 센터링 사진의 위치 찾기를 계속하던 중).
+    /// 실패로 왔고 2초 안에 반영되지 않았으면 한 번 더 보낸다. N.I.N.A.가 준 이유는 기록에 남긴다
+    /// </summary>
     public async Task<bool> SetTrackingAsync(bool sidereal, CancellationToken ct)
     {
-        var r = await nina.RequestAsync($"equipment/mount/tracking?mode={(sidereal ? 0 : 4)}", Short, ct);
-        if (!r.Ok) return false;
+        var path = $"equipment/mount/tracking?mode={(sidereal ? 0 : 4)}";
+        var what = sidereal ? "켜기" : "끄기";
+        var r = await nina.RequestAsync(path, Short, ct);
+        if (!r.Ok) log?.LogWarning("추적 {What} 요청이 실패로 돌아옴: {Error} — 적도의 상태로 다시 확인", what, r.Error ?? r.Text ?? "응답 없음");
+        var resent = r.Ok;
         for (var i = 0; i < 6; i++)
         {
             await Task.Delay(1000, ct);
             if (await MountAsync(ct) is { } m && m.Tracking == sidereal) return true;
+            if (!resent && i == 1)
+            {
+                resent = true;
+                var again = await nina.RequestAsync(path, Short, ct);
+                log?.LogWarning("추적 {What} 다시 요청: {Result}", what, again.Ok ? "받음" : again.Error ?? again.Text ?? "응답 없음");
+            }
         }
+        log?.LogWarning("추적 {What}: 6초 안에 반영을 확인하지 못함", what);
         return false;
     }
 
@@ -136,7 +156,10 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     /// "Capture started"를 받은 뒤 결과가 올 때까지 기다린다(X-T5 1초 노출 ≈ 25초).
     /// </summary>
     /// imageType = LIGHT · FLAT · DARK · DARKFLAT · SNAPSHOT (없으면 저장할 때 LIGHT, 아니면 SNAPSHOT)
-    public async Task<Shot> CaptureAsync(double seconds, bool solve, bool save, Action<int>? remaining, CancellationToken ct, int? gain = null, string? imageType = null)
+    /// preview: 플레이트 솔빙까지 하는 촬영에서, 솔빙이 끝나기 전에 사진(JPEG)을 먼저 받는다 — 솔빙이 1분 넘게 걸리다 실패하면 그동안 사진이 안 보였다 (2026-10-17 실기).
+    /// N.I.N.A.가 사진을 준비했다는 이벤트(IMAGE-PREPARED)를 본 뒤 그 사진(prepared-image)을 받는다. 받지 못하면 그냥 넘어간다(결과와 함께 받음)
+    public async Task<Shot> CaptureAsync(double seconds, bool solve, bool save, Action<int>? remaining, CancellationToken ct, int? gain = null, string? imageType = null,
+        Action<byte[]>? preview = null)
     {
         var started = DateTimeOffset.Now;
         var type = imageType ?? (save ? "LIGHT" : "SNAPSHOT");
@@ -152,10 +175,20 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
         }
         remaining?.Invoke(0);
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(seconds) + TimeSpan.FromSeconds(150);
+        var previewed = preview is null;
         while (DateTime.UtcNow < deadline)
         {
             var r = await nina.RequestAsync("equipment/camera/capture?getResult=true&resize=true&scale=0.25&quality=80", Long, ct);
-            if (r.Text == "Capture already in progress") { await Task.Delay(1500, ct); continue; }
+            if (r.Text == "Capture already in progress")
+            {
+                if (!previewed && await PreparedImageSinceAsync(started, ct) is { } jpg)
+                {
+                    previewed = true;
+                    preview!(jpg);
+                }
+                await Task.Delay(1500, ct);
+                continue;
+            }
             if (!r.Ok || r.Response is not { ValueKind: JsonValueKind.Object } res) return new Shot(false, true, r.Error ?? "사진을 받지 못했습니다", null, started);
             // 실패해도 이전 사진을 돌려줄 수 있다 (2026-10-06 실기) → 이번 촬영이 끝났다는 이벤트가 있어야 새 사진
             var events = await EventsSinceAsync(started, ct);
@@ -164,6 +197,14 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
             return new Shot(true, true, null, res, started);
         }
         return new Shot(false, true, "사진을 받는 데 너무 오래 걸립니다", null, started);
+    }
+
+    /// <summary>since 뒤에 N.I.N.A.가 준비한 사진(IMAGE-PREPARED)이 있으면 그 사진(JPEG, 1/4 크기). 없거나 받지 못하면 null</summary>
+    private async Task<byte[]?> PreparedImageSinceAsync(DateTimeOffset since, CancellationToken ct)
+    {
+        if (!(await EventsSinceAsync(since, ct)).Contains("IMAGE-PREPARED")) return null;
+        // prepared-image는 JPEG를 바로 준다 (LiveImages의 N.I.N.A. 사진과 같은 방법)
+        return await nina.GetBytesAsync("prepared-image?resize=true&size=1600x1067&quality=80", Short, ct) is { Length: > 0 } jpg ? jpg : null;
     }
 
     public sealed record Stats(int Stars, double Hfr, double Median, double Max, double Mean);

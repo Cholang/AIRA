@@ -1,3 +1,4 @@
+using Astro.Core;
 
 namespace Astro.Server.Prepare.Flow;
 
@@ -46,7 +47,7 @@ public sealed partial class PrepareRunner
             if (stopped) _rows[c.Task.Id] = (PrepTaskStatus.NeedsRecheck, null);
             c.Ask = null;
             c.Status = new StatusLine($"{Astro.Core.Product.Reul} 끄려고 작업을 멈췄습니다", Tone.Warn);
-            c.Show([new("restart", "다시 시작", true)], $"멈춘 {Core.Josa.Reul(c.Task.Title)} 처음부터 다시 시작할까요?");
+            c.Show([new("restart", UiText.Get("button.restart"), true)], $"멈춘 {Core.Josa.Reul(c.Task.Title)} 처음부터 다시 시작할까요?");
             _ready = false;
             Changed();
         }
@@ -95,7 +96,7 @@ public sealed partial class PrepareRunner
             if (!c.Finished) _rows[c.Task.Id] = (PrepTaskStatus.Pending, null);
             c.Ask = null;
             c.Status = new StatusLine("준비를 멈췄습니다", Tone.Warn);
-            c.Show([new("restart", "다시 시작", true)], $"멈춘 {Core.Josa.Reul(c.Task.Title)} 처음부터 다시 시작할까요?");
+            c.Show([new("restart", UiText.Get("button.restart"), true)], $"멈춘 {Core.Josa.Reul(c.Task.Title)} 처음부터 다시 시작할까요?");
             _ready = false;
             Changed();
         }
@@ -170,7 +171,7 @@ public sealed partial class PrepareRunner
             c.Ask = null;
             c.Status = new StatusLine($"{Core.Josa.Reul(task.Title)} 멈췄지만 장비가 멈췄는지 확인하지 못했습니다", Tone.Fail);
             // 적도의 홈의 "적도의 확인 필요"와 같은 방식: 다시 확인하거나, 사용자가 직접 보고 푼다 (2026-10-16 — 적도의가 끊겨 있으면 다시 확인이 끝내 통과하지 않아 갇혔다)
-            c.Show([new("device-check", ButtonText.Recheck, true), new("device-confirm", "멈춘 것을 확인했어요")],
+            c.Show([new("device-check", ButtonText.Recheck, true), new("device-confirm", UiText.Get("button.confirmStopped"))],
                 "장비 상태를 다시 읽어 멈췄는지 확인할까요?\n적도의·포커서를 직접 보고 멈춰 있으면 멈춘 것을 확인했어요를 눌러 주세요.");
             _rows[task.Id] = (PrepTaskStatus.Failed, null);
             _ready = false;

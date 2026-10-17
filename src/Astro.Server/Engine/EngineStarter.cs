@@ -12,7 +12,7 @@ namespace Astro.Server.Engine;
 /// 1단계 엔진 켜기: N.I.N.A.를 켜고, 연결 통로(Advanced API)가 응답할 때까지 기다린 뒤, 인터넷 연결을 확인한다.
 /// 결과 형식은 0단계와 같아서 화면이 같은 쉐브론·공통 영역을 쓴다.
 /// </summary>
-public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options, Equipment.EquipmentLearned? learned = null)
+public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options, Equipment.EquipmentLearned? learned = null, Prepare.PrepareMode? mode = null)
 {
     private static readonly CheckItem Launch = new("launch", "N.I.N.A. 켜기", null,
         $"N.I.N.A.가 꺼져 있으면 {Product.Ga} 대신 켭니다. 처음 켤 때는 1분쯤 걸릴 수 있습니다.");
@@ -29,18 +29,19 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
     /// <summary>
     /// 아이라 프로필 화면이 뜰 때 N.I.N.A.·PHD2·Wanderer Empire를 미리 켠다 (2026-10-11 사용자 결정 — 아이라는 이 프로그램들을 쓰는 것이 전제라,
     /// 프로필을 고르는 동안 N.I.N.A.가 준비되면 엔진 켜기는 확인만 한다). N.I.N.A. 실행은 고른 프로필과 상관없다(인자 없이 켬).
-    /// 아이라가 켠 것이라 종료 때 함께 닫힌다. 꺼져 있을 때만, 자동으로 켜기가 꺼져 있으면 하지 않는다
+    /// 아이라가 켠 것이라 종료 때 함께 닫힌다. 꺼져 있을 때만, 자동으로 켜기가 꺼져 있으면 하지 않는다.
+    /// 모의 장비면 하지 않는다 — 장비를 쓰지 않으니 PHD2·Empire는 필요 없고, N.I.N.A.는 엔진 켜기가 켠다
     /// </summary>
     public void PreLaunch()
     {
         var opt = options.Value;
-        if (!opt.LaunchIfNotRunning || !OperatingSystem.IsWindows()) return;
+        if (!opt.LaunchIfNotRunning || !OperatingSystem.IsWindows() || mode?.Simulate == true) return;
         lock (PreGate)
         {
             if (Process.GetProcessesByName("NINA").Length == 0 && InstallLocator.NinaExe(opt.ExePath) is { } ninaExe)
             {
                 // N.I.N.A.·PHD2·Empire 창이 아이라 위로 뜨지 않게 — N.I.N.A.가 다 켜질 때까지
-                var behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, BackgroundWindows.Phd2, .. BackgroundWindows.HubApps]);
+                var behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, BackgroundWindows.Phd2, .. BackgroundWindows.HubWindows]);
                 _ = Task.Delay(TimeSpan.FromSeconds(40)).ContinueWith(_ => behind.Dispose(), TaskScheduler.Default);
                 try
                 {
@@ -88,7 +89,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
             try
             {
                 // N.I.N.A.가 켜지며 장비 드라이버를 훑을 때 Wanderer Empire도 켜져 시작 로고("항상 위")를 띄운다 (2026-10-10 사용자) — 같이 지켜보고, 늦게 뜨는 로고까지 20초 더
-                behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, .. BackgroundWindows.HubApps]);
+                behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, .. BackgroundWindows.HubWindows]);
                 Process.Start(new ProcessStartInfo(ninaExe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(ninaExe), WindowStyle = ProcessWindowStyle.Minimized });
                 justLaunched = true;
             }
@@ -109,8 +110,8 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
 
         // 장비 연결에서 가장 느린 두 프로그램을 N.I.N.A.가 준비되는 동안 미리 켠다 (2026-10-11 사용자 — 기록: N.I.N.A.가 연결하는 순간에 켜면
         // 파워박스 Empire 32초, PHD2 약 9초. Empire가 이미 켜져 있던 실행은 파워박스 2초). 아이라가 켠 것이라 종료 때 함께 닫힌다(ProgramCloser — 아이라 뒤에 켜진 것)
-        var warm = opt.LaunchIfNotRunning && WarmUp();
-        if (warm && behind is null) behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Phd2, .. BackgroundWindows.HubApps]);
+        var warm = opt.LaunchIfNotRunning && mode?.Simulate != true && WarmUp(); // 모의 장비면 켜지 않는다
+        if (warm && behind is null) behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Phd2, .. BackgroundWindows.HubWindows]);
 
         // 2. 연결 통로 응답 대기
         yield return Connect.Running(justLaunched ? "N.I.N.A.가 준비되기를 기다리는 중입니다" : "응답을 확인하는 중입니다");

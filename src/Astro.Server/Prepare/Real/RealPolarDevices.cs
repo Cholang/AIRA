@@ -234,7 +234,7 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         try { state = await phd2.AppStateAsync(ct); } catch (Phd2Exception) { state = ""; }
         var mount = await rig.MountAsync(ct);
         return new PolarEndState(!sharpCap.OursRunning, cam is { Connected: true }, state == "Looping",
-            await rig.GuiderConnectedAsync(ct), mount is null || mount.Slewing);
+            await rig.GuiderConnectedAsync(ct), mount is null || mount.Moving);
     }
 
     private async Task<(string Name, bool Connected)?> CameraAsync(CancellationToken ct)

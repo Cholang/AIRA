@@ -5,6 +5,7 @@ import { PRODUCT } from '../product'
 import Button from './Button'
 import Modal from './Modal'
 import styles from './Settings.module.css'
+import { T } from '../uiText'
 
 /** 서버 /api/settings (AppServer.MapSettings) — AI 키 자체는 오지 않는다 */
 interface SettingsView {
@@ -27,7 +28,7 @@ export function SettingsButton() {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button type="button" className={styles.gear} aria-label="설정" title="설정" onClick={() => setOpen(true)}>
+      <button type="button" className={styles.gear} aria-label={T('statusbar.settings')} title={T('statusbar.settings')} onClick={() => setOpen(true)}>
         <Gear strokeWidth={2} aria-hidden="true" />
       </button>
       {open && <SettingsDialog onClose={() => setOpen(false)} />}
@@ -64,7 +65,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal open onClose={onClose} size="lg" title="설정" actions={<Button onClick={onClose}>닫기</Button>}>
+    <Modal open onClose={onClose} size="lg" title={T('title.settings')} actions={<Button onClick={onClose}>{T('button.close')}</Button>}>
 
       {!view ? (
         <p className={styles.muted}>설정을 읽는 중입니다</p>
@@ -106,11 +107,11 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                     }
                   }}
                 >
-                  저장
+                  {T('button.save')}
                 </Button>
                 {view.keyFrom === 'settings' && (
                   <Button size="sm" onClick={() => void put('/api/settings/ai-key', { key: null })}>
-                    지우기
+                    {T('button.clear')}
                   </Button>
                 )}
               </div>
@@ -144,7 +145,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
             <p className={styles.status}>{PRODUCT.name}의 단계·장비 연결 기록은 날짜별 파일로 남습니다 (14일 보관).</p>
             <div className={styles.row}>
               <Button size="sm" onClick={() => void fetch('/api/settings/open-logs', { method: 'POST' })}>
-                기록 폴더 열기
+                {T('button.openLogs')}
               </Button>
               <Button
                 size="sm"
@@ -160,7 +161,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   else setError('진단 묶음을 만들지 못했습니다')
                 }}
               >
-                {exporting ? '만드는 중…' : '진단 내보내기'}
+                {exporting ? T('button.exporting') : T('button.export')}
               </Button>
             </div>
             <small className={styles.muted}>
@@ -197,11 +198,11 @@ function PathRow({ title, chosen, auto, onPick, onAuto }: { title: string; chose
           aria-disabled={night || undefined}
           title={night ? 'Windows 파일 선택 창은 밝은 흰 창이라 촬영 테마에서는 열지 않습니다. 기본 테마로 바꾼 뒤 골라 주세요' : undefined}
         >
-          찾아보기
+          {T('button.browse')}
         </Button>
         {chosen && (
           <Button size="sm" onClick={onAuto}>
-            자동으로 찾기
+            {T('button.autoFind')}
           </Button>
         )}
       </div>

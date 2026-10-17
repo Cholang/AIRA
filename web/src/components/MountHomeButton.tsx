@@ -2,6 +2,7 @@ import { AlertTriangle, House, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Button from './Button'
 import ConfirmDialog from './ConfirmDialog'
+import { T } from '../uiText'
 
 interface HomeState {
   available: boolean
@@ -49,14 +50,14 @@ export default function MountHomeButton() {
   if (!state) return null
   const check = state.needsCheck
   const on = state.available || check
-  const label = state.homing ? '홈으로 가는 중' : check ? '적도의 확인 필요' : '적도의 홈'
+  const label = state.homing ? T('button.mountHome.homing') : check ? T('button.mountHome.check') : T('button.mountHome')
   return (
     <>
       <Button
         variant="ghost"
         size="sm"
         aria-disabled={!on}
-        title={state.available ? '적도의를 홈 위치로 보내고 추적을 끕니다' : (state.reason ?? undefined)}
+        title={state.available ? T('button.mountHome.tip') : (state.reason ?? undefined)}
         aria-label={state.available ? '적도의 홈으로 보내기' : `${label} — ${state.reason ?? '지금은 쓸 수 없음'}`}
         onClick={() => on && setAsking(true)}
       >
@@ -72,7 +73,7 @@ export default function MountHomeButton() {
             ? (state.problem ?? '적도의가 멈췄는지 확인하지 못했습니다.') + ' 적도의가 멈춰 있는지 확인해 주세요.'
             : '적도의를 홈 위치로 보내고 추적을 끕니다.\n망원경 주변에 걸리는 것이 없는지 확인해 주세요.')
         }
-        confirmLabel={error ? '확인' : check ? '멈춘 것을 확인했어요' : '홈으로 보내기'}
+        confirmLabel={error ? T('button.ok') : check ? T('button.confirmStopped') : T('button.sendHome')}
         single={error !== null}
         onConfirm={() => {
           if (error) return setError(null)

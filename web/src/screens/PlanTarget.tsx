@@ -9,6 +9,7 @@ import {
   type PlanWindow,
 } from '../plan'
 import styles from './PlanScreen.module.css'
+import { T } from '../uiText'
 
 /** 계획 화면의 대상 미리보기: 구도·시간대 줄·화각 상자 (큰 파일 분리 2026-10-16 — 옮기기만) */
 
@@ -43,7 +44,7 @@ export function FramePreview({
               </div>
               <div className={styles.dropRow}>
                 <Button size="sm" onClick={() => onRemove(current.id)}>
-                  목록에서 제거
+                  {T('button.removeFromList')}
                 </Button>
               </div>
             </>

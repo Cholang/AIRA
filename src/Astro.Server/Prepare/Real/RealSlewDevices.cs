@@ -37,6 +37,6 @@ public sealed class RealSlewDevices(NinaRig rig) : ISlewDevices
     {
         if (await rig.MountAsync(ct) is not { } m) return new(double.MaxValue, true, false);
         var d = Astronomy.Separation(new Equatorial(m.RaDeg, m.DecDeg), new Equatorial(ctx.Plan.RaDegrees, ctx.Plan.DecDegrees));
-        return new(d, m.Slewing, m.Tracking);
+        return new(d, m.Moving, m.Tracking);
     }
 }

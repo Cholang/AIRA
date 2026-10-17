@@ -36,5 +36,7 @@ export default defineConfig({
   },
   server: {
     proxy: { '/api': 'http://localhost:5210' },
+    // 화면 문구 표(src/Astro.Core/UiText.json)를 web/ 밖에서 읽는다 — 서버와 같은 파일 (uiText.ts)
+    fs: { allow: ['..'] },
   },
 })

@@ -8,6 +8,7 @@ import { useKeepInside } from '../keepInside'
 import { PRODUCT } from '../product'
 import { HUB, selectable, type Planet } from './equipmentOrbits'
 import styles from './EquipmentScreen.module.css'
+import { T } from '../uiText'
 
 /** 장비 연결 화면의 부품: 행성·편집 행성·드라이버 목록·카메라 전원·상태 글·[임시] 실패 버튼 (큰 파일 분리 2026-10-16 — 옮기기만) */
 
@@ -23,6 +24,7 @@ export function PlanetNode({
   planet,
   style,
   picked,
+  ready,
   onPick,
   onRetry,
   onWithout,
@@ -31,6 +33,8 @@ export function PlanetNode({
   planet: Planet
   style: CSSProperties
   picked: boolean
+  /** 행성이 다 나타났나 — 그 전에는 이름표(title)를 달지 않는다. 투명한 행성 자리에 커서가 있으면 이름표만 떴다 (2026-10-17 사용자) */
+  ready: boolean
   onPick: () => void
   onRetry: () => void
   onWithout: () => void
@@ -48,7 +52,7 @@ export function PlanetNode({
       data-hub={item.id === HUB}
       data-selected={picked}
       style={style}
-      title={item.title}
+      title={ready ? item.title : undefined}
       onClick={onPick}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
@@ -95,7 +99,7 @@ export function PlanetNode({
                 onWithout()
               }}
             >
-              없이 진행
+              {T('button.equipment.without')}
             </button>
           )}
         </span>
@@ -150,7 +154,7 @@ export function EditNode({
       {canRemove && (
         <div className={styles.actions}>
           <button type="button" className={styles.textAction} onClick={() => onSelect(null)}>
-            제거
+            {T('button.remove')}
           </button>
         </div>
       )}

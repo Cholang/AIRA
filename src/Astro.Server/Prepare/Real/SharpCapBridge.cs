@@ -82,6 +82,12 @@ public sealed class SharpCapBridge(ILogger<SharpCapBridge> log, Setup.UserSettin
     /// <summary>화면이 SharpCap 사진을 물었다 (LiveImages) — 스크립트가 잠시 영상을 저장한다</summary>
     public static void WantView() => _viewWantedAt = DateTime.UtcNow;
 
+    /// <summary>
+    /// 데스크톱 창이 SharpCap 영상을 직접 비추기 시작했다 — 저장을 바로 멈춘다. 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄우고
+    /// 그 줄은 닫을 때까지 남아, 직접 비추는 영상 위에 계속 보였다 (2026-10-17 실기). 전에는 마지막 요청 뒤 8초 동안 더 저장했다
+    /// </summary>
+    public static void StopView() => _viewWantedAt = DateTime.MinValue;
+
     /// <summary>스크립트가 화면이 원할 때 4.5초마다 저장하는 "화면에 보이는 영상"의 이름 앞부분 (뒤에 -번호_WithDisplayStretch.png). 하늘 화면이 읽는다</summary>
     public static string ViewFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Product.DataFolder, "sharpcap-view");
 

@@ -45,8 +45,10 @@
 
 .viewTools {
   position: absolute;
-  top: 28px;
-  right: 40px;
+  /* 가운데 아래, 중앙 정보(bottom 56px) 아래 빈 띠 — 사진을 보다가 바로 누르게 (2026-10-17 사용자, 전에는 오른쪽 위) */
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   z-index: 4;

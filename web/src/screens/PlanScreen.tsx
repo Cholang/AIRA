@@ -19,6 +19,7 @@ import styles from './PlanScreen.module.css'
 import { FramePreview } from './PlanTarget'
 import { PlanChat } from './PlanChat'
 import { SettingsRow } from './PlanSettings'
+import { T } from '../uiText'
 
 /**
  * 촬영 계획 (DESIGN.md "계획", 시안 mockups/aira-plan-v3.html — 2026-10-14 개편): 계획 = 무엇을(대상) + 얼마나(촬영 설정).
@@ -52,16 +53,16 @@ export default function PlanScreen({ onContinue, notice = null }: { onContinue: 
 
 /** 대상 단계의 작업 (진행 표시). 계획 화면에서는 계획이 지금 작업이고 나머지는 대상 묶음(서버)이 이어서 한다 */
 const TARGET_ITEMS = [
-  ['plan', '계획'],
-  ['slew', '이동'],
-  ['center', '센터링'],
-  ['focuscheck', '초점 확인'],
-  ['guiding', '가이드'],
-  ['test', '시험 사진'],
+  ['plan', T('rail.task.plan')],
+  ['slew', T('rail.task.slew')],
+  ['center', T('rail.task.center')],
+  ['focuscheck', T('rail.task.focusCheck')],
+  ['guiding', T('rail.task.guiding')],
+  ['test', T('rail.task.testShot')],
 ] as const
 
 function PlanBody({ initial, onContinue, notice }: { initial: PlanState; onContinue: () => void; notice: string | null }) {
-  useRailExtra({ stage: '대상', items: TARGET_ITEMS.map(([id, label], i) => ({ id, label, state: i === 0 ? 'now' : 'todo' })) })
+  useRailExtra({ stage: 'target', items: TARGET_ITEMS.map(([id, label], i) => ({ id, label, state: i === 0 ? 'now' : 'todo' })) })
   const [plan, setPlan] = useState<Plan>(initial.plan)
   const [chart, setChart] = useState<Chart>(initial.chart)
   // AI를 쓸 수 없는 이유 — 대화 도중 한도가 다 되면 서버가 알려 이름 검색으로 바뀐다 (1분마다 받는 상태로도)

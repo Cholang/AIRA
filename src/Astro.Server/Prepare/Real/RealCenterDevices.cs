@@ -15,7 +15,8 @@ public sealed class RealCenterDevices(NinaRig rig, LiveImages live) : ICenterDev
 
     public async Task<CenterAttempt> AttemptAsync(double raDeg, double decDeg, double exposureSeconds, bool blind, CancellationToken ct)
     {
-        var shot = await rig.CaptureAsync(exposureSeconds, solve: true, save: false, null, ct);
+        // 사진은 위치 찾기(솔빙)가 끝나기 전에 먼저 보인다 — 솔빙이 오래 걸리거나 실패해도 사진은 볼 수 있게 (2026-10-17 실기)
+        var shot = await rig.CaptureAsync(exposureSeconds, solve: true, save: false, null, ct, preview: jpg => live.Set("photo", jpg, "image/jpeg"));
         if (!shot.Ok || shot.Result is not { } res) return new CenterAttempt(false, 0, null);
         if (res.TryGetProperty("Image", out var img) && img.ValueKind == JsonValueKind.String && img.GetBytesFromBase64() is { Length: > 0 } jpg) live.Set("photo", jpg, "image/jpeg"); // 중간 문자열 없이 바로 바이트로
         if (!res.TryGetProperty("PlateSolveResult", out var ps) || ps.ValueKind != JsonValueKind.Object || !NinaRig.Bool(ps, "Success"))
@@ -51,6 +52,6 @@ public sealed class RealCenterDevices(NinaRig rig, LiveImages live) : ICenterDev
     public async Task<CenterEndState> ReadEndStateAsync(CancellationToken ct)
     {
         var m = await rig.MountAsync(ct);
-        return new CenterEndState(_lastError, m is null || m.Slewing, m?.Tracking ?? false, await rig.CameraExposingAsync(ct));
+        return new CenterEndState(_lastError, m is null || m.Moving, m?.Tracking ?? false, await rig.CameraExposingAsync(ct));
     }
 }

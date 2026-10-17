@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- 화면 고정 문구 표 (UiText) — 웹도 같은 파일을 읽는다 -->
+  <ItemGroup>
+    <EmbeddedResource Include="UiText.json" LogicalName="UiText.json" />
+  </ItemGroup>
+
 </Project>

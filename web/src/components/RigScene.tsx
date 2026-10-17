@@ -6,8 +6,9 @@ import { VERSION } from '../product'
 import { setSkyTurn } from '../skyPan'
 import styles from './RigScene.module.css'
 import {
-  ITEMS, SKY_TURN, SKY_PIVOT, POLE_TILT, POLARIS, RAY, CONSTELLATIONS, FIELD_STARS, STAR_SIZE, VW, VH, WORDMARK, LIGHT_MS, ZOOM_MS, BOOT_AT, BOOT_FADE_IN, BOOT_TIMING, FLARE_MS, GROUND, GROUND_TOP, SPIN_ORIGIN, SPIN_MS, RIG_Z, SPIN_SHIFT, SINK_Z, ABOVE_GROUND, GRASS, reduced, METEOR_ANGLE, METEOR_LEN, METEOR_LONG, METEOR_SPEED, type Part, type Meteor,
+  ITEMS, SKY_TURN, SKY_PIVOT, POLE_TILT, POLARIS, RAY, CONSTELLATIONS, FIELD_STARS, STAR_SIZE, VW, VH, WORDMARK, LIGHT_MS, ZOOM_MS, BOOT_AT, BOOT_FADE_IN, BOOT_TIMING, FLARE_MS, GROUND, SPIN_ORIGIN, SPIN_MS, RIG_Z, SPIN_SHIFT, SINK_Z, ABOVE_GROUND, GRASS, reduced, METEOR_ANGLE, METEOR_LEN, METEOR_LONG, METEOR_SPEED, type Part, type Meteor,
 } from './rigSceneData'
+import { T } from '../uiText'
 
 /**
  * 장면이 지금 보여 주는 것 — App이 넘어가는 중인 다음 화면으로 정한다.
@@ -312,7 +313,7 @@ export default function RigScene({
                   </g>
                 </g>
               ))}
-              {/* 땅(구체): 면과 가장자리는 움직이지 않고, 잔디 줄이 구체를 따라 가장자리 쪽으로 흘러가 너머로 가라앉는다 (SPIN_VP 설명) */}
+              {/* 땅(구체): 면과 가장자리는 움직이지 않고(가장자리에 선은 긋지 않는다 — 2026-10-17 사용자), 잔디 줄이 구체를 따라 가장자리 쪽으로 흘러가 너머로 가라앉는다 (SPIN_VP 설명) */}
               <path className={styles.ground} d={GROUND} />
               {GRASS.map((row, i) => (
                 <g
@@ -331,7 +332,6 @@ export default function RigScene({
                   </g>
                 </g>
               ))}
-              <path className={styles.horizon} d={GROUND_TOP} />
               {/* 하늘 그림: 북극성이 든 작은곰자리 · 북극성을 가리키는 북두칠성 · 카시오페이아 — 배경 별처럼 부드럽게 빛나는 점 (2026-10-15 사용자).
                   부팅·프로필에는 없고, 프로필을 고르면 북극성부터 하나씩 켜진다. 좌표는 극축을 맞춘 뒤 자리, 맞추기 전에는 SKY_PIVOT을 중심으로 SKY_TURN도 돌아 있다 (북극성이 점선 오른쪽 아래에) */}
               <g className={styles.skyArt} style={{ transformOrigin: `${SKY_PIVOT[0]}px ${SKY_PIVOT[1]}px`, '--turn': `${SKY_TURN}deg` } as CSSProperties}>
@@ -518,7 +518,7 @@ export default function RigScene({
             </div>
           </div>
         </div>
-        <h1 className={styles.title}>촬영 시작 전에 장비를 한 번 둘러봐 주세요</h1>
+        <h1 className={styles.title}>{T('title.preflight')}</h1>
       </div>
       <p className={styles.live} aria-live="polite">
         {step ? ITEMS[at].question : done ? '모두 확인했어요. 노트북을 누르면 다음 단계로 갑니다.' : ''}

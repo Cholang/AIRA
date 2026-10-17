@@ -6,10 +6,12 @@ import PrepCenter from '../components/PrepCenter'
 import PrepGuide from '../components/PrepGuide'
 import { useScreenSky } from '../components/ScreenSky'
 import { useRailExtra, type RailItem } from '../components/StepRail'
+import { stageLabel } from '../appFlow'
 import { postSkip, useTempSkip } from '../components/TempSkip'
 import { checkFraming, setFraming } from '../framing'
 import { prepareAbort, prepareAct, watchPrepare, type PrepGroup, type PrepTaskStatus, type PrepView } from '../prepare'
 import styles from './PrepareScreen.module.css'
+import { T } from '../uiText'
 
 /**
  * 장비 준비 · 대상 묶음 화면 (OPERATION_PROCEDURE.md "장비 준비 · 대상", 시안 mockups/aa-prepare-arcs-v9.html). group으로 묶음을 고른다.
@@ -43,7 +45,7 @@ const FAULTS: Record<string, [string, string][]> = {
 }
 
 /** 대상 묶음의 진행 표시 맨 위 작업: 계획 (계획 화면에서 끝내고 온다) */
-const PLAN_ITEM: RailItem = { id: 'plan', label: '계획', state: 'done' }
+const PLAN_ITEM: RailItem = { id: 'plan', label: T('rail.task.plan'), state: 'done' }
 
 /** 시험 사진에 9칸 확대 보기 조각이 있나 (서버 live.data.tiles) */
 const hasTiles = (data: unknown) => !!(data as { tiles?: boolean } | null)?.tiles
@@ -114,10 +116,10 @@ export default function PrepareScreen({
       : undefined
   useScreenSky(skyBg)
   useRailExtra({
-    stage: group === 'rig' ? '장비 준비' : group === 'wrap' ? '마무리' : '대상',
+    stage: group === 'rig' ? 'rig' : group === 'wrap' ? 'wrap' : 'target',
     items: group === 'target' ? [PLAN_ITEM, ...(items ?? [])] : items,
     // 마무리에는 중단 버튼을 두지 않는다 (건너뛰기는 화면 버튼으로)
-    action: group === 'wrap' ? undefined : { label: group === 'rig' ? '준비 중단' : '대상 중단', onClick: () => prepareAbort(group) },
+    action: group === 'wrap' ? undefined : { label: group === 'rig' ? T('button.rig.abort') : T('button.target.abort'), onClick: () => prepareAbort(group) },
   })
 
   useEffect(() => {
@@ -144,7 +146,7 @@ export default function PrepareScreen({
     return (
       <main className={styles.stage}>
         <LiveView current={null} />
-        <PrepGuide task={group === 'rig' ? '장비 준비' : '대상'} title="시작하지 못했습니다" text={problem} />
+        <PrepGuide task={stageLabel(group === 'rig' ? 'rig' : 'target')} title={T('title.startFailed')} text={problem} />
       </main>
     )
 
@@ -173,17 +175,17 @@ export default function PrepareScreen({
             <PrepCenter readout={cur.center.readout} status={status} actions={cur.center.actions} prompt={cur.center.prompt} onAct={(id) => void act(id)} disabled={sending} />
           </div>
 
-          {/* 오른쪽 위: 사진을 볼 때만 */}
+          {/* 가운데 아래(중앙 정보 밑): 사진을 볼 때만 */}
           <div className={styles.viewTools}>
             {/* 9칸 확대 보기: 서버가 조각을 내놓았을 때만(실장비 = 저장된 사진을 잘라서, 모의 = 그림). 사진을 못 읽었으면 숨긴다 */}
             {liveKind === 'test-photo' && !peek && hasTiles(cur?.live?.data) && (
-              <Button surface="sky" onClick={() => setGrid((g) => !g)}>
-                {grid ? '사진 전체 보기' : '9칸 확대 보기'}
+              <Button surface="sky" size="sm" onClick={() => setGrid((g) => !g)}>
+                {grid ? T('button.photo.whole') : T('button.photo.grid')}
               </Button>
             )}
             {photo && (
-              <Button surface="sky" onClick={() => setPeek((p) => !p)} aria-pressed={peek}>
-                {peek ? '글 다시 보기' : '사진만 보기'}
+              <Button surface="sky" size="sm" onClick={() => setPeek((p) => !p)} aria-pressed={peek}>
+                {peek ? T('button.photo.textBack') : T('button.photo.only')}
               </Button>
             )}
           </div>

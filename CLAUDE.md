@@ -15,6 +15,7 @@
 - UI(`web/`, `src/Astro.Desktop`의 창 모양)를 만들거나 수정하기 전에 반드시 DESIGN.md를 읽을 것.
 - DESIGN.md와 디자인 스킬(`.claude/skills/frontend-design` 등)의 지시가 충돌하면 DESIGN.md를 따를 것. 스킬은 AI 기본값을 피하는 데 쓰고, 방향은 DESIGN.md가 정한다.
 - 색·글꼴·간격은 CSS 변수(토큰)로만 쓰고, 버튼·단계 레일·상태 줄·진단 카드는 공통 컴포넌트로 만들어 재사용할 것.
+- 버튼·상단 제목·상태 줄·단계 레일의 글자는 코드에 쓰지 말고 화면 문구 표 `src/Astro.Core/UiText.json`의 키로 부른다(서버 `UiText.Get/Format`, 웹 `T/TF`). 같은 뜻이면 있는 키를 쓴다. 키 규칙은 ARCHITECTURE.md 5.4.1.
 - 내가 요청한 수정이 다른 화면에도 적용될 성격이면, 작업 후 DESIGN.md에 추가할 문구를 제안할 것.
 - DESIGN.md는 화면이 보이고 움직이는 방식만, 아이라가 하는 일(단계·작업 순서, 장비 동작, 실패·안전 규칙)은 [docs/OPERATION_PROCEDURE.md](docs/OPERATION_PROCEDURE.md). 동작을 바꾸면 OPERATION_PROCEDURE.md도 고친다. 둘 다 지금 유효한 규칙만 — 바뀐 날짜·이유·폐기된 규칙은 [docs/DECISION_HISTORY.md](docs/DECISION_HISTORY.md)의 같은 절 아래에 한 줄로.
 - `web/`을 고친 뒤 데스크톱 창에서 확인하려면 `web/`에서 `npm run build`가 필요하다.
@@ -39,7 +40,7 @@
 
 - 저장소 맨 위에는 README.md · CLAUDE.md · AGENTS.md · DESIGN.md · HISTORY.md만 둔다.
 - `docs/` 구성 (파일 이름은 대문자 + 밑줄): 바로 아래에 운영 절차 `OPERATION_PROCEDURE.md` · 결정 이력 `DECISION_HISTORY.md` , 확인할 것은 `test/`(사용자가 할 것 `USER_TESTS.md` · 내가 할 것 `CLAUDE_TESTS.md` — 각각 아무 때나 / 장비 연결 / 밤 촬영으로 나눔. 확인할 것이 생기면 적고, 확인하면 `[x]` + 날짜·결과), 코드 구조는 `implementation/`, 외부 참고(N.I.N.A. API·사전 준비)는 `reference/`, Codex와 주고받는 문서는 `codex/`, Gemini와 주고받는 문서는 `gemini/`. 대화 기록은 `conversations/`.
-- UI 텍스트 검수(사용자가 부르는 이름 — "문구·설명문 검수"라고 하지 않는다)는 `docs/textedit/`: 도구 `editor.html` 하나 + 요청마다 `날짜-이름.json`(rows: text = 앱에 쓰인 그대로, edit = 사용자가 적을 칸(비우면 그대로), context = 언제 나오는지 내가 쓴 설명, where·files = 위치). 사용자가 "○○ 문구 보여줘"라고 하면 JSON을 만들고, "반영해줘"라고 하면 edit가 있는 줄만 코드에 반영한 뒤 그 줄 applied에 날짜를 적는다. {대상}·{n} 같은 바뀌는 자리는 코드의 변수로 되돌린다.
+- UI 텍스트 검수(사용자가 부르는 이름 — "문구·설명문 검수"라고 하지 않는다)는 `docs/textedit/`: 도구 `editor.html` 하나 + 요청마다 `날짜-이름.json`(rows: text = 앱에 쓰인 그대로, edit = 사용자가 적을 칸(비우면 그대로), context = 언제 나오는지 내가 쓴 설명, where·files = 위치, 버튼이 함께 나오는 문구면 buttons = 그 버튼들(맨 앞이 주 버튼, std = 버튼 단어 표준) + 파일 맨 위 standard = 표준 단어 목록). 사용자가 "○○ 문구 보여줘"라고 하면 JSON을 만들고, "반영해줘"라고 하면 edit가 있는 줄만 코드에 반영한 뒤 그 줄 applied에 날짜를 적는다. {대상}·{n} 같은 바뀌는 자리는 코드의 변수로 되돌린다.
 - 새 문서가 필요하면 만들어도 되지만 위 위치에 맞추고, 기존 문서에 절을 더하는 것으로 충분한지 먼저 본다. 검토가 끝난 임시 문서(예: `docs/PREPARE_SCREEN_CONTENT.md`)는 내용을 DESIGN.md 등에 합치고 지운다.
 
 ## 리뷰 규칙 (Claude 구현 → GPT Codex 리뷰)

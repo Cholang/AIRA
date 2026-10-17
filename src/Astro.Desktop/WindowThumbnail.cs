@@ -13,8 +13,10 @@ namespace Astro.Desktop;
 /// 4분의 1로 줄여 영상 칸이 약 466×350 픽셀만 남아 깨져 보였다. 이 방법은 영상 칸(UI Automation의 "Image")만 원래 픽셀로 잘라 그래픽 카드가 부드럽게 맞춘다.
 /// SharpCap이 다른 창 뒤에 있어도 되지만 최소화하면 비지 않고 안 보인다. 썸네일은 웹 화면 위에 그려지므로, 화면은 글자·버튼이 없는 자리만 넘긴다
 /// </summary>
-/// 비춘 실제 자리(영상 비율로 맞춘 뒤, CSS 픽셀)를 화면에 알려 준다 — 화면이 그 둘레에 빛 테두리(GlowFrame)를 그린다
-internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action<string, bool, Rect?> report)
+/// 비춘 실제 자리(영상 비율로 맞춘 뒤, CSS 픽셀)를 화면에 알려 준다 — 화면이 그 둘레에 빛 테두리(GlowFrame)를 그린다.
+/// waiting = 아직 비춘 적이 없고 최소화된 것도 아님(SharpCap이 켜지는 중·영상 칸이 아직 없음) — 화면은 이때 대체 사진을 묻지 않는다
+/// (대체 사진을 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄우고 그 줄이 비추는 영상에 남았다 — 2026-10-17 실기)
+internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action<string, bool, Rect?, bool> report)
 {
     /// <summary>지원하는 대상: 이름 → (프로세스 이름, 영상 칸을 찾는 UI Automation 경로)</summary>
     private static readonly Dictionary<string, (string Process, string Panel, string Image)> Targets = new()
@@ -31,7 +33,9 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
     private AutomationElement? _image;
     private bool _locating;
     private DateTime? _lostAt; // 같은 창에서 영상 칸을 못 찾기 시작한 때
-    private (bool Shown, Rect? Rect)? _reported;
+    private (bool Shown, Rect? Rect, bool Waiting)? _reported;
+    private bool _iconic; // 대상 창이 최소화됨 (비출 수 없다 — 대체 사진이 필요)
+    private bool _everShown; // 이 대상을 한 번이라도 비췄나 (Set이 새 대상을 받으면 처음부터)
 
     /// <summary>모두 멈춘다 (창을 닫을 때): 확인 타이머를 끄고 썸네일을 놓는다</summary>
     public void Stop()
@@ -45,7 +49,7 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
     public void Set(string target, Rect? cssRect, double dpr)
     {
         if (!Targets.ContainsKey(target)) return;
-        if (_target != target) Release();
+        if (_target != target) { Release(); _everShown = false; }
         _target = target;
         _dest = cssRect;
         if (_dest is null)
@@ -53,6 +57,7 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
             _timer.Stop();
             Release();
             _reported = null;
+            _everShown = false;
             return;
         }
         if (!_timer.IsEnabled)
@@ -73,13 +78,14 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         var dispatcher = owner.Dispatcher;
         Task.Run(() =>
         {
-            (nint, Int32Rect?) found;
+            (nint, Int32Rect?, bool) found;
             try { found = Locate(target); }
-            catch (Exception) { found = (0, null); }
+            catch (Exception) { found = (0, null, false); }
             dispatcher.InvokeAsync(() =>
             {
                 _locating = false;
-                var (hwnd, source) = found;
+                var (hwnd, source, iconic) = found;
+                _iconic = iconic;
                 // 같은 창에서 영상 칸을 잠깐 못 찾은 것(SharpCap이 다시 그리는 중 등)은 3초까지 앞 자리를 그대로 쓴다 (2026-10-11 실기:
                 // 바로 "안 보임"으로 알리면 화면이 대체 사진으로 바뀌고, 대체 사진을 저장할 때마다 SharpCap이 영상 위에 "Snapshot captured" 줄을 띄웠다)
                 if (source is null && hwnd != 0 && hwnd == _sourceHwnd && _source is not null)
@@ -96,20 +102,21 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         });
     }
 
-    /// <summary>대상 창과 그 안의 영상 칸 (창 왼쪽 위 기준). 창이 없거나 최소화됐거나 칸을 못 찾으면 (0, null)</summary>
-    private (nint, Int32Rect?) Locate(string target)
+    /// <summary>대상 창과 그 안의 영상 칸 (창 왼쪽 위 기준). 창이 없거나 최소화됐거나 칸을 못 찾으면 (0, null) — 최소화면 iconic</summary>
+    private (nint, Int32Rect?, bool Iconic) Locate(string target)
     {
         var (processName, panelId, imageId) = Targets[target];
         nint hwnd = 0;
         foreach (var p in Process.GetProcessesByName(processName))
             using (p)
                 if (hwnd == 0 && p.MainWindowHandle != 0) hwnd = p.MainWindowHandle;
-        if (hwnd == 0 || IsIconic(hwnd)) return (0, null);
+        if (hwnd == 0) return (0, null, false);
+        if (IsIconic(hwnd)) return (0, null, true);
         // 원본 창 좌표는 실제 픽셀로 (UI Automation도 실제 픽셀) — 이 프로그램의 배율 가상화와 섞이지 않게 이 스레드만 모니터별 배율 인식
         var oldDpi = SetThreadDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2
         try
         {
-            if (!GetWindowRect(hwnd, out var win)) return (0, null);
+            if (!GetWindowRect(hwnd, out var win)) return (0, null, false);
             var bounds = Bounds(_image);
             if (bounds is null)
             {
@@ -119,13 +126,13 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
                 _image = panel?.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, imageId));
                 bounds = Bounds(_image);
             }
-            if (bounds is not { } b) return (hwnd, null);
-            return (hwnd, new Int32Rect((int)b.X - win.Left, (int)b.Y - win.Top, (int)b.Width, (int)b.Height));
+            if (bounds is not { } b) return (hwnd, null, false);
+            return (hwnd, new Int32Rect((int)b.X - win.Left, (int)b.Y - win.Top, (int)b.Width, (int)b.Height), false);
         }
         catch (Exception e) when (e is ElementNotAvailableException or COMException or InvalidOperationException)
         {
             _image = null;
-            return (hwnd, null);
+            return (hwnd, null, false);
         }
         finally { SetThreadDpiAwarenessContext(oldDpi); }
     }
@@ -148,7 +155,7 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         if (_dest is not { } dest || _source is not { } src || _sourceHwnd == 0)
         {
             Hide();
-            Report(target, false, null);
+            Report(target, false, null, waiting: !_everShown && !_iconic);
             return;
         }
         var ownerHwnd = new WindowInteropHelper(owner).Handle;
@@ -156,7 +163,7 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         if (_thumb == 0 && DwmRegisterThumbnail(ownerHwnd, _sourceHwnd, out _thumb) != 0)
         {
             _thumb = 0;
-            Report(target, false, null);
+            Report(target, false, null, waiting: false);
             return;
         }
         // 영상 비율을 지키며 자리 안 가운데에 (CSS 픽셀 = WPF 단위)
@@ -180,11 +187,12 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         if (DwmUpdateThumbnailProperties(_thumb, ref props) != 0)
         {
             Release();
-            Report(target, false, null);
+            Report(target, false, null, waiting: false);
             return;
         }
         // 웹 화면 기준 CSS 픽셀로 (화면이 테두리를 그릴 자리)
-        Report(target, true, new Rect(Math.Round(cx, 1), Math.Round(cy, 1), Math.Round(w, 1), Math.Round(h, 1)));
+        _everShown = true;
+        Report(target, true, new Rect(Math.Round(cx, 1), Math.Round(cy, 1), Math.Round(w, 1), Math.Round(h, 1)), waiting: false);
     }
 
     private void Hide()
@@ -200,11 +208,11 @@ internal sealed class WindowThumbnail(Window owner, FrameworkElement web, Action
         _thumb = 0;
     }
 
-    private void Report(string target, bool shown, Rect? rect)
+    private void Report(string target, bool shown, Rect? rect, bool waiting)
     {
-        if (_reported is { } last && last.Shown == shown && last.Rect == rect) return;
-        _reported = (shown, rect);
-        report(target, shown, rect);
+        if (_reported is { } last && last.Shown == shown && last.Rect == rect && last.Waiting == waiting) return;
+        _reported = (shown, rect, waiting);
+        report(target, shown, rect, waiting);
     }
 
     // ── Win32 / DWM ─────────

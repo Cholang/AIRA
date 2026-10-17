@@ -236,12 +236,6 @@
   fill: var(--art-ground);
 }
 
-.horizon {
-  fill: none;
-  stroke: var(--art-ink-soft);
-  stroke-width: 1.6;
-}
-
 .leg,
 .box {
   fill: var(--bg);
@@ -274,13 +268,16 @@
   stroke-dasharray: 4 4;
 }
 
+/* 숨쉬기는 선 색과 빛만 — 투명도로 하면 면을 채운 도형(다리·몸통·상자)까지 반투명해져 뒤의 선·잔디가 비쳤다 (2026-10-17 사용자) */
 @keyframes breathe {
   0%,
   100% {
-    opacity: 1;
+    stroke: var(--accent);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
   }
   50% {
-    opacity: 0.62;
+    stroke: color-mix(in srgb, var(--accent) 62%, var(--bg));
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 30%, transparent));
   }
 }
 

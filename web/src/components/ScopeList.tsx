@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useKeepInside } from '../keepInside'
 import Button from './Button'
 import styles from './ScopeList.module.css'
+import { T } from '../uiText'
 
 /** 서버 OpticsStore.Scope (ScopeView) */
 export interface Scope {
@@ -146,10 +147,10 @@ export default function ScopeList({
           </p>
           <div className={styles.actions}>
             <Button size="sm" onClick={() => setEditing(null)}>
-              취소
+              {T('button.cancel')}
             </Button>
             <Button type="submit" variant="primary" size="sm">
-              {editing.id ? '고치기' : '추가하기'}
+              {editing.id ? T('button.edit') : T('button.add')}
             </Button>
           </div>
         </form>
@@ -170,7 +171,7 @@ export default function ScopeList({
                     type="button"
                     className={styles.icon}
                     aria-label={`${s.name} 고치기`}
-                    title="고치기"
+                    title={T('button.edit')}
                     onClick={() =>
                       setEditing({
                         id: s.id,

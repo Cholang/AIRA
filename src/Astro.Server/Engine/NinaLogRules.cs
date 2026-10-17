@@ -84,6 +84,10 @@ public static class NinaLogRules
                 ["장비 전원이나 케이블 문제", "드라이버 설정 문제"], "장비 전원과 케이블을 확인한 뒤 다시 연결해 주세요.");
         }
 
+        // 적도의가 답은 했는데 드라이버가 값을 받아들이지 못함 — OnStep이 홈으로 가는 동안 적경을 음수("-5:57:56")로 주면 ASCOM OnStep 드라이버가
+        // "unexpected value"로 거절한다. 통신은 살아 있고 도착하면 사라진다 (2026-10-17·18 실기: 장비 준비 끝의 홈 이동 2초 뒤마다 "통신이 끊겼습니다"로 잘못 알렸다) → 버린다
+        if (Has("GET of Telescope.") && Has("unexpected value")) return null;
+
         // 적도의 통신 (연결된 뒤 값 읽기 실패가 줄줄이)
         if (Has("GET of Telescope."))
             return ("mount", "적도의와 통신이 끊겼습니다",

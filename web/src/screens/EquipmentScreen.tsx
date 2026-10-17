@@ -11,6 +11,7 @@ import engineStyles from './EngineStartScreen.module.css'
 import { HUB, orbitPath, PLANET_OF, selectable, solarLayout, sunArcPath } from './equipmentOrbits'
 import styles from './EquipmentScreen.module.css'
 import { EditNode, PlanetNode, TempFailButtons } from './EquipmentParts'
+import { T, TF } from '../uiText'
 
 // 자동 진행 (DESIGN.md "장비 연결"): 4초 동안 항성 테두리 호가 차오른다, "장비 변경"은 3.5초까지만 받는다
 const ADVANCE_MS = 4000
@@ -240,20 +241,20 @@ function EquipmentGraph({
   const selected = mode === 'connect' ? items.find((i) => i.id === picked && selectable(i)) : undefined
   const headline =
     mode === 'edit'
-      ? '바꿀 장비를 골라 주세요'
+      ? T('title.equipment.choose')
       : selected
-        ? `${selected.title} 연결되지 않음`
+        ? TF('title.equipment.notConnected', { device: selected.title })
         : state === 'done'
           ? without.length === 0
-            ? '모든 장비가 연결되었습니다'
+            ? T('title.equipment.allConnected')
             : without.length === 1
-              ? `${without[0].title} 없이 진행합니다`
-              : `장비 ${without.length}개 없이 진행합니다`
+              ? TF('title.equipment.withoutOne', { device: without[0].title })
+              : TF('title.equipment.withoutMany', { count: without.length })
           : state === 'failed'
             ? hubFailed
-              ? '전원 허브를\n먼저 연결해 주세요'
-              : `연결되지 않은 장비가\n${missing}개 있습니다`
-            : '장비 연결 중입니다'
+              ? T('title.equipment.hubFirst')
+              : TF('title.equipment.missing', { count: missing })
+            : T('title.equipment.connecting')
   // 개수: 등록된 장비(망원경 제외) 중 연결된 것
   const devices = items.filter((i) => i.id !== SCOPE && i.status !== 'Absent')
   const count = `${devices.filter((i) => i.status === 'Pass').length} / ${devices.length}`
@@ -298,7 +299,8 @@ function EquipmentGraph({
 
   return (
     <main className={styles.stage}>
-      <div ref={graphRef} className={styles.graph} data-mode={mode} data-clip-box>
+      {/* data-ready: 행성이 다 나타나기 전에는 가리킴·누름을 받지 않는다 (투명한 자리에 이름표만 뜨던 것, 2026-10-17 사용자) */}
+      <div ref={graphRef} className={styles.graph} data-mode={mode} data-ready={revealed} data-clip-box>
         {geo && (
           <>
             {/* 궤도·고리·위성·소행성대: 연결된 장비만, 아주 희미하게 (연결선 대신) */}
@@ -375,12 +377,12 @@ function EquipmentGraph({
                   // 진행 호가 차오르는 동안 가리키면 시간이 느리게 흐른다. 버튼이 꺼져도 가리킨 상태를 놓치지 않게 감싼 칸에서 받는다
                   <span className={styles.slowZone} {...slowProps}>
                     <Button size="sm" onClick={startEdit} disabled={!done || late}>
-                      장비 변경
+                      {T('button.equipment.change')}
                     </Button>
                   </span>
                 ) : (
                   <Button size="sm" variant="primary" onClick={finishEdit}>
-                    변경 완료
+                    {T('button.equipment.changeDone')}
                   </Button>
                 )}
               </div>
@@ -393,7 +395,7 @@ function EquipmentGraph({
                       {site.name && ` (${site.name})`}
                     </span>
                     <button type="button" className={styles.textAction} onClick={() => onContinue(items, { changeSite: true })} disabled={!counting} {...slowProps}>
-                      변경
+                      {T('button.change')}
                     </button>
                   </>
                 ) : (
@@ -430,6 +432,7 @@ function EquipmentGraph({
                   planet={p}
                   style={style}
                   picked={selected?.id === item.id}
+                  ready={revealed}
                   onPick={() => togglePick(item)}
                   onRetry={() => void retry(item)}
                   onWithout={() => void goWithout(item)}

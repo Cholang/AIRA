@@ -2,6 +2,7 @@ import { Check, RotateCw } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Status } from './StatusIcon'
 import styles from './StepChevrons.module.css'
+import { T } from '../uiText'
 
 export interface ChevronStep {
   id: string
@@ -107,7 +108,7 @@ export default function StepChevrons({
                   className={styles.retry}
                   data-spinning={retrying}
                   aria-label="다시 확인"
-                  title="다시 확인"
+                  title={T('button.recheck')}
                   onClick={onRetry}
                   aria-busy={retrying}
                 >

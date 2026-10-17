@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent } from 'react'
 import { THEMES, type Theme } from '../theme'
 import styles from './ThemeSwitch.module.css'
+import { T } from '../uiText'
 
 /**
  * 화면 모드 라디오 그룹: 같은 너비 버튼 세 개.
@@ -19,7 +20,7 @@ export default function ThemeSwitch({ value, onChange }: { value: Theme; onChang
   }
 
   return (
-    <div className={styles.group} role="radiogroup" aria-label="화면 모드 (Ctrl+Alt+N)">
+    <div className={styles.group} role="radiogroup" aria-label={T('statusbar.theme.label')}>
       {THEMES.map((t, i) => {
         const checked = t.value === value
         return (
