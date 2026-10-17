@@ -61,7 +61,16 @@ public class Phd2CheckTests
     }
 
     [Fact(Skip = "실기: PHD2가 켜져 있을 때만 수동으로")]
-    public async Task 실제_PHD2() => Assert.Null(await Phd2Check.CheckAsync("localhost", 4400, "On-Step", CancellationToken.None));
+    public async Task 실제_PHD2()
+    {
+        // CheckAsync는 PHD2에 물을 수 없으면 null(막지 않음)이라, 먼저 PHD2에 실제로 붙는지 본다 — 안 그러면 PHD2가 꺼져 있어도 통과한다 (2026-10-17)
+        using (var probe = new System.Net.Sockets.TcpClient())
+        {
+            try { await probe.ConnectAsync("localhost", 4400).WaitAsync(TimeSpan.FromSeconds(3)); }
+            catch (Exception e) when (e is System.Net.Sockets.SocketException or TimeoutException) { Assert.Fail("PHD2(포트 4400)에 연결하지 못했습니다 — PHD2를 켜고 서버 사용을 켠 뒤 다시 돌리세요"); }
+        }
+        Assert.Null(await Phd2Check.CheckAsync("localhost", 4400, "On-Step", CancellationToken.None));
+    }
 
     [Fact]
     public async Task 카메라_ST4_PHD2가_알려주는_이름_On_Camera도_통과() =>

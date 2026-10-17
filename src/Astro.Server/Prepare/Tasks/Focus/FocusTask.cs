@@ -32,6 +32,8 @@ public interface IFocusDevices
     /// (2026-10-09 실기: 0에서 시작 → 500·375·250·125·0 뒤 더 안쪽으로 못 가 0에서 움찔거림). 모르면 0
     /// </summary>
     Task<int> AutofocusReachAsync(CancellationToken ct) => Task.FromResult(0);
+    /// <summary>끝에 닿아 멈췄을 때 푸는 방법 (포커서 모델의 StallFix — 장비 › 포커서). 모의 장비는 Oasis 문장</summary>
+    Task<string> StallFixAsync(CancellationToken ct) => Task.FromResult(Equipment.Focuser.FocuserCatalog.Oasis.StallFix);
     /// <summary>
     /// 이 망원경에서 지난번 맞은 초점 위치 (밤을 넘어 저장). 포커서를 달 때 매번 끝까지 넣은 위치를 0으로 잡으므로(포커서 0점) 숫자의 뜻이 밤마다 같다
     /// </summary>
@@ -224,11 +226,9 @@ public sealed class FocusTask(IFocusDevices devices) : IPrepTask
         now is { } n && then is { } t ? $" (그때 {t:F1}°C, 지금 {n:F1}°C)" : "";
 
     /// <summary>포커서 에러: 멈춤 감지면 해제 안내. 다시 시도를 누르면 true, "지금 초점으로 진행"이면 false (2026-10-08 — 포커서 문제로 밤이 막히지 않게)</summary>
-    private static async Task<bool> FocuserErrorAsync(ITaskRun run, bool stalled, string? problem, CancellationToken ct)
+    private async Task<bool> FocuserErrorAsync(ITaskRun run, bool stalled, string? problem, CancellationToken ct)
     {
-        run.Guide("포커서가 멈췄습니다", stalled
-            ? "포커서가 끝에 닿아 멈춘 것 같습니다. 포커서 설정 창(N.I.N.A. 포커서 톱니바퀴)에서 Clear stall을 눌러 주세요."
-            : "포커서가 응답하지 않습니다. 연결을 확인해 주세요.");
+        run.Guide("포커서가 멈췄습니다", stalled ? await devices.StallFixAsync(ct) : "포커서가 응답하지 않습니다. 연결을 확인해 주세요.");
         run.Status(problem ?? (stalled ? "포커서 멈춤 감지" : "포커서 오류"), Tone.Fail);
         return await run.AskAsync("자동초점을 다시 할까요?\n이대로 진행을 누르면 지금 초점 그대로 넘어가요.", [new("retry", ButtonText.Retry, true), new("manual", ButtonText.Proceed)], ct) == "retry";
     }

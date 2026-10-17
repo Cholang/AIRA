@@ -3,7 +3,7 @@ namespace Astro.Server.Prepare.Real;
 /// <summary>
 /// 시험 사진 9칸 확대 보기의 조각 (2026-10-16, DESIGN.md "하늘 화면"): 사진의 네 귀퉁이 · 네 변 가운데 · 한가운데에서 같은 크기의 정사각형을
 /// 원본 화소 그대로 잘라(줄이지 않음 — 별 모양이 보이게) PNG로. 칸 순서는 화면에 보이는 방향으로 왼쪽 위부터 가로로 0~8 (StarField와 같음).
-/// 컬러 센서의 색 무늬는 카메라 내부 프로필의 칸 평균으로 지우고(X-Trans·모름 6×6 — 무늬 한 주기, 3×3은 자리에 따라 섞임이 달라 가로줄이 남았다. 베이어 2×2, 모노 1),
+/// 컬러 센서의 색 무늬는 카메라 모델의 칸 평균(ColorBlock)으로 지우고(X-Trans·모름 6×6 — 무늬 한 주기, 3×3은 자리에 따라 섞임이 달라 가로줄이 남았다. 베이어 2×2, 모노 1),
 /// 밝기는 아홉 칸 모두 사진 전체에서 정한 같은 늘이기로 — 칸끼리 견줄 수 있게. 늘이기 = 배경(중앙값)이 화면 밝기 15%쯤 오도록 (PixInsight STF와 같은 방식: 바닥을 중앙값 − 2.8 × 퍼짐에, 중간 밝기 곡선)
 /// </summary>
 public static class TestTiles
@@ -19,7 +19,7 @@ public static class TestTiles
     {
         var s = Math.Min(Side, Math.Min(img.Width, img.Height) / 3);
         if (s < 16) return null;
-        var block = Camera.CameraCatalog.Match(img.Instrument).ColorBlock;
+        var block = Equipment.Camera.CameraCatalog.Match(img.Instrument).ColorBlock;
         var stretch = Stretch(img, block);
         var tiles = new byte[9][];
         for (var k = 0; k < 9; k++)

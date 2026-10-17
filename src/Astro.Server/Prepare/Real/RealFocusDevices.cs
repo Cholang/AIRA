@@ -64,8 +64,8 @@ public sealed class RealFocusDevices(NinaRig rig, IConfiguration config, Focuser
     public async Task<FocuserZero> ZeroIfRequestedAsync(CancellationToken ct)
     {
         if (!zero.Pending) return FocuserZero.None;
-        var name = await rig.FocuserNameAsync(ct) ?? "";
-        if (!name.Contains("Oasis", StringComparison.OrdinalIgnoreCase) && !name.Contains("AOFocuser", StringComparison.OrdinalIgnoreCase) || !OasisSdk.Installed)
+        // 아이라가 0점을 잡을 수 있는 포커서인가 — 포커서 모델(장비 › 포커서)의 ZeroBySdk (지금은 Oasis 제조사 SDK)
+        if (!(await ModelAsync(ct)).ZeroBySdk || !OasisSdk.Installed)
             return new FocuserZero(true, false, Unsupported: true);
         if ((await rig.FocuserAsync(ct))?.Connected == true && !await rig.DisconnectAsync("focuser", ct))
             return new FocuserZero(true, false, Problem: "N.I.N.A.에서 포커서 연결을 끊지 못했습니다");
@@ -81,10 +81,17 @@ public sealed class RealFocusDevices(NinaRig rig, IConfiguration config, Focuser
         return new FocuserZero(true, true);
     }
 
-    /// <summary>포커서 최대 위치 (N.I.N.A.가 알려 주지 않아 설정 Prepare:FocuserMax, 기본은 Oasis 기본값)</summary>
-    private int Max => config.GetValue("Prepare:FocuserMax", 56000);
+    /// <summary>연결된 포커서의 모델 (N.I.N.A. 포커서 이름·드라이버로). 못 읽으면 기본 모델</summary>
+    private async Task<Equipment.Focuser.FocuserTraits> ModelAsync(CancellationToken ct) =>
+        Equipment.Focuser.FocuserCatalog.Match(await rig.FocuserNameAsync(ct));
 
-    public Task<(int Min, int Max)> LimitsAsync(CancellationToken ct) => Task.FromResult((0, Max));
+    /// <summary>포커서 최대 위치 (N.I.N.A.가 알려 주지 않는다): 설정 Prepare:FocuserMax가 있으면 그것, 없으면 포커서 모델 값, 그것도 모르면 56000</summary>
+    private async Task<int> MaxAsync(CancellationToken ct) =>
+        config.GetValue<int?>("Prepare:FocuserMax") ?? (await ModelAsync(ct)).MaxPosition ?? 56000;
+
+    public async Task<(int Min, int Max)> LimitsAsync(CancellationToken ct) => (0, await MaxAsync(ct));
+
+    public async Task<string> StallFixAsync(CancellationToken ct) => (await ModelAsync(ct)).StallFix;
 
     public async Task<int> PositionAsync(CancellationToken ct) => (await rig.FocuserAsync(ct))?.Position ?? 0;
 
@@ -93,7 +100,7 @@ public sealed class RealFocusDevices(NinaRig rig, IConfiguration config, Focuser
     public async Task<FocuserMove> MoveAsync(int position, CancellationToken ct)
     {
         if (position != 0) parked?.Clear(); // 0을 떠나면 "0에 두고 끝냄"이 아니다 (FocuserPark)
-        var problem = await rig.MoveFocuserAsync(Math.Clamp(position, 0, Max), ct);
+        var problem = await rig.MoveFocuserAsync(Math.Clamp(position, 0, await MaxAsync(ct)), ct);
         return problem is null ? new FocuserMove(true) : new FocuserMove(false, Stalled: problem.Contains("멈췄"), problem);
     }
 

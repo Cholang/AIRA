@@ -28,7 +28,7 @@ public static class PlanRules
     /// <summary>
     /// 사진 한 장마다 내려받기·저장·디더링으로 쉬는 시간의 기본값 — 모르는 카메라와 아직 재지 않은 카메라. X-T5 · N.I.N.A. 연속 촬영 실측 6~10초
     /// (2026-05-08 사진 번호와 시각, 디더링 포함 구간 10초). 전의 40초(2026-10-08)는 저장 폴더가 OneDrive 안이라 느렸던 때의 값.
-    /// 카메라마다의 값은 카메라 내부 프로필(Camera.CameraProfile)과 촬영 중에 잰 값(Camera.CameraProfiles) — 계획은 Rig.FrameOverheadSeconds를 쓴다
+    /// 카메라마다의 값은 카메라 모델(Equipment.Camera.CameraCatalog)과 촬영 중에 잰 배운 값(Equipment.Camera.CameraLearned) — 계획은 Rig.FrameOverheadSeconds를 쓴다
     /// </summary>
     public const double FrameOverheadSeconds = 10;
 

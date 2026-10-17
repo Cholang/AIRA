@@ -214,10 +214,10 @@ public sealed partial class ShootSession
         devices.EndSession();
         log.LogInformation("촬영 끝: {Reason} · 쓸 사진 {Good} · 제외 {Excluded}", reason, _good, _excluded);
         // 장 사이 쉬는 시간: 그 밤의 중앙값을 지금 카메라에 남긴다 — 다음 계획이 그 값으로 장수·끝 시각을 센다 (모의 장비는 남기지 않음)
-        if (!mode.Simulate && _gap.Median is { } gap && cameras is not null)
+        if (!mode.Simulate && _gap.Median is { } gap && learned is not null)
         {
-            cameras.RecordOverhead(null, gap, DateTimeOffset.Now);
-            log.LogInformation("장 사이 쉬는 시간 {Gap:F1}초 ({Count}번 잼) — 카메라 {Camera}", gap, _gap.Samples.Count, cameras.CurrentName ?? "모름");
+            Equipment.Camera.CameraLearned.RecordFrameOverhead(learned, gap, DateTimeOffset.Now);
+            log.LogInformation("장 사이 쉬는 시간 {Gap:F1}초 ({Count}번 잼) — 카메라 {Camera}", gap, _gap.Samples.Count, Equipment.Camera.CameraLearned.CurrentCamera(learned) ?? "모름");
         }
     }
 

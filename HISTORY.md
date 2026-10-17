@@ -8,7 +8,28 @@
 
 ---
 
-## 2026-10-17 · [Claude] 카메라 내부 프로필 — X-T5에 묶인 값을 카메라별 묶음으로, 장 사이 쉬는 시간은 촬영 중 재서 카메라마다 기억
+## 2026-10-17 · [Claude] 장비 트리 — 용어 합의, 카메라를 Equipment/로, 적도의·포커서·가이드 카메라 특성 · 집 장비 읽기 확인 · 실제 PHD2 테스트 고침
+
+**요청**: 장비를 트리로(장비 → 카메라 → 카메라별 고유 속성). 트리·용어를 정리해 합의(장비[분류] → 장비 종류 → 특성[틀] · 모델[값 묶음] · 기본 모델, 배운 값 · 지금 장비)하고 그 구조로 정리, 카메라를 옮기고 적도의 → 포커서 → 가이드 카메라 순서로. 집에서 장비가 연결돼 있으니 앱을 켜서 확인해도 된다(사용자 권한).
+
+**변경**:
+- `Equipment/EquipmentCatalog.cs`: 공통 약속 `IEquipmentCatalog<T>`(Kind·Models·Default·Match — 정적 추상 멤버)·`IEquipmentModel`. 종류끼리 물려받을 속성이 없어 상속 대신 인터페이스.
+- `Equipment/EquipmentLearned.cs`(`equipment.json`): 종류별 지금 장비와 배운 값(종류/장비 이름/속성마다 밤 값, 최근 5밤 중앙값) — 예전 `Camera/CameraProfiles`(cameras.json)를 장비 공통으로.
+- `Equipment/Camera/CameraTraits.cs`: `CameraProfile` → `CameraTraits`, `CameraCatalog`(+ USB 번호, 캐논·니콘·소니 모델 — 값은 기본 모델과 같고 USB 번호만), `CameraLearned`(장 사이 쉬는 시간 도우미). `NinaRig.CameraProfileAsync` → `CameraModelAsync`.
+- `Equipment/Mount/MountTraits.cs`: 극 찾기 회전 각도·속도·홈 센서. UMi17X(60°·2°/s·있음 — 60°는 제조사 사양의 RA 리밋 센서로 보임), 기본 모델 45°·홈 센서 없음(안전한 쪽). `NinaRig.MountModelAsync`, `RealPolarDevices`가 회전 값을 모델에서, 홈 센서가 없으면 극 찾기 전 홈 명령 없이 멈춤만 확인하고 사용자가 옮김.
+- `Equipment/Focuser/FocuserTraits.cs`: 0점 잡기(Oasis 제조사 SDK)·최대 위치·멈춤 푸는 법·USB 번호. `RealFocusDevices`(0점·최대 위치 — 설정 Prepare:FocuserMax 먼저), `IFocusDevices.StallFixAsync` → `FocusTask` 멈춤 안내.
+- `Equipment/GuideCamera/GuideCameraTraits.cs`: USB 번호(ToupTek 0547·ZWO 03C3·QHY 1618). `DevicePrecheck.UsbVendor`·`GuideCameraVendor`가 모델의 USB 번호를 씀 — G3M662M(PHD2 이름에 제조사 없음)은 전에 USB 확인을 건너뛰었는데 이제 확인.
+- `Phd2CheckTests.실제_PHD2`: PHD2에 실제로 붙는지 먼저 확인 — 전에는 PHD2가 꺼져 있어도 통과했다(검사가 물을 수 없으면 null). 내가 "가이드 카메라 연결 확인"이라고 잘못 보고했던 것.
+- 집 장비 읽기 확인(적도의 움직이지 않음, 추적·홈·노출 없음, 끝나고 N.I.N.A.·PHD2 닫음): 적도의 "On-Step"→UMi17X, 카메라 "X-T5"→후지 X(카메라가 보고하는 BitDepth는 16, 프로필 14), 포커서 "Oasis Focuser", PHD2 G3M662M·On-Step 연결됨, N.I.N.A. 적도의 정보 갱신 약 2초·멈춤 흔들림 0.0002° → `MountTiming`의 [실기 확인] 두 개 지움.
+- 문서: ARCHITECTURE 4.8(장비 트리·용어 표·읽는 곳), CLAUDE.md "장비 용어", OPERATION_PROCEDURE ①, DECISION_HISTORY, FIELD_TEST_CHECKLIST(확인 결과·리밋 값 확인 항목).
+
+**확인**: 서버 시험 378 통과·1 건너뜀(장비 시험 `Equipment/` 셋 — 고르기·예전 값과 같음·기본 모델·공통 약속·배운 값·USB 확인), 실제 PHD2 시험은 PHD2를 켜고 통과·끄고 실패 확인, 솔루션 빌드 경고 0, 모의 서버(5211)로 서비스가 뜨는지 확인 후 끔.
+
+**남은 것**: 전원 허브 특성. UMi17X RA 리밋 값·홈 센서 설정(OnStep 앱·드라이버 창), 홈 이동 중 좌표 갱신(적도의를 움직여야 함).
+
+---
+
+## 2026-10-17 · 51a568c [Claude] 카메라 내부 프로필 — X-T5에 묶인 값을 카메라별 묶음으로, 장 사이 쉬는 시간은 촬영 중 재서 카메라마다 기억
 
 **요청**: 나중에 냉각 컬러 카메라(OSC)를 들여도 X-T5로 다시 찍을 때 앱을 고치지 않게, X-T5 특성에 묶인 것을 아이라 안의 카메라 내부 프로필로. 사용자가 보거나 관리하지 않고 아이라가 알아서 묶음을 바꾼다. 끝나면 커밋·푸시(사용자는 잠).
 

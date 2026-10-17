@@ -31,6 +31,10 @@
 - 커밋 해시는 커밋 뒤에야 알 수 있으므로, 다음 커밋 때 바로 앞 항목 제목에 해시를 붙인다.
 - HISTORY.md는 Claude와 Codex가 함께 쓴다. 내 항목 제목에는 `[Claude]`, Codex 항목은 `[Codex]`, Gemini 항목은 `[Gemini]`로 표시한다(Gemini는 이 PC에 쓰지 못해 사용자가 가져온 답변을 내가 넣는다). 다른 쪽 항목은 바로 앞 항목에 해시를 붙이는 것 말고는 고치지 않는다.
 
+## 장비 용어
+
+- 장비별 특성은 장비 트리로 다룬다: 장비(분류) → 장비 종류(카메라·적도의 …) → 특성(틀) · 모델(값 묶음, 카탈로그의 한 줄) · 기본 모델, 그리고 배운 값 · 지금 장비. 용어와 코드 위치는 [docs/implementation/ARCHITECTURE.md](docs/implementation/ARCHITECTURE.md) 4.8 — 사용자와 합의한 말이니 이 용어로 말하고, "프로필"은 사용자 프로필·N.I.N.A. 프로필에만 쓴다.
+
 ## 문서 위치
 
 - 저장소 맨 위에는 README.md · CLAUDE.md · AGENTS.md · DESIGN.md · HISTORY.md만 둔다.

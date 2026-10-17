@@ -66,8 +66,8 @@ public static partial class AppServer
         builder.Services.AddSingleton(new RigOverrides(builder.Configuration["App:DataDir"]));
         builder.Services.AddSingleton<LiveDevices>();
         builder.Services.AddSingleton(new OpticsStore(builder.Configuration["App:DataDir"]));
-        // 카메라 내부 프로필: 지금 카메라와 카메라마다 써 보며 잰 값 (cameras.json)
-        builder.Services.AddSingleton(new Camera.CameraProfiles(builder.Configuration["App:DataDir"]));
+        // 장비 트리의 배운 값·지금 장비 (equipment.json) — 모델 값은 종류별 카탈로그(Equipment/)
+        builder.Services.AddSingleton(new Equipment.EquipmentLearned(builder.Configuration["App:DataDir"]));
         builder.Services.AddTransient<RigSetup>();
 
         // 촬영 계획: 대상 목록(N.I.N.A. 데이터베이스), 오늘 밤 정보, AI 비서 (회사는 Assistant:Provider로 고름)

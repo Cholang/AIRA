@@ -12,13 +12,13 @@ namespace Astro.Server.Prepare.Real;
 /// </summary>
 public static class MountTiming
 {
-    /// <summary>[실기 확인] N.I.N.A. 적도의 정보 갱신 간격 — 2026-10-06 기록 "약 2초"</summary>
+    /// <summary>N.I.N.A. 적도의 정보 갱신 간격 — 약 2초 (2026-10-17 집에서 확인: 1.7~2.3초)</summary>
     public static readonly TimeSpan InfoRefresh = TimeSpan.FromSeconds(2);
 
     /// <summary>읽는 간격: 갱신보다 조금 길게 — 대개 매번 새 갱신을 읽는다(같은 값이면 아래 판정이 건너뜀)</summary>
     public static readonly TimeSpan PollInterval = InfoRefresh + TimeSpan.FromMilliseconds(400);
 
-    /// <summary>[실기 확인] 멈춤 허용 오차(도): 한 갱신(약 2초) 사이의 흔들림. 추적 끈 채 멈추면 적경이 2초에 약 0.008° 흐르므로 그때는 시간각으로 본다</summary>
+    /// <summary>멈춤 허용 오차(도): 한 갱신(약 2초) 사이의 흔들림. 추적 끈 채 멈추면 적경이 2초에 약 0.008° 흐르므로 그때는 시간각으로 본다 (2026-10-17 확인: 멈춘 UMi17X 시간각 흔들림 0.0002°)</summary>
     public const double StillToleranceDeg = 0.005;
 
     /// <summary>[실기 확인] 도착 판정 허용 오차(도) — 이동 끝의 미세한 움직임</summary>

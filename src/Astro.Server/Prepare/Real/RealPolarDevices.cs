@@ -13,9 +13,7 @@ namespace Astro.Server.Prepare.Real;
 /// </summary>
 public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridge sharpCap, AscomAxis axis, ReportAddress address) : IPolarDevices
 {
-    /// <summary>RA 회전: 이 적도의는 홈에서 한쪽으로 약 60°까지만 돈다 (OPERATION_PROCEDURE.md ①)</summary>
-    private const double RotationDeg = 60;
-    private const double RotationRate = 2.0; // °/s (최대 3.55)
+    // RA 회전 각도·속도와 홈 센서는 적도의 모델에서 (장비 › 적도의 — UMi17X는 홈에서 한쪽으로 약 60°까지만 돈다, OPERATION_PROCEDURE.md ①)
     // 노출(초): 1초에서 시작해 배경 밝기를 보고 0.25~4초 사이에서 줄이거나 늘린다 (2026-10-08 실기: 무조건 늘리면 화면이 하얘져 별이 더 안 보임)
     private const double MinExposure = 0.25, MaxExposure = 4;
     private const double Bright = 0.4, Dark = 0.02; // 배경 밝기(0~1, 최대 신호 대비): 이보다 밝으면 줄이고, 어두우면 늘린다
@@ -76,8 +74,9 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         sharpCap.Send("advance");
         await sharpCap.WaitAsync(r => r.Stage != "First", TimeSpan.FromSeconds(15), ct);
 
-        // RA축만 돌린다 (SharpCap은 안내만)
-        var rotated = await axis.RotateRaAsync(RotationRate, RotationDeg / RotationRate,
+        // RA축만 돌린다 (SharpCap은 안내만) — 각도·속도는 적도의 모델
+        var model = await rig.MountModelAsync(ct);
+        var rotated = await axis.RotateRaAsync(model.RotationRateDegPerSec, model.PolarRotationDeg / model.RotationRateDegPerSec,
             deg => progress(new("rotate", 0, 0, deg)), ct);
         // 회전이 실패했거나(멈춤 명령이 안 들어감 포함) 멈춘 것을 확인하지 못하면: 드라이버 비상 정지와 N.I.N.A. 정지를 함께 보내고 확인한다.
         // 그래도 확인하지 못하면 StopUnconfirmed — 극축 정렬이 "다시 시도" 대신 확인부터 하게 (2026-10-14 자체 리뷰: 멈춤 없이 잠금을 풀고 다시 시도를 보였다)
@@ -89,7 +88,7 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
         }
 
         // 둘째 사진
-        if (await SolveStageAsync("second", progress, RotationDeg, ct) is { } why2)
+        if (await SolveStageAsync("second", progress, model.PolarRotationDeg, ct) is { } why2)
             return new(false, $"회전한 뒤 위치를 찾지 못했습니다. 회전 중 별이 가려졌을 수 있습니다. ({why2})", Rotated: true);
         sharpCap.Send("advance");
         return await sharpCap.WaitAsync(r => r.Adjusting, TimeSpan.FromSeconds(20), ct) is null
@@ -206,6 +205,9 @@ public sealed class RealPolarDevices(NinaRig rig, Phd2Client phd2, SharpCapBridg
     /// </summary>
     public async Task<PolarReturn> ReturnToStartAsync(CancellationToken ct)
     {
+        // 홈 센서가 없는 적도의는 홈 명령이 정해진 자리로 데려가지 못한다 — 멈춘 것만 확인하고 사용자가 옮긴다(극축 정렬의 "완료")
+        if (!(await rig.MountModelAsync(ct)).HasHomeSensor)
+            return await StopMountAsync(ct) ? PolarReturn.Stopped : PolarReturn.StopUnconfirmed;
         if (await rig.HomeAsync(ct))
         {
             await SetSiderealTrackingAsync(ct); // 실패해도 다음 회전 전 정지 확인이 본다

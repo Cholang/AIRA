@@ -120,20 +120,15 @@ public static class DevicePrecheck
             ? new(false, $"{role}{(Josa(role) ? "이" : "가")} 시뮬레이터입니다 ({name})", "실제 장비로 촬영하려면 장비 변경에서 실제 장비를 골라 주세요. 시험 중이면 그대로 진행해도 됩니다.")
             : null;
 
-    /// <summary>드라이버 Id로 아는 USB 제조사 번호 (없으면 확인하지 않음)</summary>
+    /// <summary>드라이버 Id로 아는 USB 제조사 번호 — 장비 모델(장비 트리)의 USB 제조사 번호. 없으면 확인하지 않음</summary>
     internal static (string Vid, string Fix)? UsbVendor(string kind, string id)
     {
         if (kind == "camera")
-        {
-            var vid = id.Contains("Fujifilm", StringComparison.OrdinalIgnoreCase) ? "04CB"
-                : id.Contains("Canon", StringComparison.OrdinalIgnoreCase) ? "04A9"
-                : id.Contains("Nikon", StringComparison.OrdinalIgnoreCase) ? "04B0"
-                : id.Contains("Sony", StringComparison.OrdinalIgnoreCase) ? "054C"
-                : null;
-            return vid is null ? null : (vid, "카메라 전원(배터리 또는 전원 어댑터)을 켜고, USB 케이블과 카메라의 PC 연결 방식(USB 테더 촬영)을 확인해 주세요.");
-        }
-        if (kind == "focuser" && id.Contains("AOFocuser", StringComparison.OrdinalIgnoreCase))
-            return ("338F", "포커서 USB 케이블을 확인해 주세요. 전원 허브의 USB 출력을 쓰면 그 출력이 켜져 있는지도 확인해 주세요.");
+            return Equipment.Camera.CameraCatalog.Match(null, id).UsbVendorId is { } vid
+                ? (vid, "카메라 전원(배터리 또는 전원 어댑터)을 켜고, USB 케이블과 카메라의 PC 연결 방식(USB 테더 촬영)을 확인해 주세요.") : null;
+        if (kind == "focuser")
+            return Equipment.Focuser.FocuserCatalog.Match(null, id).UsbVendorId is { } fvid
+                ? (fvid, "포커서 USB 케이블을 확인해 주세요. 전원 허브의 USB 출력을 쓰면 그 출력이 켜져 있는지도 확인해 주세요.") : null;
         // WandererBox는 CH340 USB 직렬(1A86). 없으면 Empire가 "No CH340 device found" 창을 띄우고 N.I.N.A. 연결은 약 2분 뒤에야 실패한다
         // (2026-10-12 사용자 — 장비 없이 연결하자 연결 중으로 계속 남음). 다른 CH340 장치가 꽂혀 있으면 통과하고 예전처럼 N.I.N.A. 결과를 기다린다
         if (kind == "switch" && id.Contains("Wanderer", StringComparison.OrdinalIgnoreCase))
@@ -141,15 +136,12 @@ public static class DevicePrecheck
         return null;
     }
 
-    /// <summary>PHD2 카메라 이름으로 아는 USB 제조사 번호 (ToupTek 0547 — 10/09 실기 G3M662M, ZWO 03C3, QHY 1618). 모르면 확인하지 않음</summary>
+    /// <summary>PHD2 카메라 이름으로 아는 USB 제조사 번호 — 가이드 카메라 모델(장비 트리: ToupTek 0547 · ZWO 03C3 · QHY 1618). 모르면 확인하지 않음</summary>
     internal static (string Vid, string Fix)? GuideCameraVendor(string? camera)
     {
         if (camera is null) return null;
-        var vid = camera.Contains("ToupTek", StringComparison.OrdinalIgnoreCase) ? "0547"
-            : camera.Contains("ZWO", StringComparison.OrdinalIgnoreCase) ? "03C3"
-            : camera.Contains("QHY", StringComparison.OrdinalIgnoreCase) ? "1618"
-            : null;
-        return vid is null ? null : (vid, "가이드 카메라 USB 케이블을 확인해 주세요. 전원 허브의 USB에 꽂혀 있으면 허브 전원과 USB 출력이 켜져 있는지도 확인해 주세요.");
+        return Equipment.GuideCamera.GuideCameraCatalog.Match(camera).UsbVendorId is { } vid
+            ? (vid, "가이드 카메라 USB 케이블을 확인해 주세요. 전원 허브의 USB에 꽂혀 있으면 허브 전원과 USB 출력이 켜져 있는지도 확인해 주세요.") : null;
     }
 
     private static bool Josa(string word) => Astro.Core.Josa.HasFinalConsonant(word);

@@ -9,7 +9,7 @@ namespace Astro.Server.Shoot;
 /// 끝: 계획 장수(쓸 사진 기준) · 대상이 계획의 끝 고도(기본 30°) 아래 · 계획 끝 시각(새벽) — 또는 사용자의 "촬영 중단"(지금 사진까지 찍고).
 /// 끝나면 가이딩을 멈춘다. 그 뒤(마무리 / 다른 대상)는 화면이 고른다.
 /// </summary>
-public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareMode mode, ILogger<ShootSession> log, Camera.CameraProfiles? cameras = null)
+public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareMode mode, ILogger<ShootSession> log, Equipment.EquipmentLearned? learned = null)
 {
     public const int DitherEvery = 3;
     public const double FlipAfterDeg = 1.25;        // 자오선 지나 5분 뒤 반전
@@ -58,7 +58,7 @@ public sealed partial class ShootSession(IShootDevices devices, Prepare.PrepareM
     private readonly List<string> _notMoved = [];
     // 디더링 안정화 실패 (2026-10-06 사용자 결정): 연속 3번이면 멈추고 안정되면 자동 재개, 15분 넘게 안 되면 "그대로 찍을까요?"
     private int _ditherFails;
-    // 장 사이 쉬는 시간 재기 — 끝날 때 카메라 내부 프로필에 남긴다 (2026-10-17)
+    // 장 사이 쉬는 시간 재기 — 끝날 때 지금 카메라의 배운 값으로 남긴다 (2026-10-17)
     private readonly FrameGap _gap = new();
     private string? _ask, _answer;
     private bool _unstableAccepted;
