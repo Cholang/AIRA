@@ -42,10 +42,13 @@ public sealed partial class EquipmentConnector
     /// <summary>장비가 PC에 안 보일 때 배선에 맞춰 덧붙이는 말 (적도의·장비가 파워박스에서 받으면 그 출력부터)</summary>
     private string WiringHint(string kind) =>
         Wiring.SourceOf(kind) == Profiles.PowerWiring.Hub && kind != Hub
-            ? " 전원 설정상 파워박스에서 전원을 받으니, Wanderer Empire에서 그 출력이 켜져 있는지도 확인해 주세요."
+            ? $" 전원 설정상 파워박스에서 전원을 받으니, {HubAppName ?? "허브 프로그램"}에서 그 출력이 켜져 있는지도 확인해 주세요."
             : kind == "mount" && Wiring.SourceOf(Hub) == Profiles.PowerWiring.Mount
                 ? " 적도의 전원을 켜면 파워박스도 함께 켜집니다."
                 : "";
+
+    /// <summary>지금 허브의 제조사 프로그램 이름 (장비 › 전원 허브). 허브가 없거나·아직 모르거나·프로그램이 없는 허브면 null</summary>
+    public string? HubAppName => Equipment.Hub.HubCatalog.Current(learned?.Current(Hub))?.App?.Name;
 
     /// <summary>이보다 낮으면 허브에 전원이 없다고 본다 (12V 장비용 허브 — USB만 꽂혀 있으면 0 근처)</summary>
     private const double NoPowerVolts = 5;

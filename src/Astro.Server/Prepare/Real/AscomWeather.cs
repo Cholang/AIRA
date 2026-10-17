@@ -1,16 +1,23 @@
 namespace Astro.Server.Prepare.Real;
 
 /// <summary>
-/// 기온·습도·이슬점 (이슬 여유 = 기온 − 이슬점). WandererBox Environment Sensor(ASCOM ObservingConditions)를 직접 읽는다.
+/// 기온·습도·이슬점 (이슬 여유 = 기온 − 이슬점). 지금 전원 허브 모델의 환경 센서 드라이버(장비 › 전원 허브 — WandererBox Environment Sensor, ASCOM ObservingConditions)를 직접 읽는다.
+/// 센서가 없는 허브면 읽지 않는다(null).
 /// 2026-10-08 실기(WandererBox Plus V3 + DHT22): N.I.N.A.가 WandererBox 스위치를 연결한 채로도 동시에 읽힘 — 기온 25.2°C · 습도 36.5% · 이슬점 9.26°C(드라이버가 계산).
 /// N.I.N.A. 날씨 장비(weather/info)로 받지 않는 이유: 사용자 프로필에 날씨 장비가 없고, 연결하면 프로필 설정이 바뀐다.
 /// 렌즈에 붙인 온도 프로브 값은 이 드라이버에 없다(허브 상태 줄에만 — COM 포트는 Empire가 잡고 있음).
 /// 읽기만 한다. 한 번 연결한 드라이버를 계속 쓰고, 값은 1분에 한 번만 새로 읽는다.
 /// CX-NIGHT-04: 드라이버 조회(COM)는 멈추면 취소로도 끝나지 않는다 → 조회는 뒤에서 하나만 돌리고, 부르는 쪽은 기다리지 않고 최근 값(5분 안)이나 null을 바로 받는다
 /// </summary>
-public sealed class AscomWeather(ILogger<AscomWeather> log)
+public sealed class AscomWeather(ILogger<AscomWeather> log, Equipment.EquipmentLearned? learned = null)
 {
-    public string DriverId { get; set; } = "ASCOM.WandererBoxEnvironment.ObservingConditions";
+    /// <summary>센서 드라이버 Id — 지금 허브 모델의 것. 허브가 없거나·아직 모르거나·센서가 없는 허브면 null. 시험은 직접 넣는다</summary>
+    public string? DriverId
+    {
+        get => _driverId ?? Equipment.Hub.HubCatalog.Current(learned?.Current(Equipment.Hub.HubCatalog.Kind))?.WeatherDriverId;
+        set => _driverId = value;
+    }
+    private string? _driverId;
 
     public sealed record Reading(double TemperatureC, double HumidityPercent, double DewPointC, DateTimeOffset At)
     {
@@ -31,6 +38,7 @@ public sealed class AscomWeather(ILogger<AscomWeather> log)
     public Task<Reading?> ReadAsync(CancellationToken ct)
     {
         var now = DateTimeOffset.Now;
+        if (DriverId is null) return Task.FromResult<Reading?>(null); // 센서가 없는 허브
         lock (_gate)
         {
             var stale = _last is not { } l || now - l.At >= Refresh;
@@ -54,7 +62,8 @@ public sealed class AscomWeather(ILogger<AscomWeather> log)
     {
         if (_driver is null)
         {
-            var type = Type.GetTypeFromProgID(DriverId) ?? throw new InvalidOperationException($"ASCOM 드라이버 {DriverId}를 찾지 못했습니다");
+            var id = DriverId ?? throw new InvalidOperationException("이 전원 허브에는 환경 센서가 없습니다");
+            var type = Type.GetTypeFromProgID(id) ?? throw new InvalidOperationException($"ASCOM 드라이버 {id}를 찾지 못했습니다");
             _driver = Activator.CreateInstance(type) ?? throw new InvalidOperationException("ASCOM 드라이버를 만들지 못했습니다");
         }
         if (!(bool)_driver.Connected) _driver.Connected = true;

@@ -129,10 +129,11 @@ public static class DevicePrecheck
         if (kind == "focuser")
             return Equipment.Focuser.FocuserCatalog.Match(null, id).UsbVendorId is { } fvid
                 ? (fvid, "포커서 USB 케이블을 확인해 주세요. 전원 허브의 USB 출력을 쓰면 그 출력이 켜져 있는지도 확인해 주세요.") : null;
-        // WandererBox는 CH340 USB 직렬(1A86). 없으면 Empire가 "No CH340 device found" 창을 띄우고 N.I.N.A. 연결은 약 2분 뒤에야 실패한다
+        // 전원 허브 모델의 USB 번호 — WandererBox는 CH340 USB 직렬(1A86). 없으면 Empire가 "No CH340 device found" 창을 띄우고 N.I.N.A. 연결은 약 2분 뒤에야 실패한다
         // (2026-10-12 사용자 — 장비 없이 연결하자 연결 중으로 계속 남음). 다른 CH340 장치가 꽂혀 있으면 통과하고 예전처럼 N.I.N.A. 결과를 기다린다
-        if (kind == "switch" && id.Contains("Wanderer", StringComparison.OrdinalIgnoreCase))
-            return ("1A86", "전원 허브의 전원(12V)이 켜져 있는지, 허브와 PC 사이 USB 케이블이 꽂혀 있는지 확인해 주세요.");
+        if (kind == "switch")
+            return Equipment.Hub.HubCatalog.Match(null, id).UsbVendorId is { } hvid
+                ? (hvid, "전원 허브의 전원(12V)이 켜져 있는지, 허브와 PC 사이 USB 케이블이 꽂혀 있는지 확인해 주세요.") : null;
         return null;
     }
 
@@ -158,12 +159,12 @@ public static class DevicePrecheck
     }
 
     /// <summary>
-    /// Wanderer Empire가 허브와 끊겼을 수 있나 (J01·J02): Empire가 켜진 뒤에 USB 장치가 새로 꽂혔으면 Empire는 허브와 다시 연결하지 않는다(10/09 실기 —
-    /// N.I.N.A. 연결이 2분 기다린 뒤 실패). 그때는 Empire를 닫아 두면 N.I.N.A. 스위치 연결이 새로 띄우고 자동으로 연결한다(16초)
+    /// 허브 제조사 프로그램이 허브와 끊겼을 수 있나 (J01·J02 — Wanderer Empire): 프로그램이 켜진 뒤에 USB 장치가 새로 꽂혔으면 허브와 다시 연결하지 않는다(10/09 실기 —
+    /// N.I.N.A. 연결이 2분 기다린 뒤 실패). 그때는 프로그램을 닫아 두면 N.I.N.A. 스위치 연결이 새로 띄우고 자동으로 연결한다(16초)
     /// </summary>
-    public static bool EmpireStale(IHostDevices host)
+    public static bool HubAppStale(IHostDevices host)
     {
-        if (host.EmpireStartedAt() is not { } started) return false;
+        if (host.HubAppStartedAt() is not { } started) return false;
         return host.LastUsbInsertedAt() is { } inserted && inserted > started;
     }
 
@@ -176,9 +177,11 @@ public static class DevicePrecheck
         bool UsbPresent(string vid);
         /// <summary>ASCOM 드라이버 설정의 COM 포트 (직렬 드라이버가 아니거나 모르면 null)</summary>
         string? DriverComPort(string kind, string id);
-        DateTimeOffset? EmpireStartedAt();
+        /// <summary>허브 제조사 프로그램(Wanderer Empire 등)이 켜진 시각. 꺼져 있으면 null</summary>
+        DateTimeOffset? HubAppStartedAt();
         DateTimeOffset? LastUsbInsertedAt();
-        void CloseEmpire();
+        /// <summary>허브 제조사 프로그램과 그 ASCOM 서버를 닫는다</summary>
+        void CloseHubApp();
         /// <summary>PHD2가 지금 프로필에서 쓰는 카메라 이름 (예: "ToupTek Camera"). 모르면 null</summary>
         string? Phd2CameraName() => null;
     }
@@ -251,9 +254,9 @@ public static class DevicePrecheck
             return null;
         }
 
-        public DateTimeOffset? EmpireStartedAt()
+        public DateTimeOffset? HubAppStartedAt()
         {
-            var ps = Process.GetProcessesByName(BackgroundWindows.WandererEmpire);
+            var ps = BackgroundWindows.HubApps.SelectMany(Process.GetProcessesByName).ToArray();
             try { return ps.Length == 0 ? null : ps.Min(p => (DateTimeOffset)p.StartTime); }
             catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { return null; }
             finally { foreach (var p in ps) p.Dispose(); }
@@ -278,10 +281,10 @@ public static class DevicePrecheck
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or DirectoryNotFoundException) { return null; }
         }
 
-        /// <summary>Empire와 그 ASCOM 서버를 닫는다 (N.I.N.A.가 허브를 쓰고 있지 않을 때만 부른다)</summary>
-        public void CloseEmpire()
+        /// <summary>허브 제조사 프로그램과 그 ASCOM 서버를 닫는다 (N.I.N.A.가 허브를 쓰고 있지 않을 때만 부른다)</summary>
+        public void CloseHubApp()
         {
-            foreach (var name in new[] { BackgroundWindows.WandererEmpire, "ASCOM.WandererBox1", "ASCOM.WandererBox2" })
+            foreach (var name in Equipment.Hub.HubCatalog.AllApps.SelectMany(a => a.AllProcesses))
                 foreach (var p in Process.GetProcessesByName(name))
                     using (p)
                     {

@@ -422,7 +422,7 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
     }
 
     /// <summary>
-    /// 이슬 열선 (WandererBox DC3 PWM — N.I.N.A. 스위치). Power = 0~1, Auto = WandererEmpire 자동 제어 중
+    /// 이슬 열선 (WandererBox DC3 PWM — N.I.N.A. 스위치). Power = 0~1, Auto = 허브 제조사 프로그램의 자동 제어 중(허브 모델의 HeaterAutoMark — Empire는 "Automatic control")
     /// (2026-10-08 실기: 자동이면 읽기 전용 스위치 "PWM DC3: DC3", 설명 "Automatic control in progress…", 값 0~255 — 기준 15→5°C로 바꾸자 255→0).
     /// 스위치가 연결되지 않았거나 PWM 열선이 없으면 null
     /// </summary>
@@ -440,7 +440,8 @@ public sealed class NinaRig(NinaApiClient nina, AscomAxis? axis = null)
                 var desc = w.TryGetProperty("Description", out var d) ? d.GetString() ?? "" : "";
                 var max = Num(w, "Maximum");
                 var value = Num(w, "Value");
-                return (Math.Clamp(value / (max > 1 ? max : 255), 0, 1), desc.Contains("Automatic control", StringComparison.OrdinalIgnoreCase));
+                var auto = Equipment.Hub.HubCatalog.Models.Any(m => m.HeaterAutoMark is { } mark && desc.Contains(mark, StringComparison.OrdinalIgnoreCase));
+                return (Math.Clamp(value / (max > 1 ? max : 255), 0, 1), auto);
             }
         }
         return null;

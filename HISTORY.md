@@ -8,7 +8,24 @@
 
 ---
 
-## 2026-10-17 · [Claude] 장비 트리 — 용어 합의, 카메라를 Equipment/로, 적도의·포커서·가이드 카메라 특성 · 집 장비 읽기 확인 · 실제 PHD2 테스트 고침
+## 2026-10-17 · [Claude] 장비 트리 — 전원 허브 특성, 등록 안 된 장비는 "없음"으로
+
+**요청**: 전원 허브 진행(xhigh 추천). 그 뒤 사용자: 장비가 없을 때는 없는 걸로 하고 없다는 표시를 해야 하지 않나 — 아직 모를 때도 가정하지 않기로(내 추천).
+
+**변경**:
+- `Equipment/Hub/HubTraits.cs`: 전원 허브 특성(제조사 프로그램 `HubApp` — 이름표·프로세스·ASCOM 서버·설치 위치·시작 로고, USB 번호, 환경 센서 드라이버, 열선 자동 표시), `HubCatalog`(WandererBox · 기본 모델), `AllApps`, `Current(지금 허브)`(없거나 모르면 null).
+- Wanderer Empire 전제를 모델로: `EngineStarter.WarmUp`(지금 허브의 프로그램만 미리 켬), `BackgroundWindows.HubApps`·`IsSplash`, `ProgramCloser`(목록·닫기 — 이름표 "empire" 그대로), `DevicePrecheck`(`EmpireStale`·`EmpireStartedAt`·`CloseEmpire` → `HubAppStale`·`HubAppStartedAt`·`CloseHubApp`, 허브 USB 번호), `AscomWeather.DriverId`(지금 허브의 센서, 없으면 읽지 않음), `NinaRig.DewHeaterAsync`(열선 자동 표시), `EquipmentConnector.HubAppName`(안내 문장) → `GET /api/equipment/camera-power`의 `hubApp` → 웹 `EquipmentParts` 카메라 전원 확인 문구(전에는 "Wanderer Empire" 고정).
+- 지금 장비: 장비 연결이 N.I.N.A. 프로필을 읽을 때(`ReadDevicesAsync`) 카메라·적도의·포커서·전원 허브를 남기고, 등록 안 된 장비는 `EquipmentLearned.SetAbsent`로 "없음" — 처음엔 등록된 것만 남겨 프로필에서 허브를 빼도 지난 WandererBox를 계속 들고 있었다. 허브가 없거나 아직 모르면(처음 설치한 날) 없는 것으로(처음엔 "모르면 WandererBox로 가정"). 화면의 "없음" 표시는 장비 연결 화면의 "등록 안 됨" 그대로.
+- 시험: `HubTraitsTests`(고르기·예전 값과 같음·없음/모름/모르는 모델·USB·날씨 센서), 가짜 호스트 이름 바꿈.
+- 문서: ARCHITECTURE 4.8(허브 모델·읽는 곳·없음), DECISION_HISTORY.
+
+**확인**: 서버 시험 387 통과·1 건너뜀, 솔루션 빌드 경고 0, 웹 tsc·lint(경고 38 그대로)·시험 52·빌드, 모의 서버(5211)로 카메라 전원 API의 hubApp이 내려오는지 확인 후 끔. 전체 시험 중 `PrepareFlowTests.대상이_낮으면_이동을_막고_기다리면_이동할_수_있다`가 한 번 시간 초과(따로·다시 돌리면 통과 — 원래 있던 간헐적 실패, 별도 세션에서 고치는 중).
+
+**남은 것**: 실제 허브 연결로 Empire 미리 켜기·창 숨기기·종료가 그대로인지 실기에서.
+
+---
+
+## 2026-10-17 · 71d1dac [Claude] 장비 트리 — 용어 합의, 카메라를 Equipment/로, 적도의·포커서·가이드 카메라 특성 · 집 장비 읽기 확인 · 실제 PHD2 테스트 고침
 
 **요청**: 장비를 트리로(장비 → 카메라 → 카메라별 고유 속성). 트리·용어를 정리해 합의(장비[분류] → 장비 종류 → 특성[틀] · 모델[값 묶음] · 기본 모델, 배운 값 · 지금 장비)하고 그 구조로 정리, 카메라를 옮기고 적도의 → 포커서 → 가이드 카메라 순서로. 집에서 장비가 연결돼 있으니 앱을 켜서 확인해도 된다(사용자 권한).
 

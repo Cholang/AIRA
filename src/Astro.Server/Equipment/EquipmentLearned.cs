@@ -36,10 +36,30 @@ public sealed class EquipmentLearned
         _data = Load();
     }
 
-    /// <summary>그 종류의 지금 장비 이름. 모르면 null</summary>
+    /// <summary>"없음" 표시 (N.I.N.A. 프로필에 그 장비가 등록 안 됨)</summary>
+    private const string AbsentMark = "";
+
+    /// <summary>그 종류의 지금 장비 이름. 없음(등록 안 됨)·아직 모름이면 null — 둘 다 "없는 것으로" 다룬다 (2026-10-17 사용자)</summary>
     public string? Current(string kind)
     {
-        lock (_gate) return _data.Current.TryGetValue(kind, out var n) ? n : null;
+        lock (_gate) return _data.Current.TryGetValue(kind, out var n) && n != AbsentMark ? n : null;
+    }
+
+    /// <summary>그 종류가 없다고 확인됨 (N.I.N.A. 프로필에 등록 안 됨). 아직 모르는 것과 구분해 기록에 남긴다</summary>
+    public bool IsAbsent(string kind)
+    {
+        lock (_gate) return _data.Current.TryGetValue(kind, out var n) && n == AbsentMark;
+    }
+
+    /// <summary>그 종류의 장비가 없다(등록 안 됨)고 남긴다 — 전에 쓰던 장비를 계속 들고 있지 않게</summary>
+    public void SetAbsent(string kind)
+    {
+        lock (_gate)
+        {
+            if (_data.Current.TryGetValue(kind, out var now) && now == AbsentMark) return;
+            _data.Current[kind] = AbsentMark;
+            Save();
+        }
     }
 
     public void SetCurrent(string kind, string? name)

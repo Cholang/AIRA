@@ -12,7 +12,7 @@ namespace Astro.Server.Engine;
 /// 1단계 엔진 켜기: N.I.N.A.를 켜고, 연결 통로(Advanced API)가 응답할 때까지 기다린 뒤, 인터넷 연결을 확인한다.
 /// 결과 형식은 0단계와 같아서 화면이 같은 쉐브론·공통 영역을 쓴다.
 /// </summary>
-public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options)
+public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, NinaWatcher watcher, IOptions<NinaOptions> options, Equipment.EquipmentLearned? learned = null)
 {
     private static readonly CheckItem Launch = new("launch", "N.I.N.A. 켜기", null,
         $"N.I.N.A.가 꺼져 있으면 {Product.Ga} 대신 켭니다. 처음 켤 때는 1분쯤 걸릴 수 있습니다.");
@@ -40,7 +40,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
             if (Process.GetProcessesByName("NINA").Length == 0 && InstallLocator.NinaExe(opt.ExePath) is { } ninaExe)
             {
                 // N.I.N.A.·PHD2·Empire 창이 아이라 위로 뜨지 않게 — N.I.N.A.가 다 켜질 때까지
-                var behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), BackgroundWindows.Nina, BackgroundWindows.Phd2, BackgroundWindows.WandererEmpire);
+                var behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, BackgroundWindows.Phd2, .. BackgroundWindows.HubApps]);
                 _ = Task.Delay(TimeSpan.FromSeconds(40)).ContinueWith(_ => behind.Dispose(), TaskScheduler.Default);
                 try
                 {
@@ -88,7 +88,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
             try
             {
                 // N.I.N.A.가 켜지며 장비 드라이버를 훑을 때 Wanderer Empire도 켜져 시작 로고("항상 위")를 띄운다 (2026-10-10 사용자) — 같이 지켜보고, 늦게 뜨는 로고까지 20초 더
-                behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), BackgroundWindows.Nina, BackgroundWindows.WandererEmpire);
+                behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Nina, .. BackgroundWindows.HubApps]);
                 Process.Start(new ProcessStartInfo(ninaExe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(ninaExe), WindowStyle = ProcessWindowStyle.Minimized });
                 justLaunched = true;
             }
@@ -110,7 +110,7 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
         // 장비 연결에서 가장 느린 두 프로그램을 N.I.N.A.가 준비되는 동안 미리 켠다 (2026-10-11 사용자 — 기록: N.I.N.A.가 연결하는 순간에 켜면
         // 파워박스 Empire 32초, PHD2 약 9초. Empire가 이미 켜져 있던 실행은 파워박스 2초). 아이라가 켠 것이라 종료 때 함께 닫힌다(ProgramCloser — 아이라 뒤에 켜진 것)
         var warm = opt.LaunchIfNotRunning && WarmUp();
-        if (warm && behind is null) behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), BackgroundWindows.Phd2, BackgroundWindows.WandererEmpire);
+        if (warm && behind is null) behind = BackgroundWindows.Watch(TimeSpan.FromSeconds(20), [BackgroundWindows.Phd2, .. BackgroundWindows.HubApps]);
 
         // 2. 연결 통로 응답 대기
         yield return Connect.Running(justLaunched ? "N.I.N.A.가 준비되기를 기다리는 중입니다" : "응답을 확인하는 중입니다");
@@ -148,17 +148,18 @@ public sealed class EngineStarter(NinaApiClient nina, InternetCheck internet, Ni
                 "휴대폰 핫스팟을 켜고 노트북을 연결한 뒤 다시 시도를 눌러 주세요."));
     }
 
-    /// <summary>PHD2·Wanderer Empire가 설치돼 있고 꺼져 있으면 켠다 (최소화). 하나라도 켰으면 true. 실패해도 장비 연결이 원래대로 켜므로 조용히 넘긴다</summary>
-    private static bool WarmUp()
+    /// <summary>
+    /// PHD2·지금 허브의 제조사 프로그램(Wanderer Empire 등 — 장비 › 전원 허브, 허브가 없거나 아직 모르면 켜지 않음)이 설치돼 있고 꺼져 있으면 켠다 (최소화).
+    /// 하나라도 켰으면 true. 실패해도 장비 연결이 원래대로 켜므로 조용히 넘긴다
+    /// </summary>
+    private bool WarmUp()
     {
         if (!OperatingSystem.IsWindows()) return false;
         var x86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         var started = false;
-        foreach (var (process, exe) in new[]
-                 {
-                     (BackgroundWindows.Phd2, Path.Combine(x86, "PHDGuiding2", "phd2.exe")),
-                     (BackgroundWindows.WandererEmpire, Path.Combine(x86, "Wanderer Astro", "Wanderer Empire.exe")),
-                 })
+        var hub = Equipment.Hub.HubCatalog.Current(learned?.Current(Equipment.Hub.HubCatalog.Kind))?.App;
+        foreach (var (process, exe) in new (string, string)[] { (BackgroundWindows.Phd2, Path.Combine(x86, "PHDGuiding2", "phd2.exe")) }
+                     .Concat(hub is null ? [] : [(hub.Process, Path.Combine(x86, hub.ExeUnderProgramFilesX86))]))
         {
             if (!File.Exists(exe) || Process.GetProcessesByName(process).Length > 0) continue;
             try

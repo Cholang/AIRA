@@ -17,9 +17,9 @@ public class DevicePrecheckTests
         public IReadOnlyList<(string Port, string Name)> UsbSerialPorts() => Serial;
         public bool UsbPresent(string vid) => Usb.Contains(vid);
         public string? DriverComPort(string kind, string id) => DriverPorts.GetValueOrDefault(id);
-        public DateTimeOffset? EmpireStartedAt() => Empire;
+        public DateTimeOffset? HubAppStartedAt() => Empire;
         public DateTimeOffset? LastUsbInsertedAt() => Inserted;
-        public void CloseEmpire() => Closed = true;
+        public void CloseHubApp() => Closed = true;
         public string? Phd2Camera = "ToupTek Camera";
         public string? Phd2CameraName() => Phd2Camera;
     }
@@ -120,8 +120,8 @@ public class DevicePrecheckTests
     public void Empire가_켜진_뒤_USB가_꽂히면_다시_켜야_한다()
     {
         var t = DateTimeOffset.Now;
-        Assert.True(DevicePrecheck.EmpireStale(new FakeHost { Empire = t, Inserted = t.AddMinutes(5) }));
-        Assert.False(DevicePrecheck.EmpireStale(new FakeHost { Empire = t, Inserted = t.AddMinutes(-5) }));
-        Assert.False(DevicePrecheck.EmpireStale(new FakeHost { Empire = null, Inserted = t }));
+        Assert.True(DevicePrecheck.HubAppStale(new FakeHost { Empire = t, Inserted = t.AddMinutes(5) }));
+        Assert.False(DevicePrecheck.HubAppStale(new FakeHost { Empire = t, Inserted = t.AddMinutes(-5) }));
+        Assert.False(DevicePrecheck.HubAppStale(new FakeHost { Empire = null, Inserted = t }));
     }
 }

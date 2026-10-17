@@ -90,6 +90,12 @@ public sealed partial class EquipmentConnector
             var last = Text(s, "LastDeviceName");
             list.Add(new Device(slot, id, ShortName(slot.Kind, id, last), last ?? id));
         }
+        // 지금 장비 (장비 트리의 배운 값) — 카메라·적도의·포커서·전원 허브를 바꿔 끼우면 그 장비의 모델로 넘어간다.
+        // 등록 안 된 장비는 "없음"으로 남긴다 — 전에 쓰던 장비를 계속 들고 있지 않게 (2026-10-17 사용자)
+        if (learned is not null)
+            foreach (var d in list.Where(d => d.Slot.Kind is "camera" or "mount" or "focuser" or Hub))
+                if (d.Id is null) learned.SetAbsent(d.Slot.Kind);
+                else learned.SetCurrent(d.Slot.Kind, d.Slot.Kind == Hub ? d.Id : d.DriverName);
         return list;
     }
 

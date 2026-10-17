@@ -31,9 +31,9 @@ public class AbortUnansweredTests
         public IReadOnlyList<(string Port, string Name)> UsbSerialPorts() => [];
         public bool UsbPresent(string vid) => false;
         public string? DriverComPort(string kind, string id) => null;
-        public DateTimeOffset? EmpireStartedAt() => null;
+        public DateTimeOffset? HubAppStartedAt() => null;
         public DateTimeOffset? LastUsbInsertedAt() => null;
-        public void CloseEmpire() { }
+        public void CloseHubApp() { }
     }
 
     [Fact]

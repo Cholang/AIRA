@@ -228,8 +228,8 @@ public static partial class AppServer
             await home.StartAsync(ct) is { } why ? Results.Conflict(new { error = why }) : Results.Accepted());
         // 카메라 전원: 배터리(outlet=null) 또는 전원 허브 출력. 고를 수 있는 출력은 허브가 연결돼 있을 때의 쓰기 가능한 출력들
         api.MapGet("/equipment/camera-power", async (CameraPowerStore power, EquipmentConnector connector, CancellationToken ct) =>
-            Results.Ok(new { outlet = power.Outlet, outlets = await connector.HubOutputsAsync(ct) }));
-        // 출력을 고르는 것은 화면이 "Empire에서 그 출력 전압을 카메라 어댑터에 맞췄나요?"를 확인받은 뒤에만
+            Results.Ok(new { outlet = power.Outlet, outlets = await connector.HubOutputsAsync(ct), hubApp = connector.HubAppName }));
+        // 출력을 고르는 것은 화면이 "(허브 프로그램)에서 그 출력 전압을 카메라 어댑터에 맞췄나요?"를 확인받은 뒤에만 — hubApp = 지금 허브의 제조사 프로그램 이름(장비 › 전원 허브)
         api.MapPost("/equipment/camera-power", (CameraPowerChoice input, CameraPowerStore power) =>
         {
             power.Set(string.IsNullOrWhiteSpace(input.Outlet) ? null : input.Outlet);

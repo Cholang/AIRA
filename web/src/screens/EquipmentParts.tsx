@@ -225,7 +225,8 @@ const shortOutlet = (name: string) => (name.includes(':') ? name.slice(name.last
  * 아이라는 출력 전압을 읽거나 바꾸지 못하므로, 고를 때 Empire에서 전압을 맞췄는지 한 번 확인받는다 (실기: 7~8.4V 어댑터를 12V 출력에 꽂아 켜지지 않음)
  */
 export function CameraPower() {
-  const [state, setState] = useState<{ outlet: string | null; outlets: string[] } | null>(null)
+  // hubApp = 지금 허브의 제조사 프로그램 이름 (서버 장비 트리 — 예: Wanderer Empire). 프로그램이 없는 허브면 null
+  const [state, setState] = useState<{ outlet: string | null; outlets: string[]; hubApp?: string | null } | null>(null)
   const [asking, setAsking] = useState<string | null>(null)
   useEffect(() => {
     fetch('/api/equipment/camera-power')
@@ -253,7 +254,7 @@ export function CameraPower() {
       {state.outlets.length === 0 && <p className={styles.listNote}>전원 허브가 연결되면 허브 출력도 고를 수 있습니다</p>}
       <ConfirmDialog
         open={asking !== null}
-        message={`Wanderer Empire에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. ${PRODUCT.neun} 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
+        message={`${state?.hubApp ?? '허브 프로그램'}에서 ${asking ? shortOutlet(asking) : ''} 출력 전압을 카메라 전원 어댑터에 맞게(어댑터에 적힌 입력 범위 안, 예: 8V) 맞췄나요? 전압이 맞지 않으면 카메라나 어댑터가 상할 수 있습니다. ${PRODUCT.neun} 전압을 바꾸지 않고 켜고 끄기만 합니다.`}
         confirmLabel={BUTTON.done}
         size="md"
         onConfirm={() => {

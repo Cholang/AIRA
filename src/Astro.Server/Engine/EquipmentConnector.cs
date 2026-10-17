@@ -17,7 +17,7 @@ namespace Astro.Server.Engine;
 ///   단 전원 허브는 다른 장비에 전원을 주므로, 있으면 맨 먼저 연결하고 실패하면 뒤 장비는 보류한다
 /// 돔·안전 모니터·날씨 장치는 다루지 않는다.
 /// </summary>
-public sealed partial class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOptions> options, EquipmentSimulation sim, EquipmentChoices choices, RigOverrides overrides, LiveDevices live, OpticsStore optics, EquipmentRun state, DevicePrecheck.IHostDevices host, CameraPowerStore cameraPower, ILogger<EquipmentConnector> log, Profiles.PowerWiringStore? power = null, Prepare.Real.AscomAxis? axis = null)
+public sealed partial class EquipmentConnector(NinaApiClient nina, IOptions<EquipmentOptions> options, EquipmentSimulation sim, EquipmentChoices choices, RigOverrides overrides, LiveDevices live, OpticsStore optics, EquipmentRun state, DevicePrecheck.IHostDevices host, CameraPowerStore cameraPower, ILogger<EquipmentConnector> log, Profiles.PowerWiringStore? power = null, Prepare.Real.AscomAxis? axis = null, Equipment.EquipmentLearned? learned = null)
 {
     private const CheckSeverity Required = CheckSeverity.Required;
     private const CheckSeverity Recommended = CheckSeverity.Recommended;
@@ -368,11 +368,11 @@ public sealed partial class EquipmentConnector(NinaApiClient nina, IOptions<Equi
                 // N.I.N.A. 오류 알림·2분 기다림 없이. 허브 USB 출력을 막 켰을 수 있어 USB 장치는 10초까지 기다려 본다
                 if (!connectedNow)
                 {
-                    if (kind == Hub && DevicePrecheck.EmpireStale(host))
+                    if (kind == Hub && DevicePrecheck.HubAppStale(host))
                     {
                         // Empire가 켜진 뒤 USB가 다시 꽂힘 → Empire가 허브와 끊겨 있을 수 있다. 닫아 두면 N.I.N.A. 연결이 새로 띄우며 자동으로 연결 (10/09 실기)
-                        log.LogInformation("Empire가 켜진 뒤 USB 장치가 새로 꽂혀 Empire를 다시 켭니다");
-                        await Task.Run(host.CloseEmpire, ct);
+                        log.LogInformation("허브 프로그램이 켜진 뒤 USB 장치가 새로 꽂혀 다시 켭니다");
+                        await Task.Run(host.CloseHubApp, ct);
                     }
                     // 기다리지 않고 한 번만 확인한다 (2026-10-10 사용자 결정 — 기록상 꺼진 장비를 10초씩 기다린 게 대부분: 안 되면 바로 실패 + 다시 연결).
                     // 다만 이번에 아이라가 허브 출력(USB 등)을 막 켰으면 USB 장치가 나타나는 데 몇 초 걸려 켠 뒤 10초까지만 남은 만큼 기다린다

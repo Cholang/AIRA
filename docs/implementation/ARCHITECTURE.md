@@ -167,7 +167,9 @@ NINA에서 장비를 연결하려면 지금은 이렇게 해야 한다.
 ├─ 가이드 카메라                       [종류] ── 가이드 카메라 특성 [틀]: USB 번호 (게인 범위·픽셀은 PHD2·SharpCap이 알려 줌)
 │   ├─ ToupTek (G3M662M) · ZWO · QHY    [모델] ── 0547 · 03C3 · 1618
 │   └─ 모르는 가이드 카메라              [기본 모델]
-├─ 전원 허브                           [종류] (아직)
+├─ 전원 허브                           [종류] ── 전원 허브 특성 [틀]: 제조사 프로그램 · USB 번호 · 환경 센서 드라이버 · 열선 자동 표시
+│   ├─ WandererBox                      [모델] ── Wanderer Empire(시작 로고 "startup", ASCOM 서버 WandererBox1·2) · 1A86 · WandererBoxEnvironment · "Automatic control"
+│   └─ 모르는 전원 허브                  [기본 모델] ── 없음 (제조사 프로그램·센서 없음)
 └─ 필터휠 · 회전기 · 플랫 패널           [종류] (필요해지면)
 ```
 
@@ -191,6 +193,8 @@ NINA에서 장비를 연결하려면 지금은 이렇게 해야 한다.
 적도의 모델을 읽는 곳: 극 찾기 회전(`RealPolarDevices.FindPoleAsync` — `NinaRig.MountModelAsync`, N.I.N.A. 적도의 정보의 이름·드라이버), 극 찾기 전 홈 되돌리기(`ReturnToStartAsync` — 홈 센서가 없으면 홈 명령 없이 사용자가 옮김). 드라이버가 그때그때 알려 주는 능력(축 돌리기·Sync 가능 등)은 특성에 두지 않고 그 자리에서 묻는다. 자오선 반전 시점(자오선 지나 1.25°)은 아직 아이라 공통 규칙 — 적도의의 자오선 한계 값을 읽게 되면 특성으로.
 
 포커서 모델을 읽는 곳: 0점 잡기(`RealFocusDevices.ZeroIfRequestedAsync`), 최대 위치(`LimitsAsync`·`MoveAsync` — 설정 Prepare:FocuserMax가 먼저), 멈춤 안내(`FocusTask` ← `IFocusDevices.StallFixAsync`), 연결 전 USB 확인(`DevicePrecheck.UsbVendor`). 가이드 카메라 모델: 연결 전 USB 확인(`DevicePrecheck.GuideCameraVendor` — PHD2 카메라 이름). 카메라 모델도 USB 번호를 갖는다(후지 04CB · 캐논 04A9 · 니콘 04B0 · 소니 054C — 캐논·니콘·소니는 값은 기본 모델과 같고 USB 번호만).
+
+전원 허브 모델을 읽는 곳: 제조사 프로그램 미리 켜기(`EngineStarter.WarmUp`)·창 숨기기와 시작 로고(`BackgroundWindows.HubApps`·`IsSplash`)·종료 창 목록과 닫기(`ProgramCloser` — 이름표 "empire")·USB를 다시 꽂았을 때 다시 켜기(`DevicePrecheck.HubAppStale`·`CloseHubApp`), 연결 전 USB 확인(`DevicePrecheck.UsbVendor`), 기온·습도(`AscomWeather.DriverId` — 센서가 없는 허브면 읽지 않음), 열선 자동 여부(`NinaRig.DewHeaterAsync`), 안내 문장의 프로그램 이름(`EquipmentConnector.HubAppName` → 화면 카메라 전원 확인 `hubApp`). 지금 허브는 장비 연결이 N.I.N.A. 프로필을 읽을 때(`ReadDevicesAsync` — 카메라·적도의·포커서도 함께) 정해진다. 등록 안 된 장비는 "없음"으로 남기고(`EquipmentLearned.SetAbsent` — 전에 쓰던 장비를 계속 들고 있지 않게), 허브가 없거나 아직 모르면(처음 설치한 날) `HubCatalog.Current`가 null — 없는 것으로 다룬다(제조사 프로그램 미리 켜기·날씨 센서·안내 문장 없음, 2026-10-17 사용자). 창 숨기기·닫기처럼 쓰지 않는 제조사의 것이 섞여도 해가 없는 곳은 아는 모든 허브의 프로그램(`AllApps`)을 본다.
 
 카메라 모델을 읽는 곳: 사진 밝기 눈금·바닥(`Fits.Analyze` — 사진 머리글의 카메라 이름), 노출 중단(`NinaRig.AbortExposureAsync` — N.I.N.A. 카메라 정보), 플랫 눈금(`RealWrapDevices` — `NinaRig.CameraModelAsync`), 9칸 확대 보기의 색 무늬 평균(`TestTiles`), 별 모양 평균(`StarShapes`), 계획 장수·끝 시각(`Rig.FrameOverheadSeconds` → `ShootAmount.Of`). 배운 값: 장 사이 쉬는 시간 — 촬영이 끝날 때 그 밤의 중앙값(`Shoot/FrameGap` → `CameraLearned.RecordFrameOverhead`), 지금 카메라는 N.I.N.A. 프로필을 읽을 때(`TonightService`).
 

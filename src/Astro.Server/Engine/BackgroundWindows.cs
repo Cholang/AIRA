@@ -17,13 +17,14 @@ public static class BackgroundWindows
 {
     public const string Nina = "NINA";
     public const string Phd2 = "phd2";
-    public const string WandererEmpire = "Wanderer Empire";
+    /// <summary>전원 허브의 제조사 프로그램 창 이름 (장비 › 전원 허브 — 아는 모든 허브: 쓰지 않는 제조사의 것이 섞여도 그 창이 없으면 아무 일 없다)</summary>
+    public static string[] HubApps => [.. Equipment.Hub.HubCatalog.AllApps.Select(a => a.Process)];
 
-    /// <summary>장비 연결 중 저절로 켜지는 프로그램: 가이더 → PHD2, 전원 허브 → Wanderer Empire. 없으면 null</summary>
+    /// <summary>장비 연결 중 저절로 켜지는 프로그램: 가이더 → PHD2, 전원 허브 → 그 허브의 제조사 프로그램(Wanderer Empire 등). 없으면 null</summary>
     public static IDisposable? ForConnect(string kind) => kind switch
     {
         "guider" => Watch(TimeSpan.FromSeconds(5), Phd2),
-        "switch" => Watch(TimeSpan.FromSeconds(5), WandererEmpire),
+        "switch" => Watch(TimeSpan.FromSeconds(5), HubApps),
         _ => null,
     };
 
@@ -159,6 +160,10 @@ public static class BackgroundWindows
     private static readonly nint HwndBottom = 1, HwndTopmost = -1, HwndNoTopmost = -2;
     private const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
 
-    /// <summary>Wanderer Empire 시작 로고 창인가 (2026-10-10 실측: 제목 "startup", 숨은 창에 딸린 "항상 위" WinForms 창)</summary>
-    private static bool IsSplash(nint h) => string.Equals(Title(h).Trim(), "startup", StringComparison.OrdinalIgnoreCase);
+    /// <summary>허브 제조사 프로그램의 시작 로고 창인가 (허브 모델의 SplashTitle — Wanderer Empire: 2026-10-10 실측 제목 "startup", 숨은 창에 딸린 "항상 위" WinForms 창)</summary>
+    private static bool IsSplash(nint h)
+    {
+        var title = Title(h).Trim();
+        return Equipment.Hub.HubCatalog.AllApps.Any(a => a.SplashTitle is { } s && string.Equals(title, s, StringComparison.OrdinalIgnoreCase));
+    }
 }

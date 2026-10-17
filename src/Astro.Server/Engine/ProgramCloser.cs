@@ -15,15 +15,18 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
     /// <summary>
     /// 닫는 차례: N.I.N.A.를 먼저 (2026-10-10 기록: PHD2를 먼저 닫자 N.I.N.A.가 "PHD2 서버 연결이 끊어졌습니다" 오류 창을 띄웠고,
     /// 아이라가 꺼지는 중이라 사용자가 내용을 볼 수도 없었다) → PHD2 → SharpCap(극축 정렬 중에 끄면 남아 있을 수 있음) →
-    /// Wanderer Empire(아이라가 켜진 뒤 장비 연결이 켠 것만, 그 ASCOM 서버까지 — N.I.N.A.가 닫힌 뒤에만)
+    /// 전원 허브의 제조사 프로그램(Wanderer Empire 등 — 장비 › 전원 허브, 그 ASCOM 서버까지 — N.I.N.A.가 닫힌 뒤에만)
     /// </summary>
     private static readonly (string Id, string Name, string[] Processes)[] Order =
     [
         ("nina", "N.I.N.A.", ["NINA"]),
         ("phd2", "PHD2", ["phd2"]),
         ("sharpcap", "SharpCap", ["SharpCap"]),
-        ("empire", "Wanderer Empire", [BackgroundWindows.WandererEmpire, "ASCOM.WandererBox1", "ASCOM.WandererBox2"]),
+        .. Equipment.Hub.HubCatalog.AllApps.Select(a => (a.Id, a.Name, a.AllProcesses.ToArray())),
     ];
+
+    /// <summary>허브 제조사 프로그램인가 (아이라가 켜진 뒤 켜진 것만 닫는 특별한 닫기)</summary>
+    private static bool IsHubApp(string id) => Equipment.Hub.HubCatalog.AllApps.Any(a => a.Id == id);
 
     /// <summary>아이라(서버)가 켜진 시각 — 이 뒤에 켜진 Wanderer Empire는 아이라의 장비 연결이 켠 것</summary>
     private static readonly DateTime StartedAt = Process.GetCurrentProcess().StartTime;
@@ -61,9 +64,9 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
         if (entry.Id is null) return false;
         if (id == "nina") watcher.ExpectExit(); // 정상 종료 — 화면에 "N.I.N.A.가 꺼졌어요"를 띄우지 않는다 (CX-APP-R4)
         else if (!ninaDisconnected && Running(["NINA"], onlyOurs: false)) return false; // 장비 연결을 끊은 N.I.N.A.는 남겨도 된다 (DisconnectNinaAsync)
-        if (id == "empire")
+        if (IsHubApp(id))
         {
-            CloseEmpireStartedSince(onlyOurs ? StartedAt : DateTime.MinValue, entry.Processes);
+            CloseHubAppStartedSince(onlyOurs ? StartedAt : DateTime.MinValue, entry.Processes);
             return !Running(entry.Processes, onlyOurs);
         }
         var all = true;
@@ -94,7 +97,8 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
         watcher.ExpectExit();
         foreach (var id in new[] { "nina", "phd2", "sharpcap" })
             all &= await CloseOneAsync(id, ct, onlyOurs: false);
-        if (all) await CloseOneAsync("empire", ct);
+        if (all)
+            foreach (var app in Equipment.Hub.HubCatalog.AllApps) await CloseOneAsync(app.Id, ct);
         return all;
     }
 
@@ -126,7 +130,7 @@ public sealed class ProgramCloser(NinaWatcher watcher, ILogger<ProgramCloser> lo
     /// 아이라가 켜진 뒤에 켜진 Wanderer Empire(와 그 ASCOM 서버)를 닫는다 (2026-10-10 사용자 요청 — 아이라가 켰으면 끝낼 때도).
     /// 그 전부터 켜져 있던 Empire(사용자가 켜 둔 것)는 그대로. 파워박스 출력의 켜짐·꺼짐은 장치에 남는다
     /// </summary>
-    private void CloseEmpireStartedSince(DateTime since, string[] processes)
+    private void CloseHubAppStartedSince(DateTime since, string[] processes)
     {
         foreach (var name in processes)
             foreach (var p in Process.GetProcessesByName(name))
