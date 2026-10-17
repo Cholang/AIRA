@@ -26,7 +26,7 @@
 2. `HISTORY.md` — 맨 위부터 `e9c30a9` 항목까지가 이번 범위
 3. `docs/implementation/ARCHITECTURE.md` 4.8 "장비 트리"(용어: 장비 → 종류 → 특성·모델·기본 모델, 배운 값·지금 장비)
 4. `docs/OPERATION_PROCEDURE.md` — 아래 표의 "기준"에 적은 절
-5. `docs/FIELD_TEST_CHECKLIST.md` — 실기 미확인 항목은 결함으로 세지 않는다
+5. `docs/test/USER_TESTS.md`·`docs/test/CLAUDE_TESTS.md` — 실기 미확인 항목은 결함으로 세지 않는다
 6. `git diff 4ed2348..HEAD`
 
 ### 변경 묶음과 의심해 볼 곳 (위가 먼저)
@@ -51,7 +51,7 @@
 
 ### 빼는 것
 
-- [임시] 건너뛰기·모의 실패 버튼, 폰 화면, `FIELD_TEST_CHECKLIST.md`의 실기 미확인 항목, [임시]·[확인 필요] 기준값(노출 맞추기 목표 7%, 모르는 적도의 45° 등), 문구·모양 취향, 시안(`mockups/`)·UI 텍스트 검수 도구(`docs/textedit/`).
+- [임시] 건너뛰기·모의 실패 버튼, 폰 화면, `docs/test/`의 실기 미확인 항목, [임시]·[확인 필요] 기준값(노출 맞추기 목표 7%, 모르는 적도의 45° 등), 문구·모양 취향, 시안(`mockups/`)·UI 텍스트 검수 도구(`docs/textedit/`).
 
 ### 쓰는 방식 (기존 절과 같게)
 

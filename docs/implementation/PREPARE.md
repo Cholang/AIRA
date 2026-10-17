@@ -149,4 +149,4 @@ web/src/  screens/PrepareScreen.tsx · components/PrepGuide·PrepCenter·LiveVie
 
 ## 7. 실기 확인과 남은 것
 
-맑은 날·실기로 확인할 것과 아직 만들지 않은 것은 [FIELD_TEST_CHECKLIST.md](../FIELD_TEST_CHECKLIST.md)에 모은다.
+맑은 날·실기로 확인할 것은 [docs/test/](../test/USER_TESTS.md)(사용자·Claude 확인 목록)에, 아직 만들지 않은 것은 OPERATION_PROCEDURE.md의 [계획]에 모은다.

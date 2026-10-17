@@ -8,7 +8,7 @@
 | 아이라가 **무엇을 하는지** | 이 문서 |
 | **어떻게 만들었나**(코드 구조·API) | [docs/implementation/PREPARE.md](implementation/PREPARE.md) · [docs/implementation/SHOOT.md](implementation/SHOOT.md) · [docs/implementation/PRECHECK.md](implementation/PRECHECK.md) · [docs/implementation/POWER_WIRING.md](implementation/POWER_WIRING.md) |
 | 언제·왜 바뀌었나 | [DECISION_HISTORY.md](DECISION_HISTORY.md)(이 문서의 이력도 같은 절 제목으로) · [HISTORY.md](../HISTORY.md) |
-| 실기로 확인할 것 | [FIELD_TEST_CHECKLIST.md](FIELD_TEST_CHECKLIST.md) |
+| 확인할 것 | [사용자](test/USER_TESTS.md) · [Claude](test/CLAUDE_TESTS.md) |
 
 표시: **[임시]** 사용자가 아직 확정하지 않은 것 · **[계획]** 정했지만 아직 만들지 않음 · **[확인 필요]** 사용자 결정을 기다림. 지금 유효한 규칙만 두고, 바뀌면 옛 문장을 고치고 이력은 DECISION_HISTORY.md에.
 
